@@ -1,0 +1,38 @@
+# ==============================================================================
+# .NET / C# Build & Compiler Artifacts
+# ==============================================================================
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Tt]est[Rr]esults/
+*.binlog
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]uild/
+
+# Visual Studio & IDEs
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+.idea/
+*.sln.iml
+
+# Secrets & Local Configurations
+appsettings*.local.json
+appsettings.Production.json
+secrets.json
+.env
+.env.*
+!.env.example
+
+# OS Files
+.DS_Store
+Thumbs.db

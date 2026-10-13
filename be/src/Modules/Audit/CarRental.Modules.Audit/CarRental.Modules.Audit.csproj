@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CarRental.Modules.Audit.Contracts\CarRental.Modules.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="WolverineFx" />
+  </ItemGroup>
+
+</Project>
