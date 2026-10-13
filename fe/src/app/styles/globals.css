@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   DESIGN TOKENS — Enterprise Obsidian & Crisp Cobalt Foundation
+   Eliminates generic AI-slop purple hues and pastel washes.
+   ========================================================================== */
+:root {
+  /* Surface & Base */
+  --background: 240 6% 97.5%;
+  --foreground: 240 10% 3.9%;
+
+  /* High-contrast Cards */
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+
+  /* Popover */
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+
+  /* High-Performance Precision Blue */
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+
+  /* Subtle Surfaces */
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+
+  --accent: 240 4.8% 93%;
+  --accent-foreground: 240 5.9% 10%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  /* Clean Crisp Dividers */
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 221.2 83.2% 53.3%;
+
+  --sidebar: 0 0% 100%;
+  --radius: 0.5rem;
+}
+
+/* Dark Mode: Deep Obsidian / Linear-style Monochromatic Precision */
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+
+  --card: 240 10% 5.5%;
+  --card-foreground: 0 0% 98%;
+
+  --popover: 240 10% 6%;
+  --popover-foreground: 0 0% 98%;
+
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 240 3.7% 12%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 240 3.7% 12%;
+  --muted-foreground: 240 5% 64.9%;
+
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 240 3.7% 14.5%;
+  --input: 240 3.7% 14.5%;
+  --ring: 217.2 91.2% 59.8%;
+
+  --sidebar: 240 10% 4.5%;
+}
+
+/* ==========================================================================
+   BASE STYLING & TYPOGRAPHY
+   ========================================================================== */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.015em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+
+  /* Monospace metrics font */
+  .font-mono,
+  .tabular-nums {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-feature-settings: 'tnum' on, 'zero' on;
+  }
+
+  /* Sleek Minimalist Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+/* ==========================================================================
+   ENTERPRISE UI UTILITIES & TOKENS
+   ========================================================================== */
+@layer utilities {
+  .bg-background      { background-color: hsl(var(--background)); }
+  .bg-card            { background-color: hsl(var(--card)); }
+  .bg-sidebar         { background-color: hsl(var(--sidebar)); }
+  .bg-muted           { background-color: hsl(var(--muted)); }
+  .bg-accent          { background-color: hsl(var(--accent)); }
+  .bg-primary         { background-color: hsl(var(--primary)); }
+  .bg-secondary       { background-color: hsl(var(--secondary)); }
+  .bg-destructive     { background-color: hsl(var(--destructive)); }
+
+  .text-foreground          { color: hsl(var(--foreground)); }
+  .text-card-foreground     { color: hsl(var(--card-foreground)); }
+  .text-muted-foreground    { color: hsl(var(--muted-foreground)); }
+  .text-accent-foreground   { color: hsl(var(--accent-foreground)); }
+  .text-primary             { color: hsl(var(--primary)); }
+  .text-primary-foreground  { color: hsl(var(--primary-foreground)); }
+  .text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+  .text-destructive         { color: hsl(var(--destructive)); }
+  .text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
+
+  .border-border      { border-color: hsl(var(--border)); }
+  .border-input       { border-color: hsl(var(--input)); }
+  .ring-ring          { --tw-ring-color: hsl(var(--primary)); }
+
+  /* Alpha layers for tactile feel */
+  .bg-primary\/10     { background-color: hsl(var(--primary) / 0.1); }
+  .bg-primary\/15     { background-color: hsl(var(--primary) / 0.15); }
+  .bg-primary\/90     { background-color: hsl(var(--primary) / 0.9); }
+  .bg-destructive\/10 { background-color: hsl(var(--destructive) / 0.1); }
+  .bg-muted\/20       { background-color: hsl(var(--muted) / 0.2); }
+  .bg-muted\/30       { background-color: hsl(var(--muted) / 0.3); }
+  .bg-muted\/50       { background-color: hsl(var(--muted) / 0.5); }
+  .bg-muted\/80       { background-color: hsl(var(--muted) / 0.8); }
+
+  /* Technical Blueprint Grid Pattern */
+  .bg-blueprint {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Micro Interactions */
+  .active-press {
+    transition: transform 100ms ease, opacity 100ms ease;
+  }
+  .active-press:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+@layer utilities {
+  @keyframes fade-in    { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out   { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes zoom-in-95 { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes slide-in-down { from { transform: translateY(-6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .animate-in { animation-duration: 160ms; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); animation-fill-mode: both; }
+  .animate-out { animation-duration: 100ms; animation-timing-function: ease-in; animation-fill-mode: both; }
+
+  .fade-in-0  { animation-name: fade-in; }
+  .fade-out-0 { animation-name: fade-out; }
+  .zoom-in-95 { animation-name: zoom-in-95; }
+}
