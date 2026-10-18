@@ -37,5 +37,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/CarRental.ArchitectureTests/CarRental.ArchitectureTests.csproj" />
+    <Project Path="tests/CarRental.BuildingBlocks.Tests/CarRental.BuildingBlocks.Tests.csproj" />
   </Folder>
 </Solution>
