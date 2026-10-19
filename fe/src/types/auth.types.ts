@@ -4,6 +4,14 @@ export interface LoginRequest {
   password: string
 }
 
+export interface RegisterRequest {
+  fullName: string
+  username: string
+  email: string
+  phone: string
+  password: string
+}
+
 // Auth response DTOs
 export interface TokenResponse {
   accessToken: string
@@ -21,7 +29,12 @@ export interface AuthUser {
   avatar?: string
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF'
+export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER'
+
+/** Roles that have access to the admin dashboard */
+export const ADMIN_ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'STAFF']
+/** Roles that are end-customers using the PWA */
+export const CUSTOMER_ROLES: UserRole[] = ['CUSTOMER']
 
 // Refresh token request
 export interface RefreshTokenRequest {

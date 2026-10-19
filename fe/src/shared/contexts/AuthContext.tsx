@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { AuthState, AuthUser } from '@/types/auth.types'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
+import { safeBase64Decode } from '@/shared/utils'
 
 interface AuthContextValue extends AuthState {
   login: (user: AuthUser, accessToken: string, refreshToken: string) => void
@@ -15,7 +16,8 @@ function parseUserFromToken(): AuthUser | null {
   const token = localStorage.getItem(TOKEN_KEY)
   if (!token) return null
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const jsonStr = safeBase64Decode(token.split('.')[1])
+    const payload = JSON.parse(jsonStr)
     // Verify the token hasn't expired
     if (payload.exp && payload.exp * 1000 < Date.now()) {
       return null

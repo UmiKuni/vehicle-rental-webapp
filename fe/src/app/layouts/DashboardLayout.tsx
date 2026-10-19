@@ -155,10 +155,14 @@ export function DashboardLayout() {
         {/* User Footer */}
         <div className="border-t border-border p-3.5">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-white font-mono">
+            <Link
+              to={ROUTES.PROFILE}
+              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-white font-mono hover:ring-2 hover:ring-primary/50 transition-all"
+              title="Xem hồ sơ"
+            >
               {getInitials(user?.fullName ?? 'U')}
               <span className="absolute bottom-0 right-0 size-2 rounded-full border-2 border-sidebar bg-emerald-500" />
-            </div>
+            </Link>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold text-foreground">{user?.fullName}</p>
               <p className="truncate text-[11px] text-muted-foreground font-mono">@{user?.username} • {user?.role}</p>

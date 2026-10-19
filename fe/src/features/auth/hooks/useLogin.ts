@@ -5,6 +5,7 @@ import { authApi } from '../api/auth.api'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { getErrorMessage } from '@/shared/lib/query-client'
 import { ROUTES } from '@/shared/constants'
+import { CUSTOMER_ROLES } from '@/types/auth.types'
 import type { LoginFormValues } from '../schemas/login.schema'
 
 export function useLogin() {
@@ -16,7 +17,8 @@ export function useLogin() {
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
       toast.success(`Chào mừng, ${user.fullName}!`)
-      navigate(ROUTES.DASHBOARD, { replace: true })
+      const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
+      navigate(destination, { replace: true })
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))
