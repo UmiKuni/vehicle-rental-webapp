@@ -43,11 +43,11 @@ export default function SearchVehiclesPage() {
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5 font-bold text-foreground">
             <Car className="size-4 text-[#1a8a9d]" />
-            <span>{vehicles.length} dòng xe sẵn sàng đón bạn</span>
+            <span>{vehicles.length} models ready for pickup</span>
           </div>
           <span className="flex items-center gap-1 text-[11px] text-[#1a8a9d] font-semibold">
             <Sparkles className="size-3" />
-            Xe tự lái 100%
+            100% Self-Drive
           </span>
         </div>
 
@@ -65,9 +65,9 @@ export default function SearchVehiclesPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground mb-3">
               <FilterX className="size-7" />
             </div>
-            <h3 className="font-bold text-foreground text-sm">Không tìm thấy xe phù hợp</h3>
+            <h3 className="font-bold text-foreground text-sm">No matching vehicles found</h3>
             <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-              Thử xóa từ khóa tìm kiếm hoặc chọn loại xe khác để xem thêm kết quả.
+              Try clearing your search query or selecting a different vehicle category.
             </p>
             <button
               type="button"
@@ -78,7 +78,7 @@ export default function SearchVehiclesPage() {
               }}
               className="mt-4 rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold hover:bg-muted"
             >
-              Đặt lại bộ lọc
+              Reset Filters
             </button>
           </div>
         )}

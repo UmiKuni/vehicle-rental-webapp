@@ -12,22 +12,22 @@ interface Props {
 }
 
 const VEHICLE_OPTIONS: { value: VehicleInterest; label: string; icon: typeof Bike; desc: string }[] = [
-  { value: 'MOTORBIKE', label: 'Xe máy', icon: Bike, desc: 'Mô tô, xe ga, xe số' },
-  { value: 'CAR_4_SEAT', label: 'Ô tô 4 chỗ', icon: CarIcon, desc: 'Sedan, Hatchback, Coupe' },
-  { value: 'CAR_7_SEAT', label: 'Ô tô 7 chỗ', icon: Car, desc: 'SUV, Minivan, MPV' },
-  { value: 'TRUCK', label: 'Xe tải', icon: Truck, desc: 'Xe tải nhỏ, pick-up' },
-  { value: 'ELECTRIC', label: 'Xe điện', icon: Zap, desc: 'EV, Hybrid' },
+  { value: 'MOTORBIKE', label: 'Motorbike', icon: Bike, desc: 'Scooter, moped, manual motorcycle' },
+  { value: 'CAR_4_SEAT', label: '4-Seat Car', icon: CarIcon, desc: 'Sedan, Hatchback, Coupe' },
+  { value: 'CAR_7_SEAT', label: '7-Seat Car', icon: Car, desc: 'SUV, Minivan, MPV' },
+  { value: 'TRUCK', label: 'Truck', icon: Truck, desc: 'Light truck, pickup' },
+  { value: 'ELECTRIC', label: 'Electric Vehicle', icon: Zap, desc: 'EV, Hybrid' },
 ]
 
 const LICENSE_CLASSES: { value: LicenseClass; label: string; desc: string }[] = [
-  { value: 'A1', label: 'A1', desc: 'Mô tô ≤ 175cc' },
-  { value: 'A2', label: 'A2', desc: 'Mô tô > 175cc' },
-  { value: 'B1', label: 'B1', desc: 'Ô tô ≤ 9 chỗ (không hành nghề)' },
-  { value: 'B2', label: 'B2', desc: 'Ô tô ≤ 9 chỗ (hành nghề)' },
-  { value: 'INTERNATIONAL', label: 'Bằng quốc tế (IDP)', desc: 'Bằng lái xe quốc tế (International Driving Permit)' },
-  { value: 'C', label: 'C', desc: 'Xe tải' },
-  { value: 'D', label: 'D', desc: 'Xe khách ≤ 30 chỗ' },
-  { value: 'E', label: 'E', desc: 'Xe khách > 30 chỗ' },
+  { value: 'A1', label: 'A1', desc: 'Motorcycle ≤ 175cc' },
+  { value: 'A2', label: 'A2', desc: 'Motorcycle > 175cc' },
+  { value: 'B1', label: 'B1', desc: 'Car ≤ 9 seats (non-commercial)' },
+  { value: 'B2', label: 'B2', desc: 'Car ≤ 9 seats (commercial)' },
+  { value: 'INTERNATIONAL', label: 'International (IDP)', desc: 'International Driving Permit (IDP)' },
+  { value: 'C', label: 'C', desc: 'Truck' },
+  { value: 'D', label: 'D', desc: 'Passenger vehicle ≤ 30 seats' },
+  { value: 'E', label: 'E', desc: 'Passenger vehicle > 30 seats' },
 ]
 
 export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
@@ -53,8 +53,8 @@ export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
       {/* Vehicle type multi-select */}
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">Loại phương tiện quan tâm</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Chọn một hoặc nhiều loại</p>
+          <p className="text-sm font-semibold text-foreground">Vehicle Types of Interest</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Select one or more types</p>
         </div>
 
         <Controller
@@ -121,14 +121,14 @@ export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
       {/* Has license toggle */}
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">Bạn có bằng lái xe không?</p>
+          <p className="text-sm font-semibold text-foreground">Do you have a driver's license?</p>
         </div>
         <Controller
           name="hasLicense"
           control={control}
           render={({ field }) => (
             <div className="flex gap-3">
-              {[{ value: true, label: 'Có bằng lái' }, { value: false, label: 'Chưa có' }].map(
+              {[{ value: true, label: 'Yes, I have one' }, { value: false, label: 'No, I do not' }].map(
                 ({ value, label }) => (
                   <button
                     key={String(value)}
@@ -154,7 +154,7 @@ export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
       {hasLicense && (
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-semibold text-foreground">Hạng bằng lái</p>
+            <p className="text-sm font-semibold text-foreground">Driver's License Class</p>
           </div>
           <Controller
             name="licenseClass"
@@ -189,7 +189,7 @@ export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
       {/* Selected summary */}
       {selectedInterests.length > 0 && (
         <div className="rounded-xl bg-muted/40 border border-border p-3.5 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Đã chọn:</span>{' '}
+          <span className="font-semibold text-foreground">Selected:</span>{' '}
           {selectedInterests
             .map((i) => VEHICLE_OPTIONS.find((o) => o.value === i)?.label)
             .join(', ')}
@@ -200,7 +200,7 @@ export function KycStep1VehicleType({ defaultValues, onNext }: Props) {
         type="submit"
         className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm flex items-center justify-center gap-2 active-press"
       >
-        Tiếp theo
+        Continue
         <ChevronRight className="size-4" />
       </Button>
     </form>

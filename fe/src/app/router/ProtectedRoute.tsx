@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import type { UserRole } from '@/types/auth.types'
-import { ADMIN_ROLES, CUSTOMER_ROLES } from '@/types/auth.types'
+import { CUSTOMER_ROLES } from '@/types/auth.types'
 import { ROUTES } from '@/shared/constants'
 
 interface ProtectedRouteProps {
@@ -26,7 +26,7 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // Role-based guard: if specific roles required, redirect if user doesn't match
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // CUSTOMER đi về profile, staff/admin đi về dashboard
+    // CUSTOMER redirects to profile, staff/admin redirects to dashboard
     const fallback = CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
     return <Navigate to={fallback} replace />
   }
@@ -35,9 +35,9 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 }
 
 /**
- * Guard cho trang PWA Profile & KYC:
- * Cho phép tất cả người dùng đã xác thực (CUSTOMER, ADMIN, MANAGER, STAFF)
- * truy cập để xem hồ sơ và thực hiện KYC.
+ * Guard for PWA Profile & KYC pages:
+ * Allows all authenticated users (CUSTOMER, ADMIN, MANAGER, STAFF)
+ * to access their profile and complete KYC.
  */
 export function CustomerRoute() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -59,8 +59,8 @@ export function CustomerRoute() {
 }
 
 /**
- * Guard chỉ cho ADMIN/MANAGER/STAFF vào (dùng cho DashboardLayout routes).
- * CUSTOMER bị redirect về profile.
+ * Guard allowing only ADMIN/MANAGER/STAFF (used for DashboardLayout routes).
+ * CUSTOMER is redirected to vehicle search.
  */
 export function AdminRoute() {
   const { isAuthenticated, isLoading, user } = useAuth()
@@ -74,9 +74,9 @@ export function AdminRoute() {
     )
   }
 
-  // Khách chưa đăng nhập:
-  // Nếu vào trang chủ '/' → dẫn sang '/search' để xem danh sách xe công khai
-  // Nếu vào trang admin khác (như '/users') → dẫn sang '/login'
+  // Unauthenticated guests:
+  // If navigating to root '/' -> redirect to '/search' for public vehicle browsing
+  // If navigating to admin subpages (such as '/users') -> redirect to '/login'
   if (!isAuthenticated) {
     if (location.pathname === '/' || location.pathname === ROUTES.DASHBOARD) {
       return <Navigate to={ROUTES.SEARCH} replace />
@@ -84,7 +84,7 @@ export function AdminRoute() {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
-  // CUSTOMER vào trang admin → redirect về trang tìm thuê xe
+  // CUSTOMER entering admin routes -> redirect to vehicle search page
   if (user && CUSTOMER_ROLES.includes(user.role)) {
     return <Navigate to={ROUTES.SEARCH} replace />
   }

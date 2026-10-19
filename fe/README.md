@@ -1,13 +1,13 @@
 # 🚗 Vehicle Rental — Frontend
 
-Admin Dashboard cho hệ thống quản lý thuê xe, xây dựng theo chuẩn **Production-Ready React**.
+Admin Dashboard & Mobile PWA for vehicle rental management, built according to **Production-Ready React** standards.
 
 ---
 
 ## ⚡ Tech Stack
 
-| Lớp | Công nghệ |
-|-----|-----------|
+| Layer | Technology |
+|---|---|
 | Framework | React 19 + TypeScript (Strict) + Vite 8 |
 | Styling | Tailwind CSS v4 + shadcn/ui primitives (Radix UI) |
 | Server State | TanStack Query v5 |
@@ -22,14 +22,15 @@ Admin Dashboard cho hệ thống quản lý thuê xe, xây dựng theo chuẩn *
 
 ---
 
-## 🗂️ Cấu trúc thư mục
+## 🗂️ Directory Structure
 
 ```
 fe/
 ├── src/
 │   ├── app/
 │   │   ├── layouts/
-│   │   │   └── DashboardLayout.tsx   # Sidebar + Topbar layout
+│   │   │   ├── DashboardLayout.tsx   # Sidebar + Topbar layout (Desktop)
+│   │   │   └── MobileLayout.tsx      # Bottom Navigation layout (Mobile/PWA)
 │   │   ├── providers/
 │   │   │   └── AppProviders.tsx      # QueryClient + Theme + Auth
 │   │   ├── router/
@@ -60,10 +61,13 @@ fe/
 │   │   │   ├── hooks/useUsers.ts      # Query + Mutation hooks
 │   │   │   ├── pages/UsersPage.tsx
 │   │   │   └── schemas/user.schema.ts # Zod schemas
+│   │   ├── vehicles/
+│   │   ├── bookings/
+│   │   ├── profile/
 │   │   └── not-found/
 │   │       └── pages/NotFoundPage.tsx
 │   │
-│   ├── shared/                        # Tái sử dụng toàn cục
+│   ├── shared/                        # Shared across the application
 │   │   ├── components/
 │   │   │   ├── common/
 │   │   │   │   ├── Pagination.tsx
@@ -107,9 +111,9 @@ fe/
 
 ---
 
-## 🚀 Hướng dẫn chạy
+## 🚀 Getting Started
 
-### 1. Clone và cài đặt
+### 1. Clone and Install Dependencies
 
 ```bash
 cd fe
@@ -117,7 +121,7 @@ cp .env.example .env
 npm install
 ```
 
-### 2. Chạy development server
+### 2. Run Development Server
 
 ```bash
 npm run dev
@@ -126,22 +130,22 @@ npm run dev
 
 > **Demo login:** username `admin` / password `admin123`
 >
-> Mock API tự động hoạt động trong dev mode — không cần backend.
+> Mock API runs automatically in development mode — no backend required.
 
-### 3. Kết nối Backend thực
+### 3. Connect to Real Backend
 
-Khi backend Spring Boot đã sẵn sàng:
+When the backend (e.g. Spring Boot) is ready:
 
-1. Sửa `.env`:
+1. Update `.env`:
    ```env
    VITE_API_BASE_URL=http://localhost:8080/api
    ```
-2. Xoá hoặc disable import mock API trong `src/main.tsx`:
+2. Disable the mock API in `src/main.tsx`:
    ```ts
-   // import './shared/lib/mock-api' ← Bỏ comment này
+   // import './shared/lib/mock-api'
    ```
 
-### 4. Build production
+### 4. Build for Production
 
 ```bash
 npm run build
@@ -153,29 +157,30 @@ npm run preview
 ## 🔍 Linting & Formatting
 
 ```bash
-npm run lint          # Kiểm tra ESLint
-npm run lint:fix      # Tự sửa ESLint
-npm run format        # Format Prettier
-npm run format:check  # Kiểm tra format
+npm run lint          # Run ESLint checks
+npm run lint:fix      # Automatically fix ESLint issues
+npm run format        # Format with Prettier
+npm run format:check  # Check formatting with Prettier
 ```
 
 ---
 
 ## 🌗 Dark / Light Mode
 
-Toggle nút 🌙/☀️ ở góc trên bên phải. Preference được lưu vào `localStorage`.
+Toggle the 🌙/☀️ button on the top right. Preference is persisted in `localStorage`.
 
 ---
 
-## 🔐 RBAC — Phân quyền
+## 🔐 RBAC — Role-Based Access Control
 
-| Role | Quyền |
-|------|-------|
-| `ADMIN` | Toàn quyền |
-| `MANAGER` | Quản lý người dùng & phương tiện |
-| `STAFF` | Xem và thao tác cơ bản |
+| Role | Permissions |
+|---|---|
+| `ADMIN` | Full permissions |
+| `MANAGER` | User & vehicle management |
+| `STAFF` | View & basic operations |
+| `CUSTOMER` | Bookings, profile & search |
 
-> ⚠️ Backend **luôn là nơi xác thực thực tế**. Frontend chỉ ẩn/hiện UI dựa trên role.
+> ⚠️ The backend is **always the source of truth for authorization**. The frontend conditionally displays UI based on role.
 
 ---
 
@@ -186,24 +191,24 @@ Toggle nút 🌙/☀️ ở góc trên bên phải. Preference được lưu và
 http://localhost:8080/api
 ```
 
-### Auth endpoints
+### Auth Endpoints
 | Method | Path | Body |
-|--------|------|------|
+|---|---|---|
 | POST | `/auth/login` | `{ username, password }` |
 | POST | `/auth/logout` | — |
 | POST | `/auth/refresh` | `{ refreshToken }` |
 | GET | `/auth/me` | — |
 
-### Users endpoints
+### Users Endpoints
 | Method | Path | Params / Body |
-|--------|------|--------------|
+|---|---|---|
 | GET | `/users` | `?page&size&search&sort&direction` |
 | GET | `/users/:id` | — |
 | POST | `/users` | `CreateUserRequest` |
 | PUT | `/users/:id` | `UpdateUserRequest` |
 | DELETE | `/users/:id` | — |
 
-### Response format
+### Response Format
 ```json
 {
   "success": true,
@@ -212,7 +217,7 @@ http://localhost:8080/api
 }
 ```
 
-### Paginated response
+### Paginated Response
 ```json
 {
   "success": true,
@@ -231,21 +236,21 @@ http://localhost:8080/api
 
 ---
 
-## 🛠️ Thêm feature mới
+## 🛠️ Adding a New Feature
 
-1. Tạo thư mục `src/features/<feature-name>/`
-2. Thêm types vào `src/types/` nếu cần
-3. Tạo `api/`, `schemas/`, `hooks/`, `components/`, `pages/`
-4. Đăng ký route trong `src/app/router/index.tsx`
-5. Thêm nav item vào `src/app/layouts/DashboardLayout.tsx`
+1. Create a feature directory `src/features/<feature-name>/`
+2. Add types in `src/types/` if needed
+3. Create `api/`, `schemas/`, `hooks/`, `components/`, `pages/`
+4. Register routes in `src/app/router/index.tsx`
+5. Add navigation items in `src/app/layouts/DashboardLayout.tsx` or `MobileLayout.tsx`
 
 ---
 
-## 📦 Tích hợp Backend Spring Boot
+## 📦 Backend Integration
 
-- API Client: [`src/shared/lib/axios.ts`](src/shared/lib/axios.ts) — chỉ cần thay `VITE_API_BASE_URL`
-- Refresh Token: tự động xử lý trong Axios interceptor
-- CORS: cấu hình Spring Boot cho phép `http://localhost:3000`
+- API Client: [`src/shared/lib/axios.ts`](src/shared/lib/axios.ts) — configure via `VITE_API_BASE_URL`
+- Refresh Token: automatically handled in Axios interceptors
+- CORS: configure backend to allow `http://localhost:3000`
 
 ---
 

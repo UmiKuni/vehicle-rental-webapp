@@ -53,16 +53,16 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Thêm người dùng mới</DialogTitle>
+          <DialogTitle>Add New User</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Tên đăng nhập" error={errors.username?.message} required>
-              <Input id="create-username" placeholder="Ví dụ: john.doe" {...register('username')} />
+            <FormField label="Username" error={errors.username?.message} required>
+              <Input id="create-username" placeholder="e.g. john.doe" {...register('username')} />
             </FormField>
-            <FormField label="Họ và tên" error={errors.fullName?.message} required>
-              <Input id="create-fullname" placeholder="Nguyễn Văn A" {...register('fullName')} />
+            <FormField label="Full Name" error={errors.fullName?.message} required>
+              <Input id="create-fullname" placeholder="John Doe" {...register('fullName')} />
             </FormField>
           </div>
 
@@ -71,28 +71,29 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
           </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Mật khẩu" error={errors.password?.message} required>
-              <Input id="create-password" type="password" placeholder="Tối thiểu 6 ký tự" {...register('password')} />
+            <FormField label="Password" error={errors.password?.message} required>
+              <Input id="create-password" type="password" placeholder="Minimum 6 characters" {...register('password')} />
             </FormField>
-            <FormField label="Số điện thoại" error={errors.phone?.message}>
+            <FormField label="Phone Number" error={errors.phone?.message}>
               <Input id="create-phone" type="tel" placeholder="0912345678" {...register('phone')} />
             </FormField>
           </div>
 
-          <FormField label="Vai trò" error={errors.role?.message} required>
+          <FormField label="Role" error={errors.role?.message} required>
             <Select id="create-role" {...register('role')}>
-              <option value="STAFF">Nhân viên</option>
-              <option value="MANAGER">Quản lý</option>
+              <option value="STAFF">Dispatcher (Staff)</option>
+              <option value="MANAGER">Fleet Manager</option>
               <option value="ADMIN">Admin</option>
+              <option value="CUSTOMER">Customer</option>
             </Select>
           </FormField>
 
           <DialogFooter className="mt-6 gap-2">
             <Button type="button" variant="outline" onClick={handleClose}>
-              Hủy
+              Cancel
             </Button>
             <Button type="submit" loading={isPending}>
-              Tạo người dùng
+              Create User
             </Button>
           </DialogFooter>
         </form>

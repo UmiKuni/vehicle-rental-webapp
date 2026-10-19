@@ -31,10 +31,10 @@ function KycPendingBanner() {
         <Clock className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-            Đang chờ xem xét
+            Pending Review
           </p>
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            Hồ sơ của bạn đã được gửi. Chúng tôi sẽ phản hồi trong 1–2 ngày làm việc.
+            Your profile has been submitted. We will review and respond within 1–2 business days.
           </p>
         </div>
       </div>
@@ -53,12 +53,12 @@ function KycUnverifiedCta() {
               <ShieldAlert className="size-5 text-[#22d3ee]" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white">Xác thực tài khoản</p>
-              <p className="text-xs text-zinc-400">Để thuê xe, bạn cần xác thực danh tính</p>
+              <p className="text-sm font-bold text-white">Account Verification</p>
+              <p className="text-xs text-zinc-400">To rent vehicles, please verify your identity</p>
             </div>
           </div>
           <div className="flex gap-2 text-xs text-zinc-400">
-            {['Thuê xe dễ dàng', 'Thanh toán nhanh', 'Ưu tiên xử lý'].map((b) => (
+            {['Easy Vehicle Rental', 'Fast Checkout', 'Priority Support'].map((b) => (
               <span key={b} className="flex items-center gap-1">
                 <span className="size-1 rounded-full bg-[#22d3ee]" />
                 {b}
@@ -71,7 +71,7 @@ function KycUnverifiedCta() {
           to={ROUTES.PROFILE_VERIFY}
           className="flex items-center justify-between bg-[#1a8a9d] px-5 py-3.5 transition-colors hover:bg-[#147485] active-press"
         >
-          <span className="text-sm font-bold text-white">Bắt đầu xác thực ngay</span>
+          <span className="text-sm font-bold text-white">Start Verification Now</span>
           <ChevronRight className="size-5 text-white/80" />
         </Link>
       </div>
@@ -85,13 +85,13 @@ function KycRejectedBanner({ reason }: { reason?: string }) {
       <div className="flex items-start gap-3">
         <AlertTriangle className="size-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-red-800 dark:text-red-300">Hồ sơ bị từ chối</p>
+          <p className="text-sm font-semibold text-red-800 dark:text-red-300">Profile Rejected</p>
           {reason && <p className="mt-1 text-xs text-red-700 dark:text-red-400">{reason}</p>}
           <Link
             to={ROUTES.PROFILE_VERIFY}
             className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-red-700 dark:text-red-400 hover:underline"
           >
-            Nộp lại hồ sơ <ChevronRight className="size-3" />
+            Resubmit Profile <ChevronRight className="size-3" />
           </Link>
         </div>
       </div>
@@ -115,7 +115,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: strin
 // ─── Main Profile Page ────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { user, logout } = useAuth()
-  const { data: profile, isLoading: profileLoading } = useProfile()
+  const { isLoading: profileLoading } = useProfile()
   const { data: kyc, isLoading: kycLoading } = useKycStatus()
 
   if (profileLoading || kycLoading) return <ProfileSkeleton />
@@ -143,7 +143,7 @@ export default function ProfilePage() {
           {/* Name & role */}
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-foreground truncate">
-              {user?.fullName ?? 'Người dùng'}
+              {user?.fullName ?? 'User'}
             </h1>
             <p className="text-xs text-muted-foreground truncate">@{user?.username} · {user?.role}</p>
             <div className="mt-1.5">
@@ -169,40 +169,40 @@ export default function ProfilePage() {
       {/* ── Account Info Card ── */}
       <div className="mx-4 rounded-2xl border border-border bg-card p-4 space-y-0.5">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          Thông tin tài khoản
+          Account Information
         </p>
-        <InfoRow icon={User} label="Họ và tên" value={user?.fullName} />
+        <InfoRow icon={User} label="Full Name" value={user?.fullName} />
         <InfoRow icon={Mail} label="Email" value={user?.email} />
-        <InfoRow icon={Shield} label="Vai trò" value={user?.role} />
+        <InfoRow icon={Shield} label="Role" value={user?.role} />
       </div>
 
       {/* ── KYC Info Card (if verified or pending) ── */}
       {(kycStatus === 'VERIFIED' || kycStatus === 'PENDING') && kyc && (
         <div className="mx-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Hồ sơ xác thực
+            Verification Profile
           </p>
           {kyc.docType === 'PASSPORT' ? (
             <>
-              <InfoRow icon={Globe2} label="Hộ chiếu (Passport)" value={kyc.idNumber || kyc.cccdNumber} />
-              {kyc.country && <InfoRow icon={MapPin} label="Quốc tịch / Quốc gia" value={kyc.country} />}
+              <InfoRow icon={Globe2} label="Passport" value={kyc.idNumber || kyc.cccdNumber} />
+              {kyc.country && <InfoRow icon={MapPin} label="Nationality / Country" value={kyc.country} />}
               {kyc.expiryDate && (
-                <InfoRow icon={CalendarDays} label="Ngày hết hạn" value={formatDate(kyc.expiryDate)} />
+                <InfoRow icon={CalendarDays} label="Expiry Date" value={formatDate(kyc.expiryDate)} />
               )}
             </>
           ) : (
-            <InfoRow icon={CreditCard} label="CCCD/CMND" value={kyc.idNumber || kyc.cccdNumber} />
+            <InfoRow icon={CreditCard} label="National ID (CCCD)" value={kyc.idNumber || kyc.cccdNumber} />
           )}
           <InfoRow
             icon={CalendarDays}
-            label="Ngày sinh"
+            label="Date of Birth"
             value={kyc.dateOfBirth ? formatDate(kyc.dateOfBirth) : undefined}
           />
-          <InfoRow icon={MapPin} label="Tỉnh/Thành lưu trú" value={kyc.province} />
+          <InfoRow icon={MapPin} label="Accommodation Province/City" value={kyc.province} />
           {kyc.submittedAt && (
             <InfoRow
               icon={Clock}
-              label="Ngày nộp"
+              label="Submitted At"
               value={formatDate(kyc.submittedAt)}
             />
           )}
@@ -216,7 +216,7 @@ export default function ProfilePage() {
           className="flex w-full items-center gap-3 px-4 py-3.5 text-destructive hover:bg-destructive/5 transition-colors"
         >
           <LogOut className="size-4 shrink-0" />
-          <span className="text-sm font-semibold">Đăng xuất</span>
+          <span className="text-sm font-semibold">Log Out</span>
         </button>
       </div>
     </div>

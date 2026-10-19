@@ -52,21 +52,21 @@ export default function LoginPage() {
           <div className="my-6">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-[#22d3ee] mb-3">
               <Sparkles className="size-3" />
-              Nền tảng thuê xe thông minh
+              Smart Car Rental Platform
             </div>
             <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-tight">
-              Khám phá hành trình
-              <span className="block text-[#22d3ee] mt-1">Thuê xe tự lái 4.0</span>
+              Discover Your Journey
+              <span className="block text-[#22d3ee] mt-1">Next-Gen Self-Drive Rentals</span>
             </h1>
             <p className="mt-3 text-xs text-zinc-400 leading-relaxed max-w-xs">
-              Trải nghiệm đặt xe không chạm, thủ tục số hóa 100% qua PWA và nhận xe nhanh chóng trong 1 phút.
+              Experience contactless booking, 100% digital PWA paperwork, and instant pickup within 1 minute.
             </p>
 
             <div className="mt-6 space-y-3">
               {[
-                { icon: Zap, text: 'Đặt xe siêu tốc, nhận xe không thủ tục giấy tờ' },
-                { icon: ShieldCheck, text: 'Xác thực danh tính KYC trực tuyến trong 2 phút' },
-                { icon: Car, text: 'Hơn 60+ dòng xe tự lái đời mới được bảo dưỡng định kỳ' },
+                { icon: Zap, text: 'Ultra-fast booking, paperless vehicle pickup' },
+                { icon: ShieldCheck, text: 'Online KYC identity verification in 2 minutes' },
+                { icon: Car, text: '60+ late-model self-drive vehicles, routinely serviced' },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-start gap-2.5 text-xs text-zinc-300">
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/10 text-[#22d3ee] mt-0.5">
@@ -82,8 +82,8 @@ export default function LoginPage() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 flex items-center gap-3">
             <span className="text-xl">⭐️</span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Đánh giá 4.9/5 sao</p>
-              <p className="text-[11px] text-zinc-400 truncate">Từ hơn 15,000+ chuyến đi an toàn</p>
+              <p className="text-xs font-bold text-white truncate">Rated 4.9/5 Stars</p>
+              <p className="text-[11px] text-zinc-400 truncate">From over 15,000+ safe journeys</p>
             </div>
           </div>
         </div>
@@ -96,40 +96,40 @@ export default function LoginPage() {
               <Car className="size-6" />
             </div>
             <span className="text-base font-extrabold tracking-tight text-foreground">AutoFleet PWA</span>
-            <p className="text-[11px] text-muted-foreground">Thuê xe tự lái thông minh & nhanh chóng</p>
+            <p className="text-[11px] text-muted-foreground">Smart & fast self-drive car rental</p>
           </div>
 
           {/* Segmented Control Switcher (Login / Register) */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Đăng nhập
+              Sign In
             </div>
             <Link
               to={ROUTES.REGISTER}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
-              Đăng ký
+              Register
             </Link>
           </div>
 
           {/* Greeting */}
           <div className="mb-5">
             <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Chào mừng trở lại! 👋
+              Welcome back! 👋
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Đăng nhập tài khoản để đặt xe hoặc quản lý hành trình
+              Sign in to rent vehicles or manage your journeys
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
-            <FormField label="Tên người dùng / Email" error={errors.username?.message}>
+            <FormField label="Username or Email" error={errors.username?.message}>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                 <Input
                   id="username"
-                  placeholder="user, admin hoặc email..."
+                  placeholder="user, admin or email..."
                   autoComplete="username"
                   autoFocus
                   className="h-11 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs font-medium focus-visible:border-[#1a8a9d]"
@@ -139,14 +139,14 @@ export default function LoginPage() {
             </FormField>
 
             <FormField
-              label="Mật khẩu"
+              label="Password"
               rightAction={
                 <a
                   href="#forgot"
                   onClick={(e) => e.preventDefault()}
                   className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Quên mật khẩu?
+                  Forgot password?
                 </a>
               }
               error={errors.password?.message}
@@ -165,7 +165,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1"
-                  aria-label={showPassword ? 'Ẩn' : 'Hiện'}
+                  aria-label={showPassword ? 'Hide' : 'Show'}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
@@ -177,7 +177,7 @@ export default function LoginPage() {
               loading={isPending}
               className="mt-5 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
             >
-              Đăng nhập ngay
+              Sign In Now
             </Button>
           </form>
 
@@ -185,7 +185,7 @@ export default function LoginPage() {
           <div className="mt-5 pt-4 border-t border-border/60">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
               <KeyRound className="size-3.5 text-zinc-400" />
-              <span>Tài khoản thử nghiệm nhanh (Click để điền):</span>
+              <span>Demo test accounts (Click to auto-fill):</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[

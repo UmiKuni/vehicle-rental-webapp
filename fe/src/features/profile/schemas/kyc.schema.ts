@@ -3,10 +3,10 @@ import { z } from 'zod'
 export const kycStep1Schema = z.object({
   vehicleInterests: z
     .array(z.enum(['MOTORBIKE', 'CAR_4_SEAT', 'CAR_7_SEAT', 'TRUCK', 'ELECTRIC']))
-    .min(1, 'Chọn ít nhất 1 loại phương tiện'),
+    .min(1, 'Please select at least 1 vehicle type'),
   licenseClass: z.enum(
     ['A1', 'A2', 'B1', 'B2', 'C', 'D', 'E', 'FB', 'FC', 'FD', 'FE', 'INTERNATIONAL'],
-    { required_error: 'Vui lòng chọn hạng bằng lái' }
+    { required_error: "Please select your driver's license class" }
   ),
   hasLicense: z.boolean(),
 })
@@ -14,7 +14,7 @@ export const kycStep1Schema = z.object({
 export const kycStep2Schema = z
   .object({
     docType: z.enum(['PASSPORT', 'CCCD']),
-    idNumber: z.string().min(1, 'Vui lòng nhập số giấy tờ'),
+    idNumber: z.string().min(1, 'Please enter document number'),
     country: z.string().optional(),
     expiryDate: z.string().optional(),
     frontPreview: z.string().optional(),
@@ -31,7 +31,7 @@ export const kycStep2Schema = z
       if (!/^[A-Z0-9]{6,12}$/.test(cleanId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Số hộ chiếu gồm 6-12 ký tự chữ và số (VD: B1234567, C9876543)',
+          message: 'Passport number must be 6-12 alphanumeric characters (e.g. B1234567, C9876543)',
           path: ['idNumber'],
         })
       }
@@ -40,7 +40,7 @@ export const kycStep2Schema = z
       if (!data.country || data.country.trim().length < 2) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Vui lòng chọn hoặc nhập quốc tịch / quốc gia phát hành',
+          message: 'Please select or enter nationality / issuing country',
           path: ['country'],
         })
       }
@@ -49,7 +49,7 @@ export const kycStep2Schema = z
       if (!data.expiryDate) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Vui lòng nhập ngày hết hạn hộ chiếu',
+          message: 'Please enter passport expiry date',
           path: ['expiryDate'],
         })
       } else {
@@ -59,7 +59,7 @@ export const kycStep2Schema = z
         if (isNaN(exp.getTime()) || exp <= today) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Hộ chiếu đã hết hạn sử dụng. Vui lòng kiểm tra lại.',
+            message: 'Passport has expired. Please verify and try again.',
             path: ['expiryDate'],
           })
         }
@@ -70,7 +70,7 @@ export const kycStep2Schema = z
       if (!/^\d{9,12}$/.test(cleanId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'CCCD/CMND phải gồm 9 đến 12 chữ số',
+          message: 'National ID (CCCD/CMND) must be 9 to 12 digits',
           path: ['idNumber'],
         })
       }
@@ -78,13 +78,13 @@ export const kycStep2Schema = z
   })
 
 export const kycStep3Schema = z.object({
-  dateOfBirth: z.string().min(1, 'Vui lòng nhập ngày sinh'),
-  address: z.string().min(3, 'Địa chỉ lưu trú / khách sạn tại Việt Nam'),
-  province: z.string().min(1, 'Vui lòng chọn tỉnh/thành lưu trú'),
-  emergencyContact: z.string().min(2, 'Nhập tên người liên hệ khẩn cấp'),
+  dateOfBirth: z.string().min(1, 'Please enter date of birth'),
+  address: z.string().min(3, 'Residential / hotel address in Vietnam'),
+  province: z.string().min(1, 'Please select accommodation province/city'),
+  emergencyContact: z.string().min(2, 'Please enter emergency contact name'),
   emergencyPhone: z
     .string()
-    .regex(/^\+?[0-9]{7,15}$/, 'Số điện thoại gồm 7-15 chữ số (VD: +84912345678, +14155552671)'),
+    .regex(/^\+?[0-9]{7,15}$/, 'Phone number must be 7-15 digits (e.g. +84912345678, +14155552671)'),
 })
 
 export type KycStep1Values = z.infer<typeof kycStep1Schema>

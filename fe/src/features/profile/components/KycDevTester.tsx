@@ -12,10 +12,10 @@ interface KycDevTesterProps {
 }
 
 const STATES: { status: KycStatus; label: string; activeClass: string }[] = [
-  { status: 'UNVERIFIED', label: 'Chưa xác thực', activeClass: 'bg-zinc-700 text-white' },
-  { status: 'PENDING',    label: 'Chờ duyệt',     activeClass: 'bg-amber-500 text-white' },
-  { status: 'VERIFIED',   label: 'Đã duyệt',      activeClass: 'bg-emerald-500 text-white' },
-  { status: 'REJECTED',   label: 'Bị từ chối',    activeClass: 'bg-red-500 text-white' },
+  { status: 'UNVERIFIED', label: 'Unverified', activeClass: 'bg-zinc-700 text-white' },
+  { status: 'PENDING',    label: 'Pending',    activeClass: 'bg-amber-500 text-white' },
+  { status: 'VERIFIED',   label: 'Verified',   activeClass: 'bg-emerald-500 text-white' },
+  { status: 'REJECTED',   label: 'Rejected',   activeClass: 'bg-red-500 text-white' },
 ]
 
 export function KycDevTester({ currentStatus }: KycDevTesterProps) {
@@ -28,7 +28,7 @@ export function KycDevTester({ currentStatus }: KycDevTesterProps) {
       <div className="flex items-center justify-between mb-2">
         <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#1a8a9d]">
           <Sparkles className="size-3.5" />
-          Test nhanh 4 trạng thái Wireframe:
+          Quick test 4 wireframe states:
         </span>
         {isAdmin && (
           <Link

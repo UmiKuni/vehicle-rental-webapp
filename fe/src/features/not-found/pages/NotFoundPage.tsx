@@ -9,16 +9,16 @@ export default function NotFoundPage() {
         <Car className="size-10 text-primary" />
       </div>
       <h1 className="text-7xl font-black text-foreground">404</h1>
-      <h2 className="mt-2 text-xl font-semibold text-foreground">Trang không tồn tại</h2>
+      <h2 className="mt-2 text-xl font-semibold text-foreground">Page Not Found</h2>
       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-        Trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển.
+        The page you are looking for does not exist or has been moved.
       </p>
       <Link
         to={ROUTES.DASHBOARD}
         className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
         <Home className="size-4" />
-        Về trang chủ
+        Back to Home
       </Link>
     </div>
   )

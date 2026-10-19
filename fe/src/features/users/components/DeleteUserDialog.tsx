@@ -34,17 +34,17 @@ export function DeleteUserDialog({ user, open, onOpenChange }: DeleteUserDialogP
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
             <Trash2 className="size-6 text-destructive" />
           </div>
-          <DialogTitle className="text-center">Xác nhận xoá</DialogTitle>
+          <DialogTitle className="text-center">Confirm Deletion</DialogTitle>
           <DialogDescription className="text-center">
-            Bạn có chắc muốn xoá người dùng{' '}
-            <span className="font-semibold text-foreground">{user?.fullName}</span>? Hành động này
-            không thể hoàn tác.
+            Are you sure you want to delete user{' '}
+            <span className="font-semibold text-foreground">{user?.fullName}</span>? This action
+            cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-            Hủy
+            Cancel
           </Button>
           <Button
             variant="destructive"
@@ -52,7 +52,7 @@ export function DeleteUserDialog({ user, open, onOpenChange }: DeleteUserDialogP
             loading={isPending}
             className="flex-1"
           >
-            Xoá
+            Delete
           </Button>
         </DialogFooter>
       </DialogContent>

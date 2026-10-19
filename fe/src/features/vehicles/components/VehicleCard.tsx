@@ -7,15 +7,15 @@ interface VehicleCardProps {
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
-  ELECTRIC: 'Xe điện',
-  CAR_4_SEAT: '4-5 chỗ',
-  CAR_7_SEAT: '7 chỗ',
-  TRUCK: 'Bán tải',
-  MOTORBIKE: 'Xe máy',
+  ELECTRIC: 'Electric',
+  CAR_4_SEAT: '4-5 Seats',
+  CAR_7_SEAT: '7 Seats',
+  TRUCK: 'Pickup Truck',
+  MOTORBIKE: 'Motorbike',
 }
 
 export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
-  const formattedPrice = new Intl.NumberFormat('vi-VN').format(vehicle.pricePerDay)
+  const formattedPrice = new Intl.NumberFormat('en-US').format(vehicle.pricePerDay)
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/80 bg-card text-card-foreground shadow-xs hover:shadow-md transition-all">
@@ -50,7 +50,7 @@ export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
                 : 'bg-zinc-900/80 text-zinc-200'
             }`}
           >
-            {vehicle.fuelType === 'ELECTRIC' ? '⚡ Điện' : vehicle.fuelType === 'DIESEL' ? 'Dầu' : 'Xăng'}
+            {vehicle.fuelType === 'ELECTRIC' ? '⚡ EV' : vehicle.fuelType === 'DIESEL' ? 'Diesel' : 'Gasoline'}
           </span>
         </div>
       </div>
@@ -77,11 +77,11 @@ export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted/50 p-2 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-1.5 justify-center">
             <Users className="size-3.5 text-foreground/70" />
-            <span>{vehicle.seats} chỗ</span>
+            <span>{vehicle.seats} seats</span>
           </div>
           <div className="flex items-center gap-1.5 justify-center border-x border-border/60">
             <Gauge className="size-3.5 text-foreground/70" />
-            <span>{vehicle.transmission === 'AUTOMATIC' ? 'Tự động' : 'Số sàn'}</span>
+            <span>{vehicle.transmission === 'AUTOMATIC' ? 'Automatic' : 'Manual'}</span>
           </div>
           <div className="flex items-center gap-1.5 justify-center">
             <Fuel className="size-3.5 text-foreground/70" />
@@ -106,9 +106,9 @@ export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
           <div>
             <div className="flex items-baseline gap-1">
               <span className="text-base sm:text-lg font-extrabold text-[#1a8a9d] dark:text-[#22d3ee]">
-                {formattedPrice}đ
+                {formattedPrice} VND
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium">/ ngày</span>
+              <span className="text-[10px] text-muted-foreground font-medium">/ day</span>
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
             onClick={() => onBook(vehicle)}
             className="min-h-[44px] min-w-[100px] rounded-xl bg-[#1a8a9d] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#147485] active-press transition-colors"
           >
-            Đặt xe ngay
+            Book Now
           </button>
         </div>
       </div>

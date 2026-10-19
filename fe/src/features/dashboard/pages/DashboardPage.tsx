@@ -39,25 +39,25 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Tổng quan vận hành đội xe
+              Fleet Operations Overview
             </h1>
             <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
               Live Telemetry
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Báo cáo tức thời hiệu suất 64 phương tiện, tỷ lệ khai thác và doanh thu MTD
+            Real-time telemetry on 64 vehicles, fleet utilization, and MTD revenue
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium">
             <Download className="size-3.5" />
-            Xuất báo cáo
+            Export Report
           </Button>
           <Button size="sm" className="h-9 gap-1.5 text-xs font-semibold shadow-xs">
             <Plus className="size-3.5" />
-            Tạo đơn đặt xe
+            Create Rental Order
           </Button>
         </div>
       </div>
@@ -69,33 +69,33 @@ export default function DashboardPage() {
         ) : (
           <>
             <FleetMetricCard
-              label="Doanh thu lũy kế (MTD)"
-              value={new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', notation: 'compact' }).format(data!.totalRevenue)}
+              label="MTD Gross Revenue"
+              value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', notation: 'compact' }).format(data!.totalRevenue)}
               trend={data!.revenueGrowth}
               icon={DollarSign}
               statusColor="blue"
             />
             <FleetMetricCard
-              label="Tỷ lệ khai thác xe"
+              label="Fleet Utilization Rate"
               value={`${data!.utilizationRate}%`}
-              subValue={`${data!.activeVehicles}/${data!.totalVehicles} xe`}
+              subValue={`${data!.activeVehicles}/${data!.totalVehicles} vehicles`}
               trend={4.2}
               icon={Car}
               statusColor="emerald"
             />
             <FleetMetricCard
-              label="Đơn thuê đang chạy"
-              value={`${data!.activeRentals} đơn`}
+              label="Active Rentals"
+              value={`${data!.activeRentals} active`}
               trend={data!.rentalGrowth}
               icon={CalendarCheck}
               statusColor="blue"
             />
             <FleetMetricCard
-              label="Cảnh báo kiểm định / bảo dưỡng"
-              value={`${data!.maintenanceAlerts} xe`}
-              subValue="2 quá hạn"
+              label="Maintenance & Inspection Alerts"
+              value={`${data!.maintenanceAlerts} alerts`}
+              subValue="2 overdue"
               trend={-1}
-              trendLabel="so với tuần trước"
+              trendLabel="vs last week"
               icon={AlertTriangle}
               statusColor="amber"
             />

@@ -30,7 +30,7 @@ export function BookingDatesDelivery({
     <>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Ngày nhận xe</label>
+          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Pick-up Date</label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <input
@@ -43,7 +43,7 @@ export function BookingDatesDelivery({
           </div>
         </div>
         <div>
-          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Ngày trả xe</label>
+          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Return Date</label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <input
@@ -58,7 +58,7 @@ export function BookingDatesDelivery({
       </div>
 
       <div>
-        <label className="block text-[11px] font-semibold text-muted-foreground mb-1.5">Hình thức nhận xe</label>
+        <label className="block text-[11px] font-semibold text-muted-foreground mb-1.5">Delivery Option</label>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -71,9 +71,9 @@ export function BookingDatesDelivery({
           >
             <div className="flex items-center gap-1.5 text-xs">
               <MapPin className="size-3.5 text-[#1a8a9d]" />
-              <span>Tại trạm xe</span>
+              <span>Station Pickup</span>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Miễn phí giao xe</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Free pickup at station</p>
           </button>
 
           <button
@@ -87,19 +87,19 @@ export function BookingDatesDelivery({
           >
             <div className="flex items-center gap-1.5 text-xs">
               <span>🏠</span>
-              <span>Giao tận nơi</span>
+              <span>Doorstep Delivery</span>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">+100.000đ phí giao</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">+100,000 VND delivery fee</p>
           </button>
         </div>
       </div>
 
       {deliveryType === 'DOORSTEP' && (
         <div>
-          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Địa chỉ giao xe</label>
+          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Delivery Address</label>
           <input
             type="text"
-            placeholder="VD: Khách sạn Caravelle, 19 Công trường Lam Sơn, Bến Nghé, Quận 1"
+            placeholder="e.g. Caravelle Hotel, 19 Lam Son Square, District 1"
             value={deliveryAddress}
             onChange={(e) => onDeliveryAddressChange(e.target.value)}
             required={isLoggedIn}

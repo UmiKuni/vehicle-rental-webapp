@@ -17,7 +17,7 @@ export function FleetMetricCard({
   value,
   subValue,
   trend,
-  trendLabel = 'so với tháng trước',
+  trendLabel = 'vs last month',
   icon: Icon,
   statusColor = 'blue',
 }: FleetMetricCardProps) {

@@ -2,9 +2,9 @@ import type { UserStatus } from '@/types/user.types'
 import { Badge } from '@/shared/components/ui/Badge'
 
 const statusConfig: Record<UserStatus, { label: string; variant: 'success' | 'neutral' | 'destructive' }> = {
-  ACTIVE: { label: 'Đang hoạt động', variant: 'success' },
-  INACTIVE: { label: 'Tạm dừng', variant: 'neutral' },
-  BANNED: { label: 'Đã khóa', variant: 'destructive' },
+  ACTIVE: { label: 'Active', variant: 'success' },
+  INACTIVE: { label: 'Inactive', variant: 'neutral' },
+  BANNED: { label: 'Banned', variant: 'destructive' },
 }
 
 export function UserStatusBadge({ status }: { status: UserStatus }) {

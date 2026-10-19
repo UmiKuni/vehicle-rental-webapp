@@ -16,25 +16,25 @@ export function BookingPriceSummary({
   return (
     <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-1.5 text-[11px]">
       <div className="flex justify-between text-muted-foreground">
-        <span>Đơn giá thuê ({totalDays} ngày)</span>
-        <span>{new Intl.NumberFormat('vi-VN').format(rentalAmount)}đ</span>
+        <span>Rental rate ({totalDays} {totalDays > 1 ? 'days' : 'day'})</span>
+        <span>{new Intl.NumberFormat('en-US').format(rentalAmount)} VND</span>
       </div>
       {deliveryFee > 0 && (
         <div className="flex justify-between text-muted-foreground">
-          <span>Phí giao xe tận nơi</span>
-          <span>{new Intl.NumberFormat('vi-VN').format(deliveryFee)}đ</span>
+          <span>Doorstep delivery fee</span>
+          <span>{new Intl.NumberFormat('en-US').format(deliveryFee)} VND</span>
         </div>
       )}
       <div className="flex justify-between text-muted-foreground pt-1 border-t border-border/50">
-        <span>Tiền thế chấp (hoàn lại)</span>
+        <span>Security deposit (refundable)</span>
         <span className="font-medium text-foreground">
-          {new Intl.NumberFormat('vi-VN').format(depositAmount)}đ
+          {new Intl.NumberFormat('en-US').format(depositAmount)} VND
         </span>
       </div>
       <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border">
-        <span>Tổng thanh toán</span>
+        <span>Total Payment</span>
         <span className="text-[#1a8a9d] dark:text-[#22d3ee]">
-          {new Intl.NumberFormat('vi-VN').format(totalAmount)}đ
+          {new Intl.NumberFormat('en-US').format(totalAmount)} VND
         </span>
       </div>
     </div>

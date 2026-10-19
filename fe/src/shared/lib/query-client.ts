@@ -27,6 +27,6 @@ export function getErrorMessage(error: unknown): string {
   return (
     axiosError.response?.data?.message ??
     axiosError.message ??
-    'Đã xảy ra lỗi. Vui lòng thử lại.'
+    'An error occurred. Please try again.'
   )
 }

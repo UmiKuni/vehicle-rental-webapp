@@ -11,7 +11,7 @@ export type LicenseClass =
   | 'B1' | 'B2'
   | 'C'  | 'D'  | 'E'
   | 'FB' | 'FC' | 'FD' | 'FE'
-  | 'INTERNATIONAL' // Bằng lái xe quốc tế (International Driving Permit)
+  | 'INTERNATIONAL' // International Driving Permit
 
 export type IdentityDocType = 'PASSPORT' | 'CCCD'
 

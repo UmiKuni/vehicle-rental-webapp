@@ -19,7 +19,7 @@ import { useDebounce } from '@/shared/hooks/useDebounce'
 export function UserTable() {
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'MANAGER' | 'STAFF'>('ALL')
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER'>('ALL')
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState<UserResponse | null>(null)
   const [deleteUser, setDeleteUser] = useState<UserResponse | null>(null)
@@ -51,7 +51,7 @@ export function UserTable() {
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="user-search"
-              placeholder="Tìm theo tên, username, email..."
+              placeholder="Search by name, username, email..."
               value={search}
               onChange={handleSearchChange}
               className="pl-9 pr-8 h-9 text-xs"
@@ -70,7 +70,7 @@ export function UserTable() {
 
         {/* Role Quick Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
-          {(['ALL', 'ADMIN', 'MANAGER', 'STAFF'] as const).map((r) => (
+          {(['ALL', 'ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER'] as const).map((r) => (
             <button
               key={r}
               type="button"
@@ -82,12 +82,12 @@ export function UserTable() {
                   : 'bg-muted/40 text-muted-foreground border-border hover:bg-accent hover:text-foreground'
               )}
             >
-              {r === 'ALL' ? 'Tất cả' : r}
+              {r === 'ALL' ? 'All' : r}
             </button>
           ))}
           <Button id="btn-create-user" size="sm" onClick={() => setShowCreate(true)} className="ml-2 gap-1.5 h-8">
             <UserPlus className="size-3.5" />
-            Thêm tài khoản
+            Add User
           </Button>
         </div>
       </div>
@@ -102,12 +102,12 @@ export function UserTable() {
           <ErrorState onRetry={refetch} />
         ) : !data || !displayContent || displayContent.length === 0 ? (
           <EmptyState
-            title="Không tìm thấy tài khoản"
-            description={search ? 'Thử tìm với từ khóa khác hoặc xóa bộ lọc.' : 'Thêm tài khoản đầu tiên vào hệ thống.'}
+            title="No users found"
+            description={search ? 'Try searching with different keywords or clear filters.' : 'Add the first user to the system.'}
             action={
               <Button size="sm" onClick={() => setShowCreate(true)}>
                 <UserPlus className="size-4" />
-                Thêm tài khoản mới
+                Add New User
               </Button>
             }
           />
@@ -117,13 +117,13 @@ export function UserTable() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground font-medium">
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Họ tên & Định danh</th>
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Email liên hệ</th>
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Điện thoại</th>
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Vai trò</th>
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Trạng thái</th>
-                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Ngày tạo</th>
-                    <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider text-[11px]">Thao tác</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Name & Identity</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Email</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Phone</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Role</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Status</th>
+                    <th className="px-4 py-2.5 text-left font-semibold uppercase tracking-wider text-[11px]">Created Date</th>
+                    <th className="px-4 py-2.5 text-right font-semibold uppercase tracking-wider text-[11px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -156,14 +156,14 @@ export function UserTable() {
                           <button
                             onClick={() => setEditUser(user)}
                             className="flex items-center justify-center min-w-[36px] min-h-[36px] rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            title="Sửa thông tin"
+                            title="Edit user"
                           >
                             <Pencil className="size-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleteUser(user)}
                             className="flex items-center justify-center min-w-[36px] min-h-[36px] rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            title="Xóa tài khoản"
+                            title="Delete user"
                           >
                             <Trash2 className="size-3.5" />
                           </button>

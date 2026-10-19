@@ -60,7 +60,7 @@ export function ImageUploadZone({
               </div>
             )}
             <span className="text-xs text-muted-foreground text-center font-medium max-w-xs">
-              {isUploading ? 'Đang tải ảnh lên...' : hint}
+              {isUploading ? 'Uploading image...' : hint}
             </span>
           </div>
         )}

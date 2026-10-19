@@ -61,13 +61,13 @@ const router = createBrowserRouter([
   {
     element: <MobileLayout />,
     children: [
-      // 1. PUBLIC: Khách vãng lai & khách hàng đều có thể vào xem và tìm xe
+      // 1. PUBLIC: Guests & customers can browse and search vehicles
       {
         path: ROUTES.SEARCH,
         element: wrap(SearchVehiclesPage),
       },
 
-      // 2. PROTECTED: Yêu cầu đăng nhập khi xem danh sách chuyến đi hoặc hồ sơ
+      // 2. PROTECTED: Login required to view trips and profile
       {
         element: <ProtectedRoute />,
         children: [

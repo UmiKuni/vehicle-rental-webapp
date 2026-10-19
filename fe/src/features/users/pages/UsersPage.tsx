@@ -9,25 +9,25 @@ export default function UsersPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Quản lý tài khoản & phân quyền
+              User Management & Permissions
             </h1>
             <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[11px] font-mono font-medium text-foreground">
               RBAC v2
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Danh sách nhân sự điều phối, quản lý trạm xe và quản trị viên hệ thống
+            Directory of dispatchers, fleet station managers, and system administrators
           </p>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 shadow-2xs">
             <UsersIcon className="size-3.5 text-primary" />
-            <span>Tổng cộng: <strong className="font-mono text-foreground">35</strong> tài khoản</span>
+            <span>Total: <strong className="font-mono text-foreground">35</strong> accounts</span>
           </div>
           <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 shadow-2xs">
             <Shield className="size-3.5 text-emerald-500" />
-            <span>Xác thực: <strong className="text-foreground">JWT Multi-role</strong></span>
+            <span>Auth: <strong className="text-foreground">JWT Multi-role</strong></span>
           </div>
         </div>
       </div>

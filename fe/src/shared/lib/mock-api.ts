@@ -45,7 +45,7 @@ const MOCK_USERS: UserResponse[] = Array.from({ length: 35 }, (_, i) => ({
   id: i + 1,
   username: `user${String(i + 1).padStart(3, '0')}`,
   email: `user${i + 1}@example.com`,
-  fullName: ['Nguyễn Văn An', 'Trần Thị Bình', 'Lê Minh Cường', 'Phạm Thu Hà', 'Hoàng Đức Mạnh'][i % 5],
+  fullName: ['Alex Johnson', 'Sarah Williams', 'Michael Brown', 'Emily Davis', 'David Miller'][i % 5],
   phone: `09${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
   role: (['ADMIN', 'MANAGER', 'STAFF'] as const)[i % 3],
   status: (['ACTIVE', 'ACTIVE', 'ACTIVE', 'INACTIVE', 'BANNED'] as const)[i % 5],
@@ -59,7 +59,7 @@ let CURRENT_MOCK_USER: AuthUser = {
   id: 4,
   username: 'user',
   email: 'user@gmail.com',
-  fullName: 'Lê Văn Khách',
+  fullName: 'John Customer',
   role: 'CUSTOMER',
 }
 
@@ -69,7 +69,7 @@ let MOCK_KYC: KycProfile = {
   status: 'UNVERIFIED',
   docType: 'PASSPORT',
   idNumber: 'P12345678',
-  country: 'Hoa Kỳ (United States)',
+  country: 'United States',
   expiryDate: '2028-12-31',
   vehicleInterests: ['CAR_4_SEAT', 'ELECTRIC'],
   licenseClass: 'INTERNATIONAL',
@@ -90,8 +90,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80',
     rating: 4.95,
     tripsCount: 138,
-    location: 'Quận 1, TP. HCM',
-    features: ['Quãng đường 420km/sạc', 'Trợ lái ADAS Level 2', 'Camera 360', 'Sạc siêu nhanh', 'Apple CarPlay'],
+    location: 'District 1, HCMC',
+    features: ['Range 420km/charge', 'ADAS Level 2 Copilot', '360° Camera', 'Ultra-fast charging', 'Apple CarPlay'],
     isAvailable: true,
     depositAmount: 5000000,
   },
@@ -108,8 +108,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
     rating: 4.88,
     tripsCount: 245,
-    location: 'Bình Thạnh, TP. HCM',
-    features: ['Cửa sổ trời', 'Loa Bose 10 loa', 'Cảm biến va chạm', 'Ghế da Nappa', 'Cruise Control'],
+    location: 'Binh Thanh, HCMC',
+    features: ['Sunroof', '10-speaker Bose sound system', 'Collision sensors', 'Nappa leather seats', 'Cruise Control'],
     isAvailable: true,
     depositAmount: 4000000,
   },
@@ -126,8 +126,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80',
     rating: 4.92,
     tripsCount: 92,
-    location: 'Tân Bình, TP. HCM',
-    features: ['Dẫn động 2 cầu 4WD', 'Hàng ghế thứ 3 rộng', 'Tiết kiệm dầu', 'Camera lùi', 'Cốp điện'],
+    location: 'Tan Binh, HCMC',
+    features: ['4WD dual-axle drive', 'Spacious 3rd row', 'Fuel efficient', 'Rearview camera', 'Power tailgate'],
     isAvailable: true,
     depositAmount: 5000000,
   },
@@ -144,8 +144,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
     rating: 4.86,
     tripsCount: 180,
-    location: 'Quận 7, TP. HCM',
-    features: ['Nhỏ gọn phố xá', 'Chi phí sạc rẻ', 'Màn hình cảm ứng', 'Phanh tự động'],
+    location: 'District 7, HCMC',
+    features: ['Compact city size', 'Economical charging', 'Touchscreen display', 'Automatic emergency braking'],
     isAvailable: true,
     depositAmount: 3000000,
   },
@@ -162,8 +162,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
     rating: 4.91,
     tripsCount: 115,
-    location: 'Thủ Đức, TP. HCM',
-    features: ['SmartSense an toàn', 'Cần số nút bấm', 'Sạc không dây', 'Cửa gió hàng ghế sau'],
+    location: 'Thu Duc, HCMC',
+    features: ['SmartSense safety suite', 'Push-button shifter', 'Wireless charger', 'Rear AC vents'],
     isAvailable: true,
     depositAmount: 4000000,
   },
@@ -180,8 +180,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80',
     rating: 4.89,
     tripsCount: 320,
-    location: 'Gò Vấp, TP. HCM',
-    features: ['7 chỗ gập phẳng', 'Khoang hành lý rộng', 'Tiết kiệm xăng', 'Phanh tay điện tử'],
+    location: 'Go Vap, HCMC',
+    features: ['Fold-flat 7 seats', 'Spacious trunk', 'Fuel efficient', 'Electronic parking brake'],
     isAvailable: true,
     depositAmount: 3500000,
   },
@@ -198,8 +198,8 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=800&q=80',
     rating: 4.94,
     tripsCount: 84,
-    location: 'Quận 2, TP. HCM',
-    features: ['Động cơ Bi-Turbo', 'Thùng chở đồ lớn', 'Gài cầu điện tử', 'Màn hình 12 inch'],
+    location: 'District 2, HCMC',
+    features: ['Bi-Turbo engine', 'Large cargo bed', 'Electronic transfer case', '12-inch touchscreen'],
     isAvailable: true,
     depositAmount: 5000000,
   },
@@ -216,21 +216,21 @@ const MOCK_VEHICLES: Vehicle[] = [
     imageUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
     rating: 4.97,
     tripsCount: 450,
-    location: 'Quận 1, TP. HCM',
-    features: ['Phanh ABS 2 kênh', 'Cốp xe 28L', 'Khoá Smartkey', 'Cổng sạc USB'],
+    location: 'District 1, HCMC',
+    features: ['Dual-channel ABS', '28L underseat trunk', 'Smart keyless entry', 'USB charging port'],
     isAvailable: true,
     depositAmount: 1000000,
   },
 ]
 
-let MOCK_BOOKINGS: Booking[] = [
+const MOCK_BOOKINGS: Booking[] = [
   {
     id: 'b1',
     bookingCode: 'BK-20261025',
     vehicleId: 'v1',
     vehicle: MOCK_VEHICLES[0],
     userId: 4,
-    customerName: 'Lê Văn Khách',
+    customerName: 'John Customer',
     customerPhone: '0912345678',
     startDate: '2026-10-25',
     endDate: '2026-10-27',
@@ -241,7 +241,7 @@ let MOCK_BOOKINGS: Booking[] = [
     deliveryType: 'STATION',
     status: 'CONFIRMED',
     createdAt: '2026-10-18T10:30:00.000Z',
-    note: 'Nhận xe tại trạm sạc VinFast Quận 1',
+    note: 'Pick up at VinFast Charging Station, District 1',
   },
 ]
 
@@ -274,10 +274,10 @@ if (isDev) {
       const input = String(body.username ?? '').trim().toLowerCase()
 
       const MOCK_ACCOUNTS: Record<string, AuthUser> = {
-        admin:   { id: 1, username: 'admin',   email: 'admin@vehiclerental.vn',   fullName: 'Super Admin',     role: 'ADMIN'    },
-        manager: { id: 2, username: 'manager', email: 'manager@vehiclerental.vn', fullName: 'Nguyễn Văn Quản', role: 'MANAGER'  },
-        staff:   { id: 3, username: 'staff',   email: 'staff@vehiclerental.vn',   fullName: 'Trần Thị Nhân',   role: 'STAFF'    },
-        user:    { id: 4, username: 'user',    email: 'user@gmail.com',            fullName: 'Lê Văn Khách',    role: 'CUSTOMER' },
+        admin:   { id: 1, username: 'admin',   email: 'admin@vehiclerental.com',   fullName: 'Super Admin',     role: 'ADMIN'    },
+        manager: { id: 2, username: 'manager', email: 'manager@vehiclerental.com', fullName: 'Michael Manager', role: 'MANAGER'  },
+        staff:   { id: 3, username: 'staff',   email: 'staff@vehiclerental.com',   fullName: 'Sarah Staff',     role: 'STAFF'    },
+        user:    { id: 4, username: 'user',    email: 'user@gmail.com',            fullName: 'John Customer',    role: 'CUSTOMER' },
       }
 
       let mockUser: AuthUser
@@ -313,7 +313,7 @@ if (isDev) {
         id: Date.now(),
         username: String(body.username ?? 'user_new'),
         email: String(body.email ?? 'user@gmail.com'),
-        fullName: String(body.fullName ?? 'Khách hàng mới'),
+        fullName: String(body.fullName ?? 'New Customer'),
         role: 'CUSTOMER',
       }
       CURRENT_MOCK_USER = newUser
@@ -321,6 +321,9 @@ if (isDev) {
         id: Date.now(),
         userId: newUser.id,
         status: 'UNVERIFIED',
+        vehicleInterests: [],
+        licenseClass: 'B2',
+        hasLicense: false,
       }
       const mockToken: TokenResponse = {
         accessToken: buildFakeJwt(newUser),
@@ -376,7 +379,7 @@ if (isDev) {
       config.adapter = async () =>
         user
           ? mockResponse(user)
-          : { data: { success: false, message: 'Không tìm thấy người dùng' }, status: 404, statusText: 'Not Found', headers: {}, config: {} as never }
+          : { data: { success: false, message: 'User not found' }, status: 404, statusText: 'Not Found', headers: {}, config: {} as never }
       return config
     }
 
@@ -385,8 +388,13 @@ if (isDev) {
       const body = parsePayload(config.data)
       const newUser: UserResponse = {
         id: Date.now(),
-        ...body,
+        username: String(body.username ?? `user_${Date.now()}`),
+        email: String(body.email ?? `user_${Date.now()}@example.com`),
+        fullName: String(body.fullName ?? 'New User'),
+        phone: body.phone,
+        role: body.role ?? 'STAFF',
         status: 'ACTIVE',
+        avatar: undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
@@ -449,14 +457,14 @@ if (isDev) {
         status: nextStatus,
         rejectionReason:
           nextStatus === 'REJECTED'
-            ? 'Ảnh trang hộ chiếu bị lóa sáng, không đọc được số ID.'
+            ? 'Passport photo has glare, ID number is unreadable.'
             : undefined,
         docType: MOCK_KYC.docType ?? 'PASSPORT',
         idNumber: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.idNumber ?? 'P98765432') : undefined,
-        country: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.country ?? 'Hoa Kỳ (United States)') : undefined,
+        country: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.country ?? 'United States') : undefined,
         expiryDate: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.expiryDate ?? '2029-06-30') : undefined,
         cccdNumber: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.cccdNumber ?? 'P98765432') : undefined,
-        province: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.province ?? 'TP. Hồ Chí Minh') : undefined,
+        province: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.province ?? 'Ho Chi Minh City') : undefined,
         dateOfBirth: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.dateOfBirth ?? '1995-08-20') : undefined,
         submittedAt: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.submittedAt ?? new Date().toISOString()) : undefined,
       }
@@ -542,7 +550,7 @@ if (isDev) {
       config.adapter = async () =>
         vehicle
           ? mockResponse(vehicle)
-          : { data: { success: false, message: 'Không tìm thấy xe' }, status: 404, statusText: 'Not Found', headers: {}, config: {} as never }
+          : { data: { success: false, message: 'Vehicle not found' }, status: 404, statusText: 'Not Found', headers: {}, config: {} as never }
       return config
     }
 

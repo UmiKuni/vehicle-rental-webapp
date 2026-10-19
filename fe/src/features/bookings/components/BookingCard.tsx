@@ -8,10 +8,10 @@ interface BookingCardProps {
 }
 
 const STATUS_CONFIG = {
-  CONFIRMED: { label: 'Đã xác nhận', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
-  ACTIVE:    { label: 'Đang thuê',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
-  COMPLETED: { label: 'Đã hoàn thành', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
-  CANCELLED: { label: 'Đã hủy',       class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  CONFIRMED: { label: 'Confirmed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  ACTIVE:    { label: 'Active',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
+  COMPLETED: { label: 'Completed', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
+  CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
 }
 
 export function BookingCard({ booking }: BookingCardProps) {
@@ -19,7 +19,7 @@ export function BookingCard({ booking }: BookingCardProps) {
   const statusInfo = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED
 
   const handleCancel = () => {
-    if (window.confirm(`Bạn có chắc chắn muốn hủy đơn đặt xe ${booking.bookingCode}?`)) {
+    if (window.confirm(`Are you sure you want to cancel booking ${booking.bookingCode}?`)) {
       cancelBooking(booking.id)
     }
   }
@@ -52,8 +52,8 @@ export function BookingCard({ booking }: BookingCardProps) {
             <span>{booking.vehicle.location}</span>
           </p>
           <p className="text-xs font-bold text-[#1a8a9d] mt-1">
-            {new Intl.NumberFormat('vi-VN').format(booking.totalAmount)}đ
-            <span className="text-[10px] text-muted-foreground font-normal"> ({booking.totalDays} ngày)</span>
+            {new Intl.NumberFormat('en-US').format(booking.totalAmount)} VND
+            <span className="text-[10px] text-muted-foreground font-normal"> ({booking.totalDays} {booking.totalDays > 1 ? 'days' : 'day'})</span>
           </p>
         </div>
       </div>
@@ -67,9 +67,9 @@ export function BookingCard({ booking }: BookingCardProps) {
           </span>
         </div>
         <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-border/50">
-          <span>Hình thức:</span>
+          <span>Delivery:</span>
           <span className="font-semibold text-foreground">
-            {booking.deliveryType === 'STATION' ? 'Tại trạm xe' : 'Giao tận nơi'}
+            {booking.deliveryType === 'STATION' ? 'Station Pickup' : 'Home Delivery'}
           </span>
         </div>
       </div>
@@ -83,14 +83,14 @@ export function BookingCard({ booking }: BookingCardProps) {
             onClick={handleCancel}
             className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-500/10 transition-colors"
           >
-            Hủy đơn
+            Cancel Booking
           </button>
           <a
             href="tel:19001234"
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-1"
           >
             <AlertCircle className="size-3" />
-            Trợ giúp
+            Help
           </a>
         </div>
       )}

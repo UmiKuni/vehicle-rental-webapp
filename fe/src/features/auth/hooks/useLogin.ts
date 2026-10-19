@@ -16,7 +16,7 @@ export function useLogin() {
     mutationFn: (data: LoginFormValues) => authApi.login(data),
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
-      toast.success(`Chào mừng, ${user.fullName}!`)
+      toast.success(`Welcome, ${user.fullName}!`)
       const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.SEARCH : ROUTES.DASHBOARD
       navigate(destination, { replace: true })
     },

@@ -12,10 +12,10 @@ export function useKycSubmit() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.KYC_STATUS] })
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.PROFILE] })
-      toast.success('Hồ sơ xác thực đã được gửi thành công! Chúng tôi sẽ xem xét trong 1-2 ngày làm việc.')
+      toast.success('Verification profile submitted successfully! We will review it within 1-2 business days.')
     },
     onError: () => {
-      toast.error('Gửi hồ sơ thất bại. Vui lòng thử lại.')
+      toast.error('Failed to submit verification profile. Please try again.')
     },
   })
 }

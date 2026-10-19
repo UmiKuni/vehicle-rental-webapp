@@ -14,15 +14,15 @@ function BottomNav() {
 
   const navItems = isCustomer
     ? [
-        { to: ROUTES.SEARCH, icon: Car, label: 'Thuê xe' },
-        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Chuyến đi' },
-        { to: user ? ROUTES.PROFILE : ROUTES.LOGIN, icon: User, label: user ? 'Hồ sơ' : 'Tài khoản' },
+        { to: ROUTES.SEARCH, icon: Car, label: 'Rent Car' },
+        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Trips' },
+        { to: user ? ROUTES.PROFILE : ROUTES.LOGIN, icon: User, label: user ? 'Profile' : 'Account' },
       ]
     : [
         { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-        { to: ROUTES.SEARCH, icon: Car, label: 'Thuê xe' },
-        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Chuyến đi' },
-        { to: ROUTES.PROFILE, icon: User, label: 'Hồ sơ' },
+        { to: ROUTES.SEARCH, icon: Car, label: 'Rent Car' },
+        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Trips' },
+        { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
       ]
 
   return (
@@ -82,14 +82,14 @@ export function MobileLayout() {
           <div className="max-w-md mx-auto flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
               <span className="size-2 rounded-full bg-cyan-400 animate-pulse" />
-              Chế độ xem PWA ({user.role})
+              PWA View Mode ({user.role})
             </span>
             <Link
               to={ROUTES.DASHBOARD}
               className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold"
             >
               <ArrowLeft className="size-3" />
-              Về Dashboard
+              Back to Dashboard
             </Link>
           </div>
         </header>
@@ -100,14 +100,14 @@ export function MobileLayout() {
         <header className="bg-gradient-to-r from-teal-900 via-teal-800 to-cyan-900 text-white px-4 py-2.5 sticky top-0 z-40 shadow-sm">
           <div className="max-w-md mx-auto flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight truncate">Chào bạn! Thuê xe tự lái dễ dàng</p>
-              <p className="text-[10px] text-teal-200/90 leading-tight">Đăng nhập để nhận ưu đãi & đặt xe ngay</p>
+              <p className="text-xs font-bold leading-tight truncate">Welcome! Self-drive rental made easy</p>
+              <p className="text-[10px] text-teal-200/90 leading-tight">Sign in for exclusive offers & instant booking</p>
             </div>
             <Link
               to={ROUTES.LOGIN}
               className="inline-flex items-center justify-center min-h-[36px] px-3.5 py-1 rounded-xl bg-white text-teal-900 font-bold text-xs hover:bg-teal-50 transition-colors shadow-xs shrink-0 active-press"
             >
-              Đăng nhập
+              Sign In
             </Link>
           </div>
         </header>

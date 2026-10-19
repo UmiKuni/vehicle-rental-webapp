@@ -12,9 +12,9 @@ import { cn } from '@/shared/utils'
 type Step = 1 | 2 | 3
 
 const STEPS = [
-  { num: 1 as Step, title: 'Loại xe', shortTitle: 'Phương tiện' },
-  { num: 2 as Step, title: 'Hộ chiếu / CCCD', shortTitle: 'Giấy tờ' },
-  { num: 3 as Step, title: 'Cá nhân', shortTitle: 'Thông tin' },
+  { num: 1 as Step, title: 'Vehicle Type', shortTitle: 'Vehicle' },
+  { num: 2 as Step, title: 'Passport / ID', shortTitle: 'Documents' },
+  { num: 3 as Step, title: 'Personal Info', shortTitle: 'Profile' },
 ]
 
 interface WizardData {
@@ -64,15 +64,15 @@ export default function KycWizardPage() {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50 mb-6">
           <CheckCircle2 className="size-10 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <h2 className="text-xl font-bold text-foreground">Hồ sơ đã được gửi!</h2>
+        <h2 className="text-xl font-bold text-foreground">Profile Submitted!</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-xs leading-relaxed">
-          Chúng tôi sẽ xem xét và phản hồi trong vòng <strong>1–2 ngày làm việc</strong>. Bạn sẽ nhận thông báo qua email.
+          We will review and respond within <strong>1–2 business days</strong>. You will receive notifications via email.
         </p>
         <button
           onClick={() => navigate(ROUTES.PROFILE)}
           className="mt-8 rounded-xl bg-[#1a8a9d] px-6 py-3 text-sm font-semibold text-white hover:bg-[#147485] transition-colors active-press"
         >
-          Về trang hồ sơ
+          Back to Profile
         </button>
       </div>
     )
@@ -90,8 +90,8 @@ export default function KycWizardPage() {
             <ArrowLeft className="size-5 text-foreground" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-foreground truncate">Xác thực tài khoản</h1>
-            <p className="text-[11px] text-muted-foreground">Bước {currentStep} / 3</p>
+            <h1 className="text-sm font-bold text-foreground truncate">Account Verification</h1>
+            <p className="text-[11px] text-muted-foreground">Step {currentStep} of 3</p>
           </div>
         </div>
 
@@ -127,14 +127,14 @@ export default function KycWizardPage() {
         {/* Step title */}
         <div className="mb-6">
           <h2 className="text-lg font-bold text-foreground">
-            {currentStep === 1 && 'Loại phương tiện & bằng lái'}
-            {currentStep === 2 && 'Xác thực Hộ chiếu (Passport) / CCCD'}
-            {currentStep === 3 && 'Thông tin cá nhân'}
+            {currentStep === 1 && "Vehicle Type & Driver's License"}
+            {currentStep === 2 && 'Passport / National ID Verification'}
+            {currentStep === 3 && 'Personal Information'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {currentStep === 1 && 'Cho chúng tôi biết bạn quan tâm đến loại xe nào'}
-            {currentStep === 2 && 'Chụp ảnh hộ chiếu hoặc CCCD để xác minh danh tính của bạn'}
-            {currentStep === 3 && 'Điền thông tin cá nhân và liên hệ khẩn cấp'}
+            {currentStep === 1 && 'Let us know which vehicle types you are interested in'}
+            {currentStep === 2 && 'Provide passport or national ID to verify your identity'}
+            {currentStep === 3 && 'Fill in your personal details and emergency contact'}
           </p>
         </div>
 

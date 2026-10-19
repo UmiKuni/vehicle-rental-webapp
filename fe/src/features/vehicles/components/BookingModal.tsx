@@ -86,7 +86,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-foreground truncate">{vehicle.name}</h2>
               <p className="text-xs font-bold text-[#1a8a9d]">
-                {new Intl.NumberFormat('vi-VN').format(vehicle.pricePerDay)}đ / ngày
+                {new Intl.NumberFormat('en-US').format(vehicle.pricePerDay)} VND / day
               </p>
             </div>
           </div>
@@ -106,9 +106,9 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
             <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs flex items-start gap-2.5">
               <LogIn className="size-4 text-[#1a8a9d] shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <span className="font-bold text-foreground">Bạn đang xem với tư cách Khách</span>
+                <span className="font-bold text-foreground">You are browsing as a Guest</span>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  Đăng nhập để xác nhận giữ chỗ và nhận ưu đãi riêng cho thành viên.
+                  Sign in to reserve your car and unlock member-exclusive deals.
                 </p>
               </div>
             </div>
@@ -119,12 +119,12 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
             <div className="rounded-2xl border border-amber-300/60 bg-amber-500/10 p-3 text-xs flex items-start gap-2.5">
               <ShieldAlert className="size-4 text-amber-500 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <span className="font-bold text-amber-700 dark:text-amber-400">Tài khoản chưa hoàn tất KYC</span>
+                <span className="font-bold text-amber-700 dark:text-amber-400">Account has not completed KYC</span>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  Bạn vẫn có thể giữ xe ngay. Hãy xác thực Hộ chiếu (Passport) hoặc CCCD trước giờ nhận xe nhé!
+                  You can still reserve now. Please verify your Passport or National ID before vehicle pickup!
                 </p>
                 <Link to={ROUTES.PROFILE_VERIFY} className="mt-1 inline-block text-[11px] font-bold text-[#1a8a9d] hover:underline">
-                  Xác thực ngay →
+                  Verify now →
                 </Link>
               </div>
             </div>
@@ -148,7 +148,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
           {user && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Họ tên người nhận</label>
+                <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Full Name</label>
                 <input
                   type="text"
                   value={customerName}
@@ -158,7 +158,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Số điện thoại</label>
+                <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Phone Number</label>
                 <input
                   type="tel"
                   value={customerPhone}
@@ -189,7 +189,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
               loading={isPending}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press"
             >
-              Xác nhận đặt xe · {new Intl.NumberFormat('vi-VN').format(totalAmount)}đ
+              Confirm Booking · {new Intl.NumberFormat('en-US').format(totalAmount)} VND
             </Button>
           ) : (
             <Button
@@ -198,7 +198,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press flex items-center justify-center gap-2"
             >
               <LogIn className="size-4" />
-              <span>Đăng nhập để đặt xe · {new Intl.NumberFormat('vi-VN').format(totalAmount)}đ</span>
+              <span>Sign in to book · {new Intl.NumberFormat('en-US').format(totalAmount)} VND</span>
             </Button>
           )}
         </div>

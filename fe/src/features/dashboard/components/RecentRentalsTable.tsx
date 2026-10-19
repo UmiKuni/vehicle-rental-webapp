@@ -15,45 +15,45 @@ interface RentalItem {
 const RECENT_RENTALS: RentalItem[] = [
   {
     id: 'RNT-2026-089',
-    customer: 'Nguyễn Tiến Dũng',
+    customer: 'Daniel Craig',
     phone: '0982 112 334',
     vehicle: 'VinFast VF9 Plus',
     plate: '30E-891.22',
-    hub: 'Hub Cầu Giấy',
-    duration: '12/10 - 15/10',
+    hub: 'Cau Giay Hub',
+    duration: '10/12 - 10/15',
     amount: 5_400_000,
     status: 'ACTIVE',
   },
   {
     id: 'RNT-2026-088',
-    customer: 'Trần Minh Hoàng',
+    customer: 'Thomas Miller',
     phone: '0912 445 667',
     vehicle: 'Mercedes C300 AMG',
     plate: '29A-456.78',
-    hub: 'Hub Hoàn Kiếm',
-    duration: '13/10 - 14/10',
+    hub: 'Hoan Kiem Hub',
+    duration: '10/13 - 10/14',
     amount: 3_200_000,
     status: 'ACTIVE',
   },
   {
     id: 'RNT-2026-087',
-    customer: 'Lê Thùy Trang',
+    customer: 'Jessica Taylor',
     phone: '0903 778 899',
     vehicle: 'Hyundai Santa Fe',
     plate: '30G-771.02',
-    hub: 'Hub Tân Bình',
-    duration: '14/10 - 18/10',
+    hub: 'Tan Binh Hub',
+    duration: '10/14 - 10/18',
     amount: 6_800_000,
     status: 'PENDING',
   },
   {
     id: 'RNT-2026-086',
-    customer: 'Phạm Đức Anh',
+    customer: 'Alex Anderson',
     phone: '0974 556 123',
     vehicle: 'Toyota Camry 2.5Q',
     plate: '51H-332.19',
-    hub: 'Hub Quận 1',
-    duration: '10/10 - 12/10',
+    hub: 'District 1 Hub',
+    duration: '10/10 - 10/12',
     amount: 4_100_000,
     status: 'COMPLETED',
   },
@@ -64,11 +64,11 @@ export function RecentRentalsTable() {
     <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
       <div className="flex items-center justify-between border-b border-border/60 p-4 sm:px-6">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Đơn đặt thuê & bàn giao xe mới nhất</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">Theo dõi hành trình nhận xe và thanh toán tức thì</p>
+          <h3 className="text-sm font-semibold text-foreground">Recent Rental & Delivery Orders</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Track real-time vehicle handovers and instant payments</p>
         </div>
         <button className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-          Xem tất cả <ArrowUpRight className="size-3.5" />
+          View all <ArrowUpRight className="size-3.5" />
         </button>
       </div>
 
@@ -76,13 +76,13 @@ export function RecentRentalsTable() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground">
-              <th className="px-4 py-3 text-left font-semibold">Mã đơn</th>
-              <th className="px-4 py-3 text-left font-semibold">Khách hàng</th>
-              <th className="px-4 py-3 text-left font-semibold">Phương tiện & Biển số</th>
-              <th className="px-4 py-3 text-left font-semibold">Trạm xe</th>
-              <th className="px-4 py-3 text-left font-semibold">Thời hạn</th>
-              <th className="px-4 py-3 text-right font-semibold">Tổng tiền</th>
-              <th className="px-4 py-3 text-center font-semibold">Trạng thái</th>
+              <th className="px-4 py-3 text-left font-semibold">Order ID</th>
+              <th className="px-4 py-3 text-left font-semibold">Customer</th>
+              <th className="px-4 py-3 text-left font-semibold">Vehicle & Plate</th>
+              <th className="px-4 py-3 text-left font-semibold">Station Hub</th>
+              <th className="px-4 py-3 text-left font-semibold">Duration</th>
+              <th className="px-4 py-3 text-right font-semibold">Total Amount</th>
+              <th className="px-4 py-3 text-center font-semibold">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
@@ -102,24 +102,24 @@ export function RecentRentalsTable() {
                 <td className="px-4 py-3 text-muted-foreground">{item.hub}</td>
                 <td className="px-4 py-3 font-mono text-muted-foreground">{item.duration}</td>
                 <td className="px-4 py-3 text-right font-mono font-semibold text-foreground">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.amount)}
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(item.amount)}
                 </td>
                 <td className="px-4 py-3 text-center">
                   {item.status === 'ACTIVE' && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Đang chạy
+                      Active
                     </span>
                   )}
                   {item.status === 'PENDING' && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
                       <span className="size-1.5 rounded-full bg-blue-500" />
-                      Chờ bàn giao
+                      Pending Handover
                     </span>
                   )}
                   {item.status === 'COMPLETED' && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border">
-                      Hoàn tất
+                      Completed
                     </span>
                   )}
                 </td>

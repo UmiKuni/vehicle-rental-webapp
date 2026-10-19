@@ -36,10 +36,10 @@ export function KycStep3PersonalInfo({ defaultValues, onSubmit, onBack, isSubmit
       {/* Personal Info */}
       <div className="space-y-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Thông tin cá nhân
+          Personal Information
         </p>
 
-        <FormField label="Ngày sinh" error={errors.dateOfBirth?.message}>
+        <FormField label="Date of Birth" error={errors.dateOfBirth?.message}>
           <Input
             id="date-of-birth"
             type="date"
@@ -49,22 +49,22 @@ export function KycStep3PersonalInfo({ defaultValues, onSubmit, onBack, isSubmit
           />
         </FormField>
 
-        <FormField label="Địa chỉ thường trú" error={errors.address?.message}>
+        <FormField label="Residential Address" error={errors.address?.message}>
           <Input
             id="address"
-            placeholder="Số nhà, đường, phường/xã, quận/huyện"
+            placeholder="House number, street, ward, district"
             className="h-11 rounded-xl bg-muted/40 border-border text-sm focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
             {...register('address')}
           />
         </FormField>
 
-        <FormField label="Tỉnh / Thành phố" error={errors.province?.message}>
+        <FormField label="Province / City" error={errors.province?.message}>
           <select
             id="province"
             className="h-11 w-full rounded-xl border border-border bg-muted/40 px-3 text-sm text-foreground focus:border-[#1a8a9d] focus:outline-none focus:ring-1 focus:ring-[#1a8a9d] dark:bg-zinc-800/40"
             {...register('province')}
           >
-            <option value="">Chọn tỉnh/thành</option>
+            <option value="">Select province/city</option>
             {VN_PROVINCES.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -80,22 +80,22 @@ export function KycStep3PersonalInfo({ defaultValues, onSubmit, onBack, isSubmit
       {/* Emergency contact */}
       <div className="space-y-3 pt-1">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Liên hệ khẩn cấp
+          Emergency Contact
         </p>
-        <FormField label="Họ tên người liên hệ" error={errors.emergencyContact?.message}>
+        <FormField label="Contact Full Name" error={errors.emergencyContact?.message}>
           <Input
             id="emergency-contact"
-            placeholder="Nguyễn Thị B"
+            placeholder="Jane Doe"
             className="h-11 rounded-xl bg-muted/40 border-border text-sm focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
             {...register('emergencyContact')}
           />
         </FormField>
 
-        <FormField label="Số điện thoại khẩn cấp" error={errors.emergencyPhone?.message}>
+        <FormField label="Emergency Phone Number" error={errors.emergencyPhone?.message}>
           <Input
             id="emergency-phone"
             type="tel"
-            placeholder="0901234567"
+            placeholder="+84 901 234 567"
             inputMode="tel"
             className="h-11 rounded-xl bg-muted/40 border-border text-sm focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
             {...register('emergencyPhone')}
@@ -110,7 +110,8 @@ export function KycStep3PersonalInfo({ defaultValues, onSubmit, onBack, isSubmit
           onClick={onBack}
           className="flex-1 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm flex items-center justify-center gap-2 hover:bg-accent active-press"
         >
-          Quay lại
+          <ChevronLeft className="size-4" />
+          Back
         </Button>
         <Button
           type="submit"
@@ -118,7 +119,7 @@ export function KycStep3PersonalInfo({ defaultValues, onSubmit, onBack, isSubmit
           className="flex-1 h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm flex items-center justify-center gap-2 active-press"
         >
           <Send className="size-4" />
-          Gửi hồ sơ
+          Submit Profile
         </Button>
       </div>
     </form>

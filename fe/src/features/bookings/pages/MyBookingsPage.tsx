@@ -24,10 +24,10 @@ export default function MyBookingsPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <CalendarCheck className="size-5 text-[#1a8a9d]" />
-            Chuyến đi của tôi
+            My Trips
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Quản lý lịch trình đặt xe và lịch sử di chuyển
+            Manage your vehicle reservations and travel history
           </p>
         </div>
 
@@ -36,7 +36,7 @@ export default function MyBookingsPage() {
           className="flex h-9 items-center gap-1.5 rounded-xl bg-[#1a8a9d] px-3 text-xs font-bold text-white shadow-xs hover:bg-[#147485] active-press transition-colors"
         >
           <Plus className="size-3.5" />
-          Đặt xe mới
+          Book a Vehicle
         </Link>
       </div>
 
@@ -51,7 +51,7 @@ export default function MyBookingsPage() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Sắp tới & Đang đi ({upcomingBookings.length})
+          Upcoming & Active ({upcomingBookings.length})
         </button>
         <button
           type="button"
@@ -62,7 +62,7 @@ export default function MyBookingsPage() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Lịch sử ({historyBookings.length})
+          History ({historyBookings.length})
         </button>
       </div>
 
@@ -81,19 +81,19 @@ export default function MyBookingsPage() {
             <Car className="size-8" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
-            {activeTab === 'UPCOMING' ? 'Chưa có chuyến đi nào sắp tới' : 'Chưa có lịch sử chuyến đi'}
+            {activeTab === 'UPCOMING' ? 'No upcoming trips' : 'No trip history yet'}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground max-w-xs leading-relaxed">
             {activeTab === 'UPCOMING'
-              ? 'Khám phá hơn 60+ dòng xe đời mới sẵn sàng phục vụ cho hành trình tiếp theo của bạn.'
-              : 'Các chuyến đi đã hoàn thành hoặc đã hủy sẽ được lưu trữ tại đây.'}
+              ? 'Explore 60+ late-model vehicles ready for your next adventure.'
+              : 'Completed and cancelled trips will appear here.'}
           </p>
           <Link
             to={ROUTES.SEARCH}
             className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#1a8a9d] px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#147485] active-press transition-colors"
           >
             <Sparkles className="size-3.5" />
-            Tìm xe tự lái ngay
+            Find Self-Drive Vehicles
           </Link>
         </div>
       )}

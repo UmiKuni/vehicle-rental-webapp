@@ -41,7 +41,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
     defaultValues: {
       docType: defaultValues?.docType ?? 'PASSPORT',
       idNumber: defaultValues?.idNumber ?? defaultValues?.cccdNumber ?? '',
-      country: defaultValues?.country ?? 'Hoa Kỳ (United States)',
+      country: defaultValues?.country ?? 'United States',
       expiryDate: defaultValues?.expiryDate ?? '',
       ...defaultValues,
     },
@@ -83,7 +83,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       {/* Document Type Selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-foreground">Loại giấy tờ xác thực</label>
+        <label className="text-xs font-semibold text-foreground">Verification Document Type</label>
         <Controller
           name="docType"
           control={control}
@@ -100,7 +100,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
                 )}
               >
                 <Globe2 className="size-4" />
-                <span>Hộ chiếu (Passport)</span>
+                <span>Passport</span>
               </button>
               <button
                 type="button"
@@ -113,7 +113,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
                 )}
               >
                 <CreditCard className="size-4" />
-                <span>CCCD / CMND</span>
+                <span>National ID (CCCD)</span>
               </button>
             </div>
           )}
@@ -122,12 +122,12 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
 
       {/* ID / Passport Number */}
       <FormField
-        label={currentDocType === 'PASSPORT' ? 'Số Hộ chiếu (Passport Number)' : 'Số CCCD / CMND'}
+        label={currentDocType === 'PASSPORT' ? 'Passport Number' : 'National ID Number'}
         error={errors.idNumber?.message}
       >
         <Input
           id="id-number"
-          placeholder={currentDocType === 'PASSPORT' ? 'VD: B1234567' : '012345678901'}
+          placeholder={currentDocType === 'PASSPORT' ? 'e.g. B1234567' : '012345678901'}
           maxLength={currentDocType === 'PASSPORT' ? 12 : 12}
           className="h-11 rounded-xl bg-muted/40 border-border font-mono tracking-widest text-sm uppercase focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
           {...register('idNumber')}
@@ -137,7 +137,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
       {/* Passport specific fields */}
       {currentDocType === 'PASSPORT' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField label="Quốc tịch / Quốc gia cấp" error={errors.country?.message}>
+          <FormField label="Nationality / Issuing Country" error={errors.country?.message}>
             <select
               id="passport-country"
               className="h-11 w-full rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-foreground focus:border-[#1a8a9d] focus:outline-none focus:ring-1 focus:ring-[#1a8a9d] dark:bg-zinc-800/40"
@@ -151,7 +151,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
             </select>
           </FormField>
 
-          <FormField label="Ngày hết hạn hộ chiếu" error={errors.expiryDate?.message}>
+          <FormField label="Passport Expiry Date" error={errors.expiryDate?.message}>
             <Input
               id="passport-expiry"
               type="date"
@@ -169,25 +169,25 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
           <AlertCircle className="size-4 text-[#1a8a9d] shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             {currentDocType === 'PASSPORT'
-              ? 'Vui lòng tải ảnh trang thông tin hộ chiếu có ảnh rõ nét, không bị lóa hoặc mất góc.'
-              : 'Ảnh CCCD phải rõ 2 mặt, không bị che khuất và còn hiệu lực pháp lý.'}
+              ? 'Please upload a clear photo of your passport information page without glare or cropped edges.'
+              : 'National ID photo must be clear on both sides, unobstructed, and valid.'}
           </p>
         </div>
 
         <ImageUploadZone
-          label={currentDocType === 'PASSPORT' ? 'Trang thông tin hộ chiếu (Bio Page)' : 'Mặt trước CCCD'}
+          label={currentDocType === 'PASSPORT' ? 'Passport Bio Page' : 'National ID Front'}
           preview={frontPreview}
           onFileSelect={(f) => handleImageUpload(f, 'front')}
           isUploading={isUploading}
-          hint={currentDocType === 'PASSPORT' ? 'Chụp hoặc tải ảnh trang hộ chiếu có ảnh' : 'Chụp hoặc tải ảnh mặt trước CCCD'}
+          hint={currentDocType === 'PASSPORT' ? 'Take photo or upload passport bio page' : 'Take photo or upload ID front side'}
         />
 
         <ImageUploadZone
-          label={currentDocType === 'PASSPORT' ? 'Thị thực / Dấu nhập cảnh (Tùy chọn)' : 'Mặt sau CCCD'}
+          label={currentDocType === 'PASSPORT' ? 'Visa / Entry Stamp (Optional)' : 'National ID Back'}
           preview={backPreview}
           onFileSelect={(f) => handleImageUpload(f, 'back')}
           isUploading={isUploading}
-          hint={currentDocType === 'PASSPORT' ? 'Tải ảnh visa hoặc dấu nhập cảnh Việt Nam' : 'Chụp hoặc tải ảnh mặt sau CCCD'}
+          hint={currentDocType === 'PASSPORT' ? 'Upload Vietnam visa or entry stamp' : 'Take photo or upload ID back side'}
         />
       </div>
 
@@ -199,13 +199,13 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
           className="flex-1 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm flex items-center justify-center gap-2 hover:bg-accent active-press"
         >
           <ChevronLeft className="size-4" />
-          Quay lại
+          Back
         </Button>
         <Button
           type="submit"
           className="flex-1 h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm flex items-center justify-center gap-2 active-press"
         >
-          Tiếp theo
+          Continue
           <ChevronRight className="size-4" />
         </Button>
       </div>

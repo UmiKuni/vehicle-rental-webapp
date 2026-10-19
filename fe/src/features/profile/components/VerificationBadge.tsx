@@ -11,25 +11,25 @@ interface Props {
 const CONFIG = {
   VERIFIED: {
     icon: ShieldCheck,
-    label: 'Đã xác thực',
+    label: 'Verified',
     className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
     dot: 'bg-emerald-500',
   },
   PENDING: {
     icon: Clock,
-    label: 'Đang xem xét',
+    label: 'In Review',
     className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
     dot: 'bg-amber-500',
   },
   UNVERIFIED: {
     icon: ShieldAlert,
-    label: 'Chưa xác thực',
+    label: 'Unverified',
     className: 'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-800/40 dark:text-zinc-400 dark:border-zinc-700',
     dot: 'bg-zinc-400',
   },
   REJECTED: {
     icon: ShieldX,
-    label: 'Bị từ chối',
+    label: 'Rejected',
     className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800',
     dot: 'bg-red-500',
   },

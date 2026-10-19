@@ -5,6 +5,7 @@ import { authApi } from '../api/auth.api'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { getErrorMessage } from '@/shared/lib/query-client'
 import { ROUTES } from '@/shared/constants'
+import type { RegisterRequest } from '@/types/auth.types'
 import type { RegisterFormValues } from '../schemas/register.schema'
 
 export function useRegister() {
@@ -14,12 +15,18 @@ export function useRegister() {
   return useMutation({
     mutationFn: (data: RegisterFormValues) => {
       // Exclude confirmPassword when calling backend API
-      const { confirmPassword: _, ...payload } = data
+      const payload: RegisterRequest = {
+        username: data.username,
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        password: data.password,
+      }
       return authApi.register(payload)
     },
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
-      toast.success(`Đăng ký thành công! Chào mừng ${user.fullName}`)
+      toast.success(`Registration successful! Welcome, ${user.fullName}`)
       navigate(ROUTES.PROFILE, { replace: true })
     },
     onError: (error) => {

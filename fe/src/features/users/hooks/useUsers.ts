@@ -32,7 +32,7 @@ export function useCreateUser() {
     mutationFn: (data: CreateUserRequest) => userApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-      toast.success('Tạo người dùng thành công!')
+      toast.success('User created successfully!')
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   })
@@ -44,7 +44,7 @@ export function useUpdateUser(id: number) {
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
       queryClient.setQueryData(userQueryKeys.detail(id), updated)
-      toast.success('Cập nhật người dùng thành công!')
+      toast.success('User updated successfully!')
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   })
@@ -55,7 +55,7 @@ export function useDeleteUser() {
     mutationFn: (id: number) => userApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() })
-      toast.success('Xóa người dùng thành công!')
+      toast.success('User deleted successfully!')
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   })

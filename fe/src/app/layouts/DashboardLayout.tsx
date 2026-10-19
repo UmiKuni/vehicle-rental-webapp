@@ -35,19 +35,19 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    title: 'Vận hành',
+    title: 'Operations',
     items: [
-      { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Tổng quan' },
-      { to: '/vehicles', icon: Car, label: 'Phương tiện', badge: '64 xe', disabled: true },
-      { to: '/rentals', icon: CalendarCheck, label: 'Đơn thuê', badge: '18 hoạt động', disabled: true },
+      { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Overview' },
+      { to: '/vehicles', icon: Car, label: 'Vehicles', badge: '64 vehicles', disabled: true },
+      { to: '/rentals', icon: CalendarCheck, label: 'Rentals', badge: '18 active', disabled: true },
     ],
   },
   {
-    title: 'Hệ thống',
+    title: 'System',
     items: [
-      { to: ROUTES.USERS, icon: Users, label: 'Người dùng' },
-      { to: '/analytics', icon: BarChart3, label: 'Báo cáo', disabled: true },
-      { to: '/settings', icon: Settings, label: 'Cài đặt', disabled: true },
+      { to: ROUTES.USERS, icon: Users, label: 'Users' },
+      { to: '/analytics', icon: BarChart3, label: 'Reports', disabled: true },
+      { to: '/settings', icon: Settings, label: 'Settings', disabled: true },
     ],
   },
 ]
@@ -89,7 +89,7 @@ export function DashboardLayout() {
             </Link>
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Hub Trung tâm • Trực tuyến</span>
+              <span>Central Hub • Online</span>
             </div>
           </div>
           <button
@@ -144,7 +144,7 @@ export function DashboardLayout() {
         {/* Fleet Readiness Mini Progress */}
         <div className="border-t border-border p-3.5 mx-2 mb-2 rounded-lg bg-muted/40">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 font-medium">
-            <span>Tỷ lệ sẵn sàng</span>
+            <span>Readiness Rate</span>
             <span className="font-mono text-foreground font-semibold">84.5%</span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
@@ -158,7 +158,7 @@ export function DashboardLayout() {
             <Link
               to={ROUTES.PROFILE}
               className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-white font-mono hover:ring-2 hover:ring-primary/50 transition-all"
-              title="Xem hồ sơ"
+              title="View Profile"
             >
               {getInitials(user?.fullName ?? 'U')}
               <span className="absolute bottom-0 right-0 size-2 rounded-full border-2 border-sidebar bg-emerald-500" />
@@ -169,7 +169,7 @@ export function DashboardLayout() {
             </div>
             <button
               onClick={logout}
-              title="Đăng xuất"
+              title="Log out"
               className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
               <LogOut className="size-4" />
@@ -186,14 +186,14 @@ export function DashboardLayout() {
             <button
               onClick={() => setSidebarOpen(true)}
               className="rounded-md p-2 text-muted-foreground hover:bg-accent lg:hidden"
-              aria-label="Mở menu"
+              aria-label="Open menu"
             >
               <Menu className="size-5" />
             </button>
 
             {/* Breadcrumb / Page Title */}
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <span>Hệ thống</span>
+              <span>System</span>
               <span>/</span>
               <span className="font-semibold text-foreground text-sm">
                 {getPageTitle(location.pathname)}
@@ -205,7 +205,7 @@ export function DashboardLayout() {
             {/* Quick search shortcut trigger */}
             <div className="hidden items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground md:flex">
               <Search className="size-3.5 text-muted-foreground" />
-              <span>Tìm kiếm nhanh...</span>
+              <span>Quick search...</span>
               <kbd className="flex items-center gap-0.5 rounded border border-border bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
                 <Command className="size-2.5" /> K
               </kbd>
@@ -214,7 +214,7 @@ export function DashboardLayout() {
             {/* Notifications */}
             <button
               className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Thông báo"
+              title="Notifications"
             >
               <Bell className="size-4" />
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 ring-2 ring-background" />
@@ -224,8 +224,8 @@ export function DashboardLayout() {
             <button
               onClick={toggleTheme}
               className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Đổi giao diện"
-              title="Chuyển chế độ sáng/tối"
+              aria-label="Toggle theme"
+              title="Toggle light/dark mode"
             >
               {resolvedTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
@@ -245,9 +245,9 @@ export function DashboardLayout() {
 
 function getPageTitle(pathname: string): string {
   const map: Record<string, string> = {
-    '/': 'Tổng quan vận hành',
-    '/users': 'Quản lý tài khoản',
-    '/vehicles': 'Quản lý phương tiện',
+    '/': 'Operations Overview',
+    '/users': 'Account Management',
+    '/vehicles': 'Vehicle Management',
   }
-  return map[pathname] ?? 'Hệ thống'
+  return map[pathname] ?? 'System'
 }

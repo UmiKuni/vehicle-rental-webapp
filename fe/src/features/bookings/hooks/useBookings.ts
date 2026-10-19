@@ -20,7 +20,7 @@ export function useCreateBooking() {
     mutationFn: (payload: CreateBookingPayload) => bookingApi.createBooking(payload),
     onSuccess: (booking) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BOOKINGS] })
-      toast.success(`Đặt xe ${booking.vehicle.name} thành công! Mã đơn: ${booking.bookingCode}`)
+      toast.success(`Successfully booked ${booking.vehicle.name}! Booking code: ${booking.bookingCode}`)
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))
@@ -35,7 +35,7 @@ export function useCancelBooking() {
     mutationFn: (id: string) => bookingApi.cancelBooking(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BOOKINGS] })
-      toast.success('Đã hủy đơn đặt xe')
+      toast.success('Booking cancelled successfully')
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

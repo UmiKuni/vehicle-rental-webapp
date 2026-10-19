@@ -6,7 +6,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  message = 'Đã xảy ra lỗi. Vui lòng thử lại.',
+  message = 'An error occurred. Please try again.',
   onRetry,
 }: ErrorStateProps) {
   return (
@@ -15,7 +15,7 @@ export function ErrorState({
         <AlertCircle className="size-7 text-destructive" />
       </div>
       <div>
-        <p className="font-medium text-foreground">Lỗi tải dữ liệu</p>
+        <p className="font-medium text-foreground">Error loading data</p>
         <p className="mt-1 text-sm text-muted-foreground">{message}</p>
       </div>
       {onRetry && (
@@ -24,7 +24,7 @@ export function ErrorState({
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           <RefreshCw className="size-4" />
-          Thử lại
+          Try again
         </button>
       )}
     </div>
@@ -32,8 +32,8 @@ export function ErrorState({
 }
 
 export function EmptyState({
-  title = 'Không có dữ liệu',
-  description = 'Chưa có dữ liệu nào để hiển thị.',
+  title = 'No data found',
+  description = 'No data available to display.',
   action,
 }: {
   title?: string

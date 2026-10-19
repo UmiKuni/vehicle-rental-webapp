@@ -12,12 +12,12 @@ interface VehicleFilterBarProps {
 }
 
 const CATEGORIES: { id: VehicleInterest | 'ALL'; label: string; icon: string }[] = [
-  { id: 'ALL',        label: 'Tất cả',   icon: '✨' },
-  { id: 'ELECTRIC',   label: 'Xe điện',  icon: '⚡' },
-  { id: 'CAR_4_SEAT', label: '4-5 chỗ',  icon: '🚗' },
-  { id: 'CAR_7_SEAT', label: '7 chỗ',    icon: '🚐' },
-  { id: 'TRUCK',      label: 'Bán tải',  icon: '🛻' },
-  { id: 'MOTORBIKE',  label: 'Xe máy',   icon: '🛵' },
+  { id: 'ALL',        label: 'All',          icon: '✨' },
+  { id: 'ELECTRIC',   label: 'Electric',     icon: '⚡' },
+  { id: 'CAR_4_SEAT', label: '4-5 Seats',    icon: '🚗' },
+  { id: 'CAR_7_SEAT', label: '7 Seats',      icon: '🚐' },
+  { id: 'TRUCK',      label: 'Pickup Truck', icon: '🛻' },
+  { id: 'MOTORBIKE',  label: 'Motorbike',    icon: '🛵' },
 ]
 
 export function VehicleFilterBar({
@@ -37,7 +37,7 @@ export function VehicleFilterBar({
           type="text"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Tìm xe theo tên, hãng hoặc quận..."
+          placeholder="Search by vehicle name, brand or district..."
           className="w-full h-11 rounded-2xl border border-border bg-muted/40 pl-10 pr-9 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:bg-background focus:border-[#1a8a9d] focus:outline-none focus:ring-1 focus:ring-[#1a8a9d] transition-all"
         />
         {search && (
@@ -75,7 +75,7 @@ export function VehicleFilterBar({
 
       {/* Transmission Quick Filter */}
       <div className="flex items-center gap-1.5 text-[11px]">
-        <span className="text-muted-foreground font-medium shrink-0">Hộp số:</span>
+        <span className="text-muted-foreground font-medium shrink-0">Transmission:</span>
         {(['ALL', 'AUTOMATIC', 'MANUAL'] as const).map((trans) => (
           <button
             key={trans}
@@ -87,7 +87,7 @@ export function VehicleFilterBar({
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {trans === 'ALL' ? 'Tất cả' : trans === 'AUTOMATIC' ? 'Tự động' : 'Số sàn'}
+            {trans === 'ALL' ? 'All' : trans === 'AUTOMATIC' ? 'Automatic' : 'Manual'}
           </button>
         ))}
       </div>

@@ -18,15 +18,15 @@ export function Pagination({ page, totalPages, totalElements, size, onPageChange
   return (
     <div className="flex items-center justify-between px-1 py-3">
       <p className="text-sm text-muted-foreground">
-        Hiển thị <span className="font-medium">{from}–{to}</span> trong{' '}
-        <span className="font-medium">{totalElements}</span> kết quả
+        Showing <span className="font-medium">{from}–{to}</span> of{' '}
+        <span className="font-medium">{totalElements}</span> results
       </p>
 
       <div className="flex items-center gap-1">
         <PagButton
           onClick={() => onPageChange(page - 1)}
           disabled={page === 0}
-          aria-label="Trang trước"
+          aria-label="Previous page"
         >
           <ChevronLeft className="size-4" />
         </PagButton>
@@ -48,7 +48,7 @@ export function Pagination({ page, totalPages, totalElements, size, onPageChange
         <PagButton
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages - 1}
-          aria-label="Trang sau"
+          aria-label="Next page"
         >
           <ChevronRight className="size-4" />
         </PagButton>

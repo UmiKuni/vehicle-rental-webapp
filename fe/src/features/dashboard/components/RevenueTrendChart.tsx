@@ -11,13 +11,13 @@ interface DayStat {
 }
 
 const WEEKLY_STATS: DayStat[] = [
-  { day: 'Thứ 2', date: '07/10', revenue: 18_500_000, bookings: 14, utilization: 72 },
-  { day: 'Thứ 3', date: '08/10', revenue: 22_000_000, bookings: 17, utilization: 78 },
-  { day: 'Thứ 4', date: '09/10', revenue: 19_800_000, bookings: 15, utilization: 75 },
-  { day: 'Thứ 5', date: '10/10', revenue: 28_400_000, bookings: 21, utilization: 86 },
-  { day: 'Thứ 6', date: '11/10', revenue: 34_600_000, bookings: 26, utilization: 92 },
-  { day: 'Thứ 7', date: '12/10', revenue: 42_100_000, bookings: 31, utilization: 98 },
-  { day: 'Chủ nhật', date: '13/10', revenue: 38_000_000, bookings: 29, utilization: 94 },
+  { day: 'Mon', date: '10/07', revenue: 18_500_000, bookings: 14, utilization: 72 },
+  { day: 'Tue', date: '10/08', revenue: 22_000_000, bookings: 17, utilization: 78 },
+  { day: 'Wed', date: '10/09', revenue: 19_800_000, bookings: 15, utilization: 75 },
+  { day: 'Thu', date: '10/10', revenue: 28_400_000, bookings: 21, utilization: 86 },
+  { day: 'Fri', date: '10/11', revenue: 34_600_000, bookings: 26, utilization: 92 },
+  { day: 'Sat', date: '10/12', revenue: 42_100_000, bookings: 31, utilization: 98 },
+  { day: 'Sun', date: '10/13', revenue: 38_000_000, bookings: 29, utilization: 94 },
 ]
 
 export function RevenueTrendChart() {
@@ -30,12 +30,12 @@ export function RevenueTrendChart() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">Xu hướng doanh thu & đặt xe</h3>
+            <h3 className="text-sm font-semibold text-foreground">Revenue & Booking Trends</h3>
             <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium font-mono text-blue-600 dark:text-blue-400">
               <TrendingUp className="size-3" /> +18.4%
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">Doanh thu ghi nhận theo từng ngày trong tuần</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Daily revenue breakdown across the week</p>
         </div>
 
         {/* Selected Data Snapshot */}
@@ -43,11 +43,11 @@ export function RevenueTrendChart() {
           <div>
             <p className="text-[10px] uppercase font-mono text-muted-foreground">{selected.day} ({selected.date})</p>
             <p className="text-sm font-bold font-mono text-foreground">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selected.revenue)}
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(selected.revenue)}
             </p>
           </div>
           <div className="border-l border-border/60 pl-3">
-            <p className="text-[10px] uppercase font-mono text-muted-foreground">Khai thác</p>
+            <p className="text-[10px] uppercase font-mono text-muted-foreground">Utilization</p>
             <p className="text-sm font-bold font-mono text-emerald-500">{selected.utilization}%</p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function RevenueTrendChart() {
               {/* Label */}
               <div className="mt-2 text-center">
                 <p className={cn('text-[11px] font-medium transition-colors', isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground')}>
-                  {stat.day.replace('Thứ ', 'T')}
+                  {stat.day}
                 </p>
                 <p className="text-[9px] font-mono text-muted-foreground">{stat.date}</p>
               </div>
@@ -94,9 +94,9 @@ export function RevenueTrendChart() {
       <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-2">
           <BarChart2 className="size-3.5" />
-          <span>Tổng doanh thu tuần: <strong className="font-mono text-foreground">203.400.000 ₫</strong></span>
+          <span>Total Weekly Revenue: <strong className="font-mono text-foreground">203,400,000 ₫</strong></span>
         </div>
-        <span>149 lượt thuê hoàn tất</span>
+        <span>149 completed rentals</span>
       </div>
     </div>
   )
