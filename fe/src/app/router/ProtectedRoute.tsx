@@ -74,13 +74,19 @@ export function AdminRoute() {
     )
   }
 
+  // Khách chưa đăng nhập:
+  // Nếu vào trang chủ '/' → dẫn sang '/search' để xem danh sách xe công khai
+  // Nếu vào trang admin khác (như '/users') → dẫn sang '/login'
   if (!isAuthenticated) {
+    if (location.pathname === '/' || location.pathname === ROUTES.DASHBOARD) {
+      return <Navigate to={ROUTES.SEARCH} replace />
+    }
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
-  // CUSTOMER vào trang admin → redirect về profile
+  // CUSTOMER vào trang admin → redirect về trang tìm thuê xe
   if (user && CUSTOMER_ROLES.includes(user.role)) {
-    return <Navigate to={ROUTES.PROFILE} replace />
+    return <Navigate to={ROUTES.SEARCH} replace />
   }
 
   return <Outlet />

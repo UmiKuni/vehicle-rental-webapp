@@ -11,11 +11,12 @@ export function useProfile() {
   })
 }
 
-export function useKycStatus() {
+export function useKycStatus(enabled = true) {
   return useQuery({
     queryKey: [QUERY_KEYS.KYC_STATUS],
     queryFn: profileApi.getKycStatus,
     staleTime: 2 * 60 * 1000,
+    enabled,
   })
 }
 

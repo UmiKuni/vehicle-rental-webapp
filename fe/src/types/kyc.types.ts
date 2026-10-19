@@ -11,6 +11,9 @@ export type LicenseClass =
   | 'B1' | 'B2'
   | 'C'  | 'D'  | 'E'
   | 'FB' | 'FC' | 'FD' | 'FE'
+  | 'INTERNATIONAL' // Bằng lái xe quốc tế (International Driving Permit)
+
+export type IdentityDocType = 'PASSPORT' | 'CCCD'
 
 export type VehicleInterest =
   | 'MOTORBIKE'
@@ -26,11 +29,20 @@ export interface KycStep1Data {
   hasLicense: boolean
 }
 
-// Step 2 — national ID (CCCD)
+// Step 2 — Passport or CCCD
 export interface KycStep2Data {
-  cccdNumber: string
-  cccdFrontImage: File | null
-  cccdBackImage: File | null
+  docType: IdentityDocType
+  idNumber: string
+  country?: string
+  expiryDate?: string
+  frontImage?: File | null
+  backImage?: File | null
+  frontPreview?: string
+  backPreview?: string
+  // Legacy aliases for backward compatibility
+  cccdNumber?: string
+  cccdFrontImage?: File | null
+  cccdBackImage?: File | null
   cccdFrontPreview?: string
   cccdBackPreview?: string
 }
@@ -47,7 +59,15 @@ export interface KycStep3Data {
 // Combined submission payload
 export interface KycSubmitPayload {
   step1: KycStep1Data
-  step2: Omit<KycStep2Data, 'cccdFrontImage' | 'cccdBackImage'>
+  step2: {
+    docType: IdentityDocType
+    idNumber: string
+    country?: string
+    expiryDate?: string
+    frontPreview?: string
+    backPreview?: string
+    cccdNumber?: string
+  }
   step3: KycStep3Data
 }
 
@@ -60,6 +80,10 @@ export interface KycProfile {
   vehicleInterests: VehicleInterest[]
   licenseClass: LicenseClass
   hasLicense: boolean
+  docType?: IdentityDocType
+  idNumber?: string
+  country?: string
+  expiryDate?: string
   cccdNumber?: string
   cccdFrontUrl?: string
   cccdBackUrl?: string

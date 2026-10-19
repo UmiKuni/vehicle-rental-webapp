@@ -24,6 +24,7 @@ const LICENSE_CLASSES: { value: LicenseClass; label: string; desc: string }[] = 
   { value: 'A2', label: 'A2', desc: 'Mô tô > 175cc' },
   { value: 'B1', label: 'B1', desc: 'Ô tô ≤ 9 chỗ (không hành nghề)' },
   { value: 'B2', label: 'B2', desc: 'Ô tô ≤ 9 chỗ (hành nghề)' },
+  { value: 'INTERNATIONAL', label: 'Bằng quốc tế (IDP)', desc: 'Bằng lái xe quốc tế (International Driving Permit)' },
   { value: 'C', label: 'C', desc: 'Xe tải' },
   { value: 'D', label: 'D', desc: 'Xe khách ≤ 30 chỗ' },
   { value: 'E', label: 'E', desc: 'Xe khách > 30 chỗ' },

@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { kycStep2Schema, type KycStep2Values } from '../schemas/kyc.schema'
 import { useKycImageUpload } from '../hooks/useKycSubmit'
+import { ImageUploadZone } from './ImageUploadZone'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
+import { POPULAR_COUNTRIES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
-import { ChevronLeft, ChevronRight, Camera, Upload, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, Globe2, CreditCard } from 'lucide-react'
 
 interface Props {
   defaultValues?: Partial<KycStep2Values>
@@ -15,158 +17,181 @@ interface Props {
   onBack: () => void
 }
 
-function ImageUploadZone({
-  label,
-  preview,
-  onFileSelect,
-  isUploading,
-  hint,
-}: {
-  label: string
-  preview?: string
-  onFileSelect: (file: File) => void
-  isUploading: boolean
-  hint: string
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) onFileSelect(f)
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold text-foreground">{label}</p>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          'relative w-full overflow-hidden rounded-xl border-2 border-dashed transition-all',
-          preview
-            ? 'border-emerald-400 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20'
-            : 'border-border bg-muted/30 hover:border-[#1a8a9d] hover:bg-[#1a8a9d]/5'
-        )}
-        style={{ aspectRatio: '16/9' }}
-      >
-        {preview ? (
-          <>
-            <img src={preview} alt={label} className="h-full w-full object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity">
-              <div className="rounded-full bg-white/90 p-2">
-                <Camera className="size-5 text-zinc-700" />
-              </div>
-            </div>
-            <div className="absolute top-2 right-2">
-              <CheckCircle2 className="size-5 text-emerald-400 drop-shadow" />
-            </div>
-          </>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 py-8 px-4">
-            {isUploading ? (
-              <div className="size-8 animate-spin rounded-full border-3 border-[#1a8a9d] border-t-transparent" />
-            ) : (
-              <Upload className="size-6 text-muted-foreground" />
-            )}
-            <span className="text-xs text-muted-foreground text-center">
-              {isUploading ? 'Đang tải ảnh...' : hint}
-            </span>
-          </div>
-        )}
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleFile}
-      />
-    </div>
-  )
-}
-
 export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
-  const [frontPreview, setFrontPreview] = useState<string | undefined>(defaultValues?.cccdFrontPreview)
-  const [backPreview, setBackPreview] = useState<string | undefined>(defaultValues?.cccdBackPreview)
+  const [frontPreview, setFrontPreview] = useState<string | undefined>(
+    defaultValues?.frontPreview ?? defaultValues?.cccdFrontPreview
+  )
+  const [backPreview, setBackPreview] = useState<string | undefined>(
+    defaultValues?.backPreview ?? defaultValues?.cccdBackPreview
+  )
 
   const { mutateAsync: uploadImage, isPending: isUploading } = useKycImageUpload()
+
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
+    control,
     formState: { errors },
   } = useForm<KycStep2Values>({
     resolver: zodResolver(kycStep2Schema),
     defaultValues: {
-      cccdNumber: '',
+      docType: defaultValues?.docType ?? 'PASSPORT',
+      idNumber: defaultValues?.idNumber ?? defaultValues?.cccdNumber ?? '',
+      country: defaultValues?.country ?? 'Hoa Kỳ (United States)',
+      expiryDate: defaultValues?.expiryDate ?? '',
       ...defaultValues,
     },
   })
+
+  const currentDocType = watch('docType')
 
   const handleImageUpload = async (file: File, side: 'front' | 'back') => {
     const localUrl = URL.createObjectURL(file)
     if (side === 'front') {
       setFrontPreview(localUrl)
+      setValue('frontPreview', localUrl)
       setValue('cccdFrontPreview', localUrl)
     } else {
       setBackPreview(localUrl)
+      setValue('backPreview', localUrl)
       setValue('cccdBackPreview', localUrl)
     }
-
     try {
       await uploadImage({ file, side })
     } catch {
-      // Upload failure is non-blocking in mock mode
+      // Non-blocking in mock mode
     }
   }
 
   const onSubmit = (data: KycStep2Values) => {
-    onNext({ ...data, cccdFrontPreview: frontPreview, cccdBackPreview: backPreview })
+    onNext({
+      ...data,
+      idNumber: data.idNumber.trim().toUpperCase(),
+      cccdNumber: data.idNumber.trim().toUpperCase(),
+      frontPreview,
+      backPreview,
+      cccdFrontPreview: frontPreview,
+      cccdBackPreview: backPreview,
+    })
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* CCCD Number */}
-      <FormField label="Số CCCD / CMND" error={errors.cccdNumber?.message}>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* Document Type Selector */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-foreground">Loại giấy tờ xác thực</label>
+        <Controller
+          name="docType"
+          control={control}
+          render={({ field }) => (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => field.onChange('PASSPORT')}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all min-h-[44px] active-press',
+                  field.value === 'PASSPORT'
+                    ? 'border-[#1a8a9d] bg-[#1a8a9d]/10 text-[#1a8a9d] ring-1 ring-[#1a8a9d]/30'
+                    : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                )}
+              >
+                <Globe2 className="size-4" />
+                <span>Hộ chiếu (Passport)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => field.onChange('CCCD')}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all min-h-[44px] active-press',
+                  field.value === 'CCCD'
+                    ? 'border-[#1a8a9d] bg-[#1a8a9d]/10 text-[#1a8a9d] ring-1 ring-[#1a8a9d]/30'
+                    : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                )}
+              >
+                <CreditCard className="size-4" />
+                <span>CCCD / CMND</span>
+              </button>
+            </div>
+          )}
+        />
+      </div>
+
+      {/* ID / Passport Number */}
+      <FormField
+        label={currentDocType === 'PASSPORT' ? 'Số Hộ chiếu (Passport Number)' : 'Số CCCD / CMND'}
+        error={errors.idNumber?.message}
+      >
         <Input
-          id="cccd-number"
-          placeholder="012345678901"
-          inputMode="numeric"
-          maxLength={12}
-          className="h-11 rounded-xl bg-muted/40 border-border font-mono tracking-widest text-sm focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
-          {...register('cccdNumber')}
+          id="id-number"
+          placeholder={currentDocType === 'PASSPORT' ? 'VD: B1234567' : '012345678901'}
+          maxLength={currentDocType === 'PASSPORT' ? 12 : 12}
+          className="h-11 rounded-xl bg-muted/40 border-border font-mono tracking-widest text-sm uppercase focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
+          {...register('idNumber')}
         />
       </FormField>
 
+      {/* Passport specific fields */}
+      {currentDocType === 'PASSPORT' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormField label="Quốc tịch / Quốc gia cấp" error={errors.country?.message}>
+            <select
+              id="passport-country"
+              className="h-11 w-full rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-foreground focus:border-[#1a8a9d] focus:outline-none focus:ring-1 focus:ring-[#1a8a9d] dark:bg-zinc-800/40"
+              {...register('country')}
+            >
+              {POPULAR_COUNTRIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Ngày hết hạn hộ chiếu" error={errors.expiryDate?.message}>
+            <Input
+              id="passport-expiry"
+              type="date"
+              min={tomorrow}
+              className="h-11 rounded-xl bg-muted/40 border-border text-xs focus-visible:border-[#1a8a9d] focus-visible:ring-1 focus-visible:ring-[#1a8a9d]"
+              {...register('expiryDate')}
+            />
+          </FormField>
+        </div>
+      )}
+
       {/* Upload zones */}
-      <div className="space-y-4">
-        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
-          <AlertCircle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-            Ảnh CCCD phải rõ ràng, không bị che khuất, không bị lóa sáng. Chúng tôi chỉ sử dụng ảnh để xác thực danh tính.
+      <div className="space-y-3.5">
+        <div className="flex items-start gap-2 rounded-xl bg-teal-500/10 border border-teal-500/20 p-3">
+          <AlertCircle className="size-4 text-[#1a8a9d] shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {currentDocType === 'PASSPORT'
+              ? 'Vui lòng tải ảnh trang thông tin hộ chiếu có ảnh rõ nét, không bị lóa hoặc mất góc.'
+              : 'Ảnh CCCD phải rõ 2 mặt, không bị che khuất và còn hiệu lực pháp lý.'}
           </p>
         </div>
 
         <ImageUploadZone
-          label="Mặt trước CCCD"
+          label={currentDocType === 'PASSPORT' ? 'Trang thông tin hộ chiếu (Bio Page)' : 'Mặt trước CCCD'}
           preview={frontPreview}
           onFileSelect={(f) => handleImageUpload(f, 'front')}
           isUploading={isUploading}
-          hint="Chụp hoặc tải ảnh mặt trước CCCD"
+          hint={currentDocType === 'PASSPORT' ? 'Chụp hoặc tải ảnh trang hộ chiếu có ảnh' : 'Chụp hoặc tải ảnh mặt trước CCCD'}
         />
 
         <ImageUploadZone
-          label="Mặt sau CCCD"
+          label={currentDocType === 'PASSPORT' ? 'Thị thực / Dấu nhập cảnh (Tùy chọn)' : 'Mặt sau CCCD'}
           preview={backPreview}
           onFileSelect={(f) => handleImageUpload(f, 'back')}
           isUploading={isUploading}
-          hint="Chụp hoặc tải ảnh mặt sau CCCD"
+          hint={currentDocType === 'PASSPORT' ? 'Tải ảnh visa hoặc dấu nhập cảnh Việt Nam' : 'Chụp hoặc tải ảnh mặt sau CCCD'}
         />
       </div>
 
-      {/* Navigation */}
+      {/* Navigation Buttons */}
       <div className="flex gap-3 pt-2">
         <Button
           type="button"

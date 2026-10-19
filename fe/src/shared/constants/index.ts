@@ -5,6 +5,8 @@ export const ROUTES = {
   REGISTER: '/register',
   DASHBOARD: '/',
   USERS: '/users',
+  SEARCH: '/search',
+  BOOKINGS: '/bookings',
   PROFILE: '/profile',
   PROFILE_VERIFY: '/profile/verify',
   NOT_FOUND: '/404',
@@ -16,6 +18,9 @@ export const QUERY_KEYS = {
   DASHBOARD_STATS: 'dashboardStats',
   PROFILE: 'profile',
   KYC_STATUS: 'kycStatus',
+  VEHICLES: 'vehicles',
+  VEHICLE: 'vehicle',
+  BOOKINGS: 'bookings',
 } as const
 
 export const VN_PROVINCES = [
@@ -32,6 +37,27 @@ export const VN_PROVINCES = [
   'Sơn La', 'Tây Ninh', 'Thái Bình', 'Thái Nguyên', 'Thanh Hóa',
   'Thừa Thiên Huế', 'Tiền Giang', 'TP. Hồ Chí Minh', 'Trà Vinh',
   'Tuyên Quang', 'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái',
+] as const
+
+export const POPULAR_COUNTRIES = [
+  'Hoa Kỳ (United States)',
+  'Hàn Quốc (South Korea)',
+  'Nhật Bản (Japan)',
+  'Úc (Australia)',
+  'Vương quốc Anh (United Kingdom)',
+  'Pháp (France)',
+  'Đức (Germany)',
+  'Nga (Russia)',
+  'Trung Quốc (China)',
+  'Đài Loan (Taiwan)',
+  'Singapore',
+  'Malaysia',
+  'Thái Lan (Thailand)',
+  'Canada',
+  'Ấn Độ (India)',
+  'Philippines',
+  'Indonesia',
+  'Việt Nam (Vietnam)',
 ] as const
 
 export const DEFAULT_PAGE_SIZE = 10

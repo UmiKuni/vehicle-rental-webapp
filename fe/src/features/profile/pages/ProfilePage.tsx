@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import {
   ShieldAlert, ChevronRight, LogOut, User, Mail, Shield,
   CalendarDays, MapPin, AlertTriangle, Clock, Settings, CreditCard,
+  Globe2,
 } from 'lucide-react'
 import { useProfile, useKycStatus } from '../hooks/useProfile'
 import { useAuth } from '@/shared/contexts/AuthContext'
@@ -181,13 +182,23 @@ export default function ProfilePage() {
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Hồ sơ xác thực
           </p>
-          <InfoRow icon={CreditCard} label="CCCD/CMND" value={kyc.cccdNumber} />
+          {kyc.docType === 'PASSPORT' ? (
+            <>
+              <InfoRow icon={Globe2} label="Hộ chiếu (Passport)" value={kyc.idNumber || kyc.cccdNumber} />
+              {kyc.country && <InfoRow icon={MapPin} label="Quốc tịch / Quốc gia" value={kyc.country} />}
+              {kyc.expiryDate && (
+                <InfoRow icon={CalendarDays} label="Ngày hết hạn" value={formatDate(kyc.expiryDate)} />
+              )}
+            </>
+          ) : (
+            <InfoRow icon={CreditCard} label="CCCD/CMND" value={kyc.idNumber || kyc.cccdNumber} />
+          )}
           <InfoRow
             icon={CalendarDays}
             label="Ngày sinh"
             value={kyc.dateOfBirth ? formatDate(kyc.dateOfBirth) : undefined}
           />
-          <InfoRow icon={MapPin} label="Tỉnh/Thành" value={kyc.province} />
+          <InfoRow icon={MapPin} label="Tỉnh/Thành lưu trú" value={kyc.province} />
           {kyc.submittedAt && (
             <InfoRow
               icon={Clock}

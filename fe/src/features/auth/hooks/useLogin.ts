@@ -17,7 +17,7 @@ export function useLogin() {
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
       toast.success(`Chào mừng, ${user.fullName}!`)
-      const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
+      const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.SEARCH : ROUTES.DASHBOARD
       navigate(destination, { replace: true })
     },
     onError: (error) => {

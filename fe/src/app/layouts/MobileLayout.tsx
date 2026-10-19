@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
-import { LayoutDashboard, Search, CalendarCheck, User, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, CalendarCheck, User, ArrowLeft, Car } from 'lucide-react'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
@@ -8,16 +8,22 @@ import { ADMIN_ROLES, CUSTOMER_ROLES } from '@/types/auth.types'
 
 function BottomNav() {
   const { user } = useAuth()
-  const { data: kyc } = useKycStatus()
-  const isUnverified = !kyc || kyc.status === 'UNVERIFIED'
-  const isCustomer = user && CUSTOMER_ROLES.includes(user.role)
+  const { data: kyc } = useKycStatus(!!user)
+  const isUnverified = user && (!kyc || kyc.status === 'UNVERIFIED')
+  const isCustomer = !user || CUSTOMER_ROLES.includes(user.role)
 
-  const navItems = [
-    { to: isCustomer ? ROUTES.PROFILE : ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Trang chủ' },
-    { to: '/search', icon: Search, label: 'Tìm kiếm' },
-    { to: '/bookings', icon: CalendarCheck, label: 'Đặt xe' },
-    { to: ROUTES.PROFILE, icon: User, label: 'Hồ sơ' },
-  ]
+  const navItems = isCustomer
+    ? [
+        { to: ROUTES.SEARCH, icon: Car, label: 'Thuê xe' },
+        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Chuyến đi' },
+        { to: user ? ROUTES.PROFILE : ROUTES.LOGIN, icon: User, label: user ? 'Hồ sơ' : 'Tài khoản' },
+      ]
+    : [
+        { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
+        { to: ROUTES.SEARCH, icon: Car, label: 'Thuê xe' },
+        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Chuyến đi' },
+        { to: ROUTES.PROFILE, icon: User, label: 'Hồ sơ' },
+      ]
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
@@ -84,6 +90,24 @@ export function MobileLayout() {
             >
               <ArrowLeft className="size-3" />
               Về Dashboard
+            </Link>
+          </div>
+        </header>
+      )}
+
+      {/* Guest Welcome Banner */}
+      {!user && (
+        <header className="bg-gradient-to-r from-teal-900 via-teal-800 to-cyan-900 text-white px-4 py-2.5 sticky top-0 z-40 shadow-sm">
+          <div className="max-w-md mx-auto flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight truncate">Chào bạn! Thuê xe tự lái dễ dàng</p>
+              <p className="text-[10px] text-teal-200/90 leading-tight">Đăng nhập để nhận ưu đãi & đặt xe ngay</p>
+            </div>
+            <Link
+              to={ROUTES.LOGIN}
+              className="inline-flex items-center justify-center min-h-[36px] px-3.5 py-1 rounded-xl bg-white text-teal-900 font-bold text-xs hover:bg-teal-50 transition-colors shadow-xs shrink-0 active-press"
+            >
+              Đăng nhập
             </Link>
           </div>
         </header>

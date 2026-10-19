@@ -1,18 +1,20 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants'
-import { ProtectedRoute, AdminRoute, CustomerRoute } from './ProtectedRoute'
+import { ProtectedRoute, AdminRoute } from './ProtectedRoute'
 import { DashboardLayout } from '@/app/layouts/DashboardLayout'
 import { MobileLayout } from '@/app/layouts/MobileLayout'
 
 // Lazy loaded pages
-const LoginPage     = lazy(() => import('@/features/auth/pages/LoginPage'))
-const RegisterPage  = lazy(() => import('@/features/auth/pages/RegisterPage'))
-const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
-const UsersPage     = lazy(() => import('@/features/users/pages/UsersPage'))
-const NotFoundPage  = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
-const ProfilePage   = lazy(() => import('@/features/profile/pages/ProfilePage'))
-const KycWizardPage = lazy(() => import('@/features/profile/pages/KycWizardPage'))
+const LoginPage        = lazy(() => import('@/features/auth/pages/LoginPage'))
+const RegisterPage     = lazy(() => import('@/features/auth/pages/RegisterPage'))
+const DashboardPage    = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
+const UsersPage        = lazy(() => import('@/features/users/pages/UsersPage'))
+const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
+const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
+const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
+const SearchVehiclesPage = lazy(() => import('@/features/vehicles/pages/SearchVehiclesPage'))
+const MyBookingsPage   = lazy(() => import('@/features/bookings/pages/MyBookingsPage'))
 
 function PageLoader() {
   return (
@@ -31,7 +33,7 @@ function wrap(Page: React.ComponentType) {
 }
 
 const router = createBrowserRouter([
-  // ── Public ──────────────────────────────────────────────────────────────────
+  // ── Public Auth Pages ───────────────────────────────────────────────────────
   {
     path: ROUTES.LOGIN,
     element: wrap(LoginPage),
@@ -41,43 +43,49 @@ const router = createBrowserRouter([
     element: wrap(RegisterPage),
   },
 
-  // ── All authenticated users ─────────────────────────────────────────────────
+  // ── Root & Admin Desktop Dashboard ──────────────────────────────────────────
+  {
+    element: <AdminRoute />,
+    children: [
+      {
+        element: <DashboardLayout />,
+        children: [
+          { path: ROUTES.DASHBOARD, element: wrap(DashboardPage) },
+          { path: ROUTES.USERS,     element: wrap(UsersPage) },
+        ],
+      },
+    ],
+  },
+
+  // ── Mobile PWA layout (Public vehicle browsing + Protected user pages) ────
+  {
+    element: <MobileLayout />,
+    children: [
+      // 1. PUBLIC: Khách vãng lai & khách hàng đều có thể vào xem và tìm xe
+      {
+        path: ROUTES.SEARCH,
+        element: wrap(SearchVehiclesPage),
+      },
+
+      // 2. PROTECTED: Yêu cầu đăng nhập khi xem danh sách chuyến đi hoặc hồ sơ
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { path: ROUTES.BOOKINGS, element: wrap(MyBookingsPage) },
+          { path: ROUTES.PROFILE,  element: wrap(ProfilePage) },
+        ],
+      },
+    ],
+  },
+
+  // ── KYC wizard: full-screen, protected ──────────────────────────────────────
   {
     element: <ProtectedRoute />,
     children: [
-
-      // ── ADMIN / MANAGER / STAFF → Desktop sidebar layout ──────────────────
       {
-        element: <AdminRoute />,
-        children: [
-          {
-            element: <DashboardLayout />,
-            children: [
-              { path: ROUTES.DASHBOARD, element: wrap(DashboardPage) },
-              { path: ROUTES.USERS,     element: wrap(UsersPage) },
-            ],
-          },
-        ],
+        path: ROUTES.PROFILE_VERIFY,
+        element: wrap(KycWizardPage),
       },
-
-      // ── CUSTOMER → Mobile PWA layout ──────────────────────────────────────
-      {
-        element: <CustomerRoute />,
-        children: [
-          {
-            element: <MobileLayout />,
-            children: [
-              { path: ROUTES.PROFILE, element: wrap(ProfilePage) },
-            ],
-          },
-          // KYC wizard: full-screen, no bottom nav
-          {
-            path: ROUTES.PROFILE_VERIFY,
-            element: wrap(KycWizardPage),
-          },
-        ],
-      },
-
     ],
   },
 

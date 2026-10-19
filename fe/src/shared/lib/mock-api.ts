@@ -24,6 +24,8 @@ import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 import type { UserResponse } from '@/types/user.types'
 import type { AuthUser, TokenResponse } from '@/types/auth.types'
 import type { KycProfile } from '@/types/kyc.types'
+import type { Vehicle } from '@/types/vehicle.types'
+import type { Booking } from '@/types/booking.types'
 import { safeBase64Encode } from '@/shared/utils'
 
 function parsePayload(data: unknown): Record<string, any> {
@@ -65,7 +67,183 @@ let MOCK_KYC: KycProfile = {
   id: 1,
   userId: 1,
   status: 'UNVERIFIED',
+  docType: 'PASSPORT',
+  idNumber: 'P12345678',
+  country: 'Hoa Kỳ (United States)',
+  expiryDate: '2028-12-31',
+  vehicleInterests: ['CAR_4_SEAT', 'ELECTRIC'],
+  licenseClass: 'INTERNATIONAL',
+  hasLicense: true,
 }
+
+const MOCK_VEHICLES: Vehicle[] = [
+  {
+    id: 'v1',
+    name: 'VinFast VF 8 Plus',
+    brand: 'VinFast',
+    modelYear: 2024,
+    category: 'ELECTRIC',
+    transmission: 'AUTOMATIC',
+    fuelType: 'ELECTRIC',
+    seats: 5,
+    pricePerDay: 1200000,
+    imageUrl: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80',
+    rating: 4.95,
+    tripsCount: 138,
+    location: 'Quận 1, TP. HCM',
+    features: ['Quãng đường 420km/sạc', 'Trợ lái ADAS Level 2', 'Camera 360', 'Sạc siêu nhanh', 'Apple CarPlay'],
+    isAvailable: true,
+    depositAmount: 5000000,
+  },
+  {
+    id: 'v2',
+    name: 'Mazda CX-5 2.0 Premium',
+    brand: 'Mazda',
+    modelYear: 2023,
+    category: 'CAR_4_SEAT',
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    seats: 5,
+    pricePerDay: 950000,
+    imageUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+    rating: 4.88,
+    tripsCount: 245,
+    location: 'Bình Thạnh, TP. HCM',
+    features: ['Cửa sổ trời', 'Loa Bose 10 loa', 'Cảm biến va chạm', 'Ghế da Nappa', 'Cruise Control'],
+    isAvailable: true,
+    depositAmount: 4000000,
+  },
+  {
+    id: 'v3',
+    name: 'Toyota Fortuner Legender',
+    brand: 'Toyota',
+    modelYear: 2023,
+    category: 'CAR_7_SEAT',
+    transmission: 'AUTOMATIC',
+    fuelType: 'DIESEL',
+    seats: 7,
+    pricePerDay: 1450000,
+    imageUrl: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80',
+    rating: 4.92,
+    tripsCount: 92,
+    location: 'Tân Bình, TP. HCM',
+    features: ['Dẫn động 2 cầu 4WD', 'Hàng ghế thứ 3 rộng', 'Tiết kiệm dầu', 'Camera lùi', 'Cốp điện'],
+    isAvailable: true,
+    depositAmount: 5000000,
+  },
+  {
+    id: 'v4',
+    name: 'VinFast VF 5 Plus',
+    brand: 'VinFast',
+    modelYear: 2024,
+    category: 'ELECTRIC',
+    transmission: 'AUTOMATIC',
+    fuelType: 'ELECTRIC',
+    seats: 5,
+    pricePerDay: 650000,
+    imageUrl: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+    rating: 4.86,
+    tripsCount: 180,
+    location: 'Quận 7, TP. HCM',
+    features: ['Nhỏ gọn phố xá', 'Chi phí sạc rẻ', 'Màn hình cảm ứng', 'Phanh tự động'],
+    isAvailable: true,
+    depositAmount: 3000000,
+  },
+  {
+    id: 'v5',
+    name: 'Hyundai Tucson 2.0',
+    brand: 'Hyundai',
+    modelYear: 2023,
+    category: 'CAR_4_SEAT',
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    seats: 5,
+    pricePerDay: 1050000,
+    imageUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+    rating: 4.91,
+    tripsCount: 115,
+    location: 'Thủ Đức, TP. HCM',
+    features: ['SmartSense an toàn', 'Cần số nút bấm', 'Sạc không dây', 'Cửa gió hàng ghế sau'],
+    isAvailable: true,
+    depositAmount: 4000000,
+  },
+  {
+    id: 'v6',
+    name: 'Mitsubishi Xpander',
+    brand: 'Mitsubishi',
+    modelYear: 2023,
+    category: 'CAR_7_SEAT',
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    seats: 7,
+    pricePerDay: 850000,
+    imageUrl: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80',
+    rating: 4.89,
+    tripsCount: 320,
+    location: 'Gò Vấp, TP. HCM',
+    features: ['7 chỗ gập phẳng', 'Khoang hành lý rộng', 'Tiết kiệm xăng', 'Phanh tay điện tử'],
+    isAvailable: true,
+    depositAmount: 3500000,
+  },
+  {
+    id: 'v7',
+    name: 'Ford Ranger Wildtrak',
+    brand: 'Ford',
+    modelYear: 2023,
+    category: 'TRUCK',
+    transmission: 'AUTOMATIC',
+    fuelType: 'DIESEL',
+    seats: 5,
+    pricePerDay: 1150000,
+    imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=800&q=80',
+    rating: 4.94,
+    tripsCount: 84,
+    location: 'Quận 2, TP. HCM',
+    features: ['Động cơ Bi-Turbo', 'Thùng chở đồ lớn', 'Gài cầu điện tử', 'Màn hình 12 inch'],
+    isAvailable: true,
+    depositAmount: 5000000,
+  },
+  {
+    id: 'v8',
+    name: 'Honda SH 160i ABS',
+    brand: 'Honda',
+    modelYear: 2024,
+    category: 'MOTORBIKE',
+    transmission: 'AUTOMATIC',
+    fuelType: 'GASOLINE',
+    seats: 2,
+    pricePerDay: 250000,
+    imageUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+    rating: 4.97,
+    tripsCount: 450,
+    location: 'Quận 1, TP. HCM',
+    features: ['Phanh ABS 2 kênh', 'Cốp xe 28L', 'Khoá Smartkey', 'Cổng sạc USB'],
+    isAvailable: true,
+    depositAmount: 1000000,
+  },
+]
+
+let MOCK_BOOKINGS: Booking[] = [
+  {
+    id: 'b1',
+    bookingCode: 'BK-20261025',
+    vehicleId: 'v1',
+    vehicle: MOCK_VEHICLES[0],
+    userId: 4,
+    customerName: 'Lê Văn Khách',
+    customerPhone: '0912345678',
+    startDate: '2026-10-25',
+    endDate: '2026-10-27',
+    totalDays: 2,
+    pricePerDay: 1200000,
+    totalAmount: 2400000,
+    depositAmount: 5000000,
+    deliveryType: 'STATION',
+    status: 'CONFIRMED',
+    createdAt: '2026-10-18T10:30:00.000Z',
+    note: 'Nhận xe tại trạm sạc VinFast Quận 1',
+  },
+]
 
 function mockResponse<T>(data: T): AxiosResponse<ApiResponse<T>> {
   return {
@@ -271,11 +449,15 @@ if (isDev) {
         status: nextStatus,
         rejectionReason:
           nextStatus === 'REJECTED'
-            ? 'Ảnh CCCD mặt sau bị mờ, không nhận diện được số ID.'
+            ? 'Ảnh trang hộ chiếu bị lóa sáng, không đọc được số ID.'
             : undefined,
-        cccdNumber: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.cccdNumber ?? '079201008899') : undefined,
+        docType: MOCK_KYC.docType ?? 'PASSPORT',
+        idNumber: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.idNumber ?? 'P98765432') : undefined,
+        country: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.country ?? 'Hoa Kỳ (United States)') : undefined,
+        expiryDate: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.expiryDate ?? '2029-06-30') : undefined,
+        cccdNumber: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.cccdNumber ?? 'P98765432') : undefined,
         province: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.province ?? 'TP. Hồ Chí Minh') : undefined,
-        dateOfBirth: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.dateOfBirth ?? '1998-05-15') : undefined,
+        dateOfBirth: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.dateOfBirth ?? '1995-08-20') : undefined,
         submittedAt: nextStatus !== 'UNVERIFIED' ? (MOCK_KYC.submittedAt ?? new Date().toISOString()) : undefined,
       }
       config.adapter = async () => mockResponse(MOCK_KYC)
@@ -295,9 +477,13 @@ if (isDev) {
         ...MOCK_KYC,
         status: 'PENDING',
         vehicleInterests: body.step1?.vehicleInterests ?? [],
-        licenseClass: body.step1?.licenseClass ?? 'B1',
+        licenseClass: body.step1?.licenseClass ?? 'INTERNATIONAL',
         hasLicense: body.step1?.hasLicense ?? false,
-        cccdNumber: body.step2?.cccdNumber,
+        docType: body.step2?.docType ?? 'PASSPORT',
+        idNumber: body.step2?.idNumber ?? body.step2?.cccdNumber,
+        country: body.step2?.country,
+        expiryDate: body.step2?.expiryDate,
+        cccdNumber: body.step2?.idNumber ?? body.step2?.cccdNumber,
         dateOfBirth: body.step3?.dateOfBirth,
         address: body.step3?.address,
         province: body.step3?.province,
@@ -319,6 +505,97 @@ if (isDev) {
     if (url.includes('/profile/kyc/resubmit') && config.method === 'put') {
       MOCK_KYC = { ...MOCK_KYC, status: 'PENDING', submittedAt: new Date().toISOString() }
       config.adapter = async () => mockResponse(MOCK_KYC)
+      return config
+    }
+
+    // Vehicles — list with filters
+    if (url.includes('/vehicles') && !url.match(/\/vehicles\/[a-zA-Z0-9_-]+$/) && config.method === 'get') {
+      const params = config.params ?? {}
+      const category = params.category
+      const search = (params.search ?? '').toLowerCase().trim()
+      const transmission = params.transmission
+
+      let list = [...MOCK_VEHICLES]
+      if (category && category !== 'ALL') {
+        list = list.filter((v) => v.category === category)
+      }
+      if (transmission && transmission !== 'ALL') {
+        list = list.filter((v) => v.transmission === transmission)
+      }
+      if (search) {
+        list = list.filter(
+          (v) =>
+            v.name.toLowerCase().includes(search) ||
+            v.brand.toLowerCase().includes(search) ||
+            v.location.toLowerCase().includes(search)
+        )
+      }
+      config.adapter = async () => mockResponse(list)
+      return config
+    }
+
+    // Vehicles — get by ID
+    const vehicleDetailMatch = url.match(/\/vehicles\/([a-zA-Z0-9_-]+)$/)
+    if (vehicleDetailMatch && config.method === 'get') {
+      const id = vehicleDetailMatch[1]
+      const vehicle = MOCK_VEHICLES.find((v) => v.id === id)
+      config.adapter = async () =>
+        vehicle
+          ? mockResponse(vehicle)
+          : { data: { success: false, message: 'Không tìm thấy xe' }, status: 404, statusText: 'Not Found', headers: {}, config: {} as never }
+      return config
+    }
+
+    // Bookings — list
+    if (url.includes('/bookings') && !url.includes('/cancel') && config.method === 'get') {
+      config.adapter = async () => mockResponse(MOCK_BOOKINGS)
+      return config
+    }
+
+    // Bookings — create
+    if (url.includes('/bookings') && config.method === 'post') {
+      const body = parsePayload(config.data)
+      const vehicle = MOCK_VEHICLES.find((v) => v.id === body.vehicleId) ?? MOCK_VEHICLES[0]
+      const start = new Date(body.startDate)
+      const end = new Date(body.endDate)
+      const diffTime = Math.abs(end.getTime() - start.getTime())
+      const totalDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+      const totalAmount = totalDays * vehicle.pricePerDay
+
+      const newBooking: Booking = {
+        id: `b_${Date.now()}`,
+        bookingCode: `BK-${Math.floor(100000 + Math.random() * 900000)}`,
+        vehicleId: vehicle.id,
+        vehicle,
+        userId: CURRENT_MOCK_USER.id,
+        customerName: body.customerName || CURRENT_MOCK_USER.fullName,
+        customerPhone: body.customerPhone || '0912345678',
+        startDate: body.startDate,
+        endDate: body.endDate,
+        totalDays,
+        pricePerDay: vehicle.pricePerDay,
+        totalAmount,
+        depositAmount: vehicle.depositAmount,
+        deliveryType: body.deliveryType ?? 'STATION',
+        deliveryAddress: body.deliveryAddress,
+        status: 'CONFIRMED',
+        createdAt: new Date().toISOString(),
+        note: body.note,
+      }
+      MOCK_BOOKINGS.unshift(newBooking)
+      config.adapter = async () => mockResponse(newBooking)
+      return config
+    }
+
+    // Bookings — cancel
+    const cancelMatch = url.match(/\/bookings\/([a-zA-Z0-9_-]+)\/cancel$/)
+    if (cancelMatch && config.method === 'put') {
+      const id = cancelMatch[1]
+      const booking = MOCK_BOOKINGS.find((b) => b.id === id)
+      if (booking) {
+        booking.status = 'CANCELLED'
+      }
+      config.adapter = async () => mockResponse(booking)
       return config
     }
 

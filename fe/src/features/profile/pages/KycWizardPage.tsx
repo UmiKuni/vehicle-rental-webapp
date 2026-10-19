@@ -13,7 +13,7 @@ type Step = 1 | 2 | 3
 
 const STEPS = [
   { num: 1 as Step, title: 'Loại xe', shortTitle: 'Phương tiện' },
-  { num: 2 as Step, title: 'CCCD', shortTitle: 'CCCD' },
+  { num: 2 as Step, title: 'Hộ chiếu / CCCD', shortTitle: 'Giấy tờ' },
   { num: 3 as Step, title: 'Cá nhân', shortTitle: 'Thông tin' },
 ]
 
@@ -45,7 +45,15 @@ export default function KycWizardPage() {
     if (!data.step1 || !data.step2) return
     submitKyc({
       step1: data.step1,
-      step2: { cccdNumber: data.step2.cccdNumber, cccdFrontPreview: data.step2.cccdFrontPreview, cccdBackPreview: data.step2.cccdBackPreview },
+      step2: {
+        docType: data.step2.docType,
+        idNumber: data.step2.idNumber,
+        country: data.step2.country,
+        expiryDate: data.step2.expiryDate,
+        cccdNumber: data.step2.idNumber,
+        frontPreview: data.step2.frontPreview ?? data.step2.cccdFrontPreview,
+        backPreview: data.step2.backPreview ?? data.step2.cccdBackPreview,
+      },
       step3,
     })
   }
@@ -120,12 +128,12 @@ export default function KycWizardPage() {
         <div className="mb-6">
           <h2 className="text-lg font-bold text-foreground">
             {currentStep === 1 && 'Loại phương tiện & bằng lái'}
-            {currentStep === 2 && 'Xác thực CCCD / CMND'}
+            {currentStep === 2 && 'Xác thực Hộ chiếu (Passport) / CCCD'}
             {currentStep === 3 && 'Thông tin cá nhân'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {currentStep === 1 && 'Cho chúng tôi biết bạn quan tâm đến loại xe nào'}
-            {currentStep === 2 && 'Chụp ảnh CCCD để xác minh danh tính của bạn'}
+            {currentStep === 2 && 'Chụp ảnh hộ chiếu hoặc CCCD để xác minh danh tính của bạn'}
             {currentStep === 3 && 'Điền thông tin cá nhân và liên hệ khẩn cấp'}
           </p>
         </div>
