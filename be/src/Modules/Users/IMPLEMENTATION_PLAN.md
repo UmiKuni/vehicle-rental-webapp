@@ -5,12 +5,33 @@
 > **Dedicated Git Branch:** `feat/module-users`  
 > **Phase:** 1 (Catalog & Core Foundation — Parallel Stream 1)  
 > **PostgreSQL Schema:** `users`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.6 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.6 & 5)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Aggregate Root** | `UserProfile` (table `user_profiles`) | `User` (table `Users`) with `Id`, `Email` (unique), `Phone` (unique), `PasswordHash`, `Role` (`Guest`/`Customer`/`Owner`/`Admin`), `Status` (`Active`/`Banned`). |
+| **Child Entities** | `DriverLicense`, `IdentityDocument` (with front/back/selfie `FileReference`), `PayoutAccount` VO | `CustomerProfile` (table `CustomerProfiles`, PK `UserId`), `OwnerProfile` (table `OwnerProfiles`, PK `UserId`, TaxCode, ApprovalStatus), `IdentityDocument` (table `IdentityDocuments`, Type: `CCCD`/`GPLX`, StorageKey, VerificationStatus). |
+| **Auth & Tokens** | Unspecified token entity | `RefreshToken` (table `RefreshTokens`) for token rotation and revocation. |
+| **Published Events** | 4 events (`UserRegistered`, `IdentityReviewed`, `DriverLicenseReviewed`, `UserSuspended`) | **0 published events** (per Section 5 event catalog; source business flows require zero async subscribers). |
+| **Contracts** | `IUsersApi.GetRenterEligibilityAsync`, `GetUserSummaryAsync`, `IsVerifiedOwnerAsync` | `IUsersApi.GetBookingEligibilityAsync(userId)`, `IUsersApi.GetContactAsync(userId)`. |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`users`, `customer_profiles`, `owner_profiles`, `identity_documents`, `refresh_tokens`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Users module handles user profiles, driver licenses (GPLX), citizen identity cards (CCCD) verification, owner onboarding, and renter eligibility checks. It works alongside ASP.NET Core Identity (in Infrastructure) while keeping the domain model cleanly encapsulated in `UserProfile`.
+The Users module manages authentication accounts, customer profiles, owner onboarding, citizen identity cards (CCCD) and driver licenses (GPLX) verification, and user ban/unban moderation. It integrates with ASP.NET Core Identity credential hashing while encapsulating domain logic in the `User` aggregate root.
 
 ---
 
@@ -26,116 +47,108 @@ dotnet build src/Modules/Users/CarRental.Modules.Users/CarRental.Modules.Users.c
 ---
 
 ## 3. Dependencies
-- **Shared Kernel:** `CarRental.BuildingBlocks` (Result, Guard, Money, FileReference, PhoneNumber, AggregateRoot).
-- **External Dependencies:** ASP.NET Core Identity (stores authentication credentials in `AspNetUsers`).
+- **Shared Kernel:** `CarRental.BuildingBlocks` (Result, Guard, AggregateRoot, Entity).
+- **External Dependencies:** ASP.NET Core Identity password hasher.
 - **Downstream Consumers of Contracts:** 
-  - Booking (`IUsersApi.GetRenterEligibilityAsync`, `GetUserSummaryAsync`).
-  - Fleet (`IUsersApi.IsVerifiedOwnerAsync`).
-  - Notifications (`UserRegistered`, `IdentityReviewed`, `DriverLicenseReviewed`, `UserSuspended`).
-  - Reporting (`UserRegistered`).
+  - `Bookings`: Calls `IUsersApi.GetBookingEligibilityAsync(userId)` during booking placement.
+  - `Notifications`: Calls `IUsersApi.GetContactAsync(userId)` (email, phone) for communication delivery.
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Users.Contracts`)
+
 ### 4.1 Synchronous Interface (`IUsersApi`)
 ```csharp
 public interface IUsersApi
 {
-    Task<Result<RenterEligibilityDto>> GetRenterEligibilityAsync(Guid userId, CancellationToken ct = default);
-    Task<Result<UserSummaryDto>> GetUserSummaryAsync(Guid userId, CancellationToken ct = default);
-    Task<bool> IsVerifiedOwnerAsync(Guid userId, CancellationToken ct = default);
+    Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default);
+    Task<Result<UserContactDto>> GetContactAsync(Guid userId, CancellationToken ct = default);
 }
 ```
 
 ### 4.2 DTOs
-- `RenterEligibilityDto(bool IsEligible, IReadOnlyList<string> IneligibilityReasons)`
-- `UserSummaryDto(Guid UserId, string FullName, string Email, string? PhoneNumber, string? AvatarUrl, bool IsOwner, bool IsVerified)`
+- `BookingEligibilityDto(bool IsEligible, string? IneligibilityReason)`
+- `UserContactDto(Guid UserId, string Email, string Phone, string FullName)`
 
-### 4.3 Published Integration Events (4 Published Events)
-- `UserRegistered(Guid EventId, DateTimeOffset OccurredAt, Guid UserId, string Email, string FullName)`
-- `IdentityReviewed(Guid EventId, DateTimeOffset OccurredAt, Guid UserId, bool Approved, string? Reason)`
-- `DriverLicenseReviewed(Guid EventId, DateTimeOffset OccurredAt, Guid UserId, bool Approved, string? Reason)`
-- `UserSuspended(Guid EventId, DateTimeOffset OccurredAt, Guid UserId, string Reason)`
-
-*(Note: `UserBecameOwner` and `UserReinstated` are internal domain events).*
+### 4.3 Published Integration Events
+- **0 Published Events** (Per Section 5 of `domain-model-entities-reworked.md`, all state transitions are internal or queried synchronously).
 
 ---
 
-## 5. Domain Layer (`Entities/`, `Enums/`, `ValueObjects/`)
+## 5. Domain Layer (`Entities/`, `Enums/`)
 
 ### 5.1 Enums & Strongly-Typed IDs
 - `readonly record struct UserId(Guid Value)`
-- `UserRole` (`Renter`, `Owner`)
-- `UserStatus` (`Active`, `Suspended`, `Banned`)
-- `DocumentStatus` (`NotSubmitted`, `Pending`, `Verified`, `Rejected`)
-- `LicenseClass` (`A1`, `A2`, `B1`, `B2`, `C`, `D`, `E`, `FC`)
+- `UserRole`: `Guest`, `Customer`, `Owner`, `Admin` (single enum value per source).
+- `UserStatus`: `Active`, `Banned` [ASSUMPTION].
+- `DocumentType`: `CCCD`, `GPLX`, `PassPort`.
+- `DocumentVerificationStatus`: `Pending`, `Verified`, `Rejected` [ASSUMPTION].
+- `OwnerApprovalStatus`: `Pending`, `Approved`, `Rejected`.
 
-### 5.2 Value Objects & Child Entities
-- `PayoutAccount(string BankName, string AccountNumber, string AccountHolderName)`
-- `IdentityDocument` (Child Entity):
-  - `CitizenIdNumber` (masked: `********1234`), `FileReference FrontImage`, `FileReference BackImage`, `FileReference? SelfieImage`.
-  - `DocumentStatus Status`, `Guid? ReviewedBy`, `DateTimeOffset? ReviewedAt`, `string? RejectReason`.
-  - Rule: Sensitive files must have `IsPrivate = true`.
-- `DriverLicense` (Child Entity):
-  - `string Number`, `LicenseClass Class`, `DateOnly ExpiresOn`, `FileReference Image`, `DocumentStatus Status`.
+### 5.2 Child Entities
+- **`CustomerProfile`** (Table `CustomerProfiles`, PK `UserId`):
+  - Properties: `Guid UserId`, `string FullName`, `string Address`.
+- **`OwnerProfile`** (Table `OwnerProfiles`, PK `UserId`):
+  - Properties: `Guid UserId`, `string TaxCode`, `OwnerApprovalStatus ApprovalStatus`, `string? RejectReason`.
+- **`IdentityDocument`** (Table `IdentityDocuments`):
+  - Properties: `Guid Id`, `Guid UserId`, `DocumentType Type`, `string StorageKey`, `DocumentVerificationStatus VerificationStatus`, `string? RejectReason`.
+  - Invariant: Sensitive documents accessed only via short-lived presigned URLs (NFR-05).
+- **`RefreshToken`** (Table `RefreshTokens` [ASSUMPTION]):
+  - Properties: `Guid Id`, `Guid UserId`, `string TokenHash`, `DateTimeOffset ExpiresAt`, `DateTimeOffset? RevokedAt`, `Guid? ReplacedByTokenId`, `string? DeviceInfo`, `DateTimeOffset CreatedAt`.
 
-### 5.3 Aggregate Root: `UserProfile`
-- Invariants & Encapsulation:
-  - Private constructors with factory method `UserProfile.Register(...)`.
-  - `SubmitIdentityDocument(...)`: Re-submission resets status to `Pending`.
-  - `ApproveIdentity(adminId)` / `RejectIdentity(adminId, reason)`
-  - `SubmitDriverLicense(...)`, `ApproveDriverLicense(...)`, `RejectDriverLicense(...)`
-  - `BecomeOwner(PayoutAccount payout)`: requires Identity `Verified`.
-  - `Suspend(reason, adminId)` / `Reinstate()`: Suspended users fail eligibility.
-  - Business Query `GetRenterEligibility(DateTimeOffset now)`:
-    - Identity must be `Verified`.
-    - DriverLicense must be `Verified` and `ExpiresOn >= DateOnly.FromDateTime(now.DateTime)`.
-    - `Status == UserStatus.Active`.
-    - Age >= 21 years old.
+### 5.3 Aggregate Root: `User`
+- Table `Users`:
+  - `Guid Id`
+  - `string Email` (unique, indexed)
+  - `string Phone` (unique, indexed)
+  - `string PasswordHash`
+  - `UserRole Role` (`Guest`/`Customer`/`Owner`/`Admin`)
+  - `UserStatus Status` (`Active`/`Banned`)
+  - Child collections / navigation properties: `CustomerProfile? CustomerProfile`, `OwnerProfile? OwnerProfile`, `IReadOnlyCollection<IdentityDocument> IdentityDocuments`.
+- Domain Behavior & Invariants:
+  ```csharp
+  static Result<User> Register(string email, string phone, string passwordHash); // Role = Customer, Status = Active
+  Result UpdateProfile(string fullName, string address);
+  Result AddIdentityDocument(DocumentType type, string storageKey); // Replaces doc of same type -> VerificationStatus = Pending
+  Result SubmitOwnerOnboarding(string taxCode, IEnumerable<string> businessDocKeys); // OwnerProfile Pending
+  Result ApproveOwner(Guid adminId); // Approved => Role = Owner
+  Result RejectOwner(Guid adminId, string reason);
+  Result VerifyDocument(Guid docId, Guid adminId, bool ok, string? reason);
+  Result Ban(Guid adminId, string reason); // Status = Banned
+  Result Unban(Guid adminId); // Status = Active
+  BookingEligibilityDto GetBookingEligibility(); // Active + FullName present + CCCD and GPLX Verified
+  ```
 
 ---
 
 ## 6. Persistence & EF Core (`Data/`)
 - `UsersDbContext`: `HasDefaultSchema("users")`.
-- `IEntityTypeConfiguration<UserProfile>`:
-  - `xmin` concurrency token.
-  - Value conversions for `UserId`.
-  - `OwnsOne` for `PayoutAccount`.
-  - Child entity configurations for `IdentityDocument` and `DriverLicense`.
-  - Seed admin and test accounts.
-- Generate initial migration: `AddUsersInitialMigration`.
+- Table mapping (snake_case):
+  - `users` (Aggregate Root with `xmin` row version)
+  - `customer_profiles` (PK/FK `user_id`)
+  - `owner_profiles` (PK/FK `user_id`)
+  - `identity_documents` (FK `user_id`, unique index on `(user_id, type)`)
+  - `refresh_tokens` (FK `user_id`, index on `token_hash`)
+- EF Core entity configurations in `Data/Configurations/`.
 
 ---
 
 ## 7. Application Services & Endpoints (`Services/`, `Endpoints/`)
 - `UsersApiService`: Implements `IUsersApi`.
 - Minimal API Endpoints (`MapGroup("/api/users")`):
-  - `POST /register`
-  - `GET /me` (requires Auth)
+  - `POST /auth/register`
+  - `POST /auth/login`
   - `PUT /me/profile`
-  - `POST /me/identity` (upload CCCD images -> Cloudinary private)
-  - `POST /me/driver-license`
-  - `POST /me/become-owner`
-  - Admin endpoints (`RequireAuthorization("Admin")`):
-    - `POST /admin/identity/{id}/approve`
-    - `POST /admin/identity/{id}/reject`
-    - `POST /admin/driver-license/{id}/approve`
-    - `POST /admin/driver-license/{id}/reject`
-    - `POST /admin/users/{id}/suspend`
+  - `POST /me/identity-docs` (returns presigned upload URL)
+  - `POST /me/owner-onboarding`
+  - `PUT /{id}/ban` (Admin policy, records audit entry)
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Define Enums, `UserId`, `PayoutAccount` in `CarRental.Modules.Users`.
-- [ ] Implement `IdentityDocument` and `DriverLicense` entities.
-- [ ] Implement `UserProfile` aggregate root with all invariants and `GetRenterEligibility`.
-- [ ] Implement `IUsersApi` and DTOs/Events in `CarRental.Modules.Users.Contracts`.
-- [ ] Setup `UsersDbContext` and EF configurations with `HasDefaultSchema("users")`.
-- [ ] Create EF Core migration for `users` schema.
-- [ ] Implement Minimal API endpoints and FluentValidation rules.
-- [ ] Unit tests for `UserProfile`:
-  - `Register_ShouldInitializeWithRenterRoleAndActiveStatus`
-  - `BecomeOwner_WithoutVerifiedIdentity_ShouldFail`
-  - `GetRenterEligibility_WithExpiredLicense_ShouldReturnIneligible`
-  - `GetRenterEligibility_Under21_ShouldReturnIneligible`
-- [ ] Integration tests using Testcontainers PostgreSQL.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `User` aggregate root and child entities (`CustomerProfile`, `OwnerProfile`, `IdentityDocument`, `RefreshToken`).
+- [ ] Implement `IUsersApi` and DTOs in `CarRental.Modules.Users.Contracts`.
+- [ ] Setup `UsersDbContext` with schema `users` and snake_case tables.
+- [ ] Add domain unit tests for `User` invariants, registration, document replacement, owner onboarding approval, and booking eligibility.
+- [ ] Verify zero EF/ASP.NET dependencies in `Entities/` via `DomainEncapsulationTests`.

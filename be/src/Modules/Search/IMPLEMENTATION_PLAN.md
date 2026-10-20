@@ -3,20 +3,41 @@
 > **Module Directory:** `src/Modules/Search`  
 > **Projects:** `CarRental.Modules.Search.csproj`, `CarRental.Modules.Search.Contracts.csproj`  
 > **Dedicated Git Branch:** `feat/module-search`  
-> **Phase:** 4 (Projections & Platform — Parallel Stream 1)  
+> **Phase:** 4 (Platform Intelligence & Read Projections — Parallel Stream 1)  
 > **PostgreSQL Schema:** `search`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.8 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.8 & 5)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Data Model** | Read model with Elasticsearch / in-memory sync | Pure PostgreSQL + PostGIS Read Model: `VehicleSearchDocument` (table `VehicleSearchDocuments`). |
+| **Document Properties** | Deeply nested JSON features and dates | Flattened search projection: `VehicleId`, `Location` (PostGIS `Geometry`), `Brand`, `Model`, `Seats`, `Transmission`, `PriceFrom`, `AverageRating`, `IsPublished`. |
+| **Out-of-Order Event Handling** | Unspecified | LWW (Last-Write-Wins) timestamp tracking: `LastFleetEventAt`, `LastPricingEventAt`, `LastRatingEventAt` to ensure eventual consistency. |
+| **Visibility Rule** | Complex active calendar check | Query returns records where `IsPublished == true && PriceFrom != null` [ASSUMPTION]. |
+| **Published Events** | 0 published events | **0 published events**. |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`vehicle_search_documents`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Search module provides a high-performance, denormalized read model for vehicle discovery. It supports geospatial queries (`ST_DWithin` via PostGIS), dynamic faceted filtering (brand, price, seats, transmission, features), and checks real-time availability for top search candidates via `IAvailabilityApi`. It also manages user favorites.
+The Search module provides high-performance, geo-spatial vehicle discovery (< 2s response time per NFR-01) backed by PostGIS spatial indexing (`ST_DWithin`). It maintains an eventually consistent read model projected from Fleet, Pricing, and Reviews integration events.
 
 ---
 
 ## 2. Git Branch & Setup Instructions
 ```bash
-# Branch out from main after Phase 1 & 2 contracts are available
+# Branch out from main after Phase 1-3 contracts are available
 git checkout -b feat/module-search
 
 # Build module
@@ -26,97 +47,72 @@ dotnet build src/Modules/Search/CarRental.Modules.Search/CarRental.Modules.Searc
 ---
 
 ## 3. Dependencies
-- **Shared Kernel:** `CarRental.BuildingBlocks` (GeoPoint, Money, Result, Guard).
-- **Synchronous Upstream Contracts:**
-  - `IAvailabilityApi.AreAvailableAsync` (`Availability.Contracts`) — bulk check for candidate availability.
+- **Shared Kernel:** `CarRental.BuildingBlocks` (GeoPoint, Result, Guard).
 - **Consumes Events from:**
-  - `Fleet`: `VehicleApproved`, `VehicleListingChanged`, `VehicleStatusChanged`.
-  - `Pricing`: `PricingPlanChanged`.
-  - `Reviews`: `ReviewPublished`, `ReviewHidden`.
-  - `Bookings`: `TripCompleted`.
+  - `Fleet`: `VehiclePublished`, `VehicleUnpublished`
+  - `Pricing`: `PricingUpdated`
+  - `Reviews`: `RatingSummaryUpdated`
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Search.Contracts`)
-### 4.1 Synchronous Interface (`ISearchApi`)
-```csharp
-public interface ISearchApi
-{
-    Task<Result<PagedResult<SearchVehicleDto>>> SearchVehiclesAsync(VehicleSearchQuery query, CancellationToken ct = default);
-}
-```
 
-### 4.2 DTOs & Query Models
-- `VehicleSearchQuery(double? Latitude, double? Longitude, double? RadiusKm, DateTimeRange? DesiredPeriod, Money? MinPrice, Money? MaxPrice, string? Brand, int? Seats, string? Transmission, IReadOnlyList<string>? Features, int Page, int PageSize)`
-- `SearchVehicleDto(Guid VehicleId, string Title, string Brand, string Model, int Year, Money BaseDailyRate, double? DistanceKm, double AverageRating, int ReviewCount, string? PrimaryPhotoUrl, string City, string District)`
+### 4.1 Synchronous Interface
+*(No synchronous interface required; read model queries are accessed via HTTP GET).*
+
+### 4.2 Published Integration Events
+- **0 Published Events** (Search is a pure read projection).
 
 ---
 
-## 5. Domain & Read Models (`Entities/`, `Projections/`)
+## 5. Domain Layer (`Entities/`, `ReadModels/`)
 
-### 5.1 Read Model: `SearchableVehicle`
-- Properties:
+### 5.1 Read Model: `VehicleSearchDocument`
+- Table `VehicleSearchDocuments`:
   - `Guid VehicleId` (Primary Key)
-  - `Guid OwnerId`
-  - `string Title`, `string Brand`, `string Model`, `int Year`
-  - `int Seats`, `string Transmission`, `string FuelType`
-  - `List<string> Features`
-  - `Point Location` (NetTopologySuite PostGIS Point, SRID 4326)
-  - `string City`, `string District`
-  - `string? PrimaryPhotoUrl`
-  - `Money? BaseDailyRate`
-  - `decimal AverageRating`, `int ReviewCount`, `int TripCount`
-  - `bool IsListed` (Listing rule: `true` only when vehicle is `Active` AND a pricing plan exists)
-  - `uint SourceVersion` (to guarantee idempotent, out-of-order event resilience)
-- Mutation Methods:
-  - `void ApplyListing(VehicleListingChanged e)`
-  - `void ApplyPricing(PricingPlanChanged e)`
-  - `void ApplyStatus(VehicleStatusChanged e)` (Delists when Paused/Archived, re-lists when Active)
-  - `void ApplyRating(ReviewPublished e)`
-  - `void ApplyReviewHidden(ReviewHidden e)`
-  - `void ApplyTripCompleted(TripCompleted e)`
-  - `void Delist()`
-
-### 5.2 Aggregate Root: `Favorite`
-- Properties: `Guid UserId`, `Guid VehicleId`, `DateTimeOffset AddedAt`.
-- Methods: `Add(userId, vehicleId)`, `Remove()`.
+  - `GeoPoint Location` (PostGIS `Geometry`, SRID 4326)
+  - `string Brand`
+  - `string Model`
+  - `int Seats`
+  - `string Transmission`
+  - `decimal? PriceFrom` (min rate from pricing)
+  - `decimal? AverageRating`
+  - `bool IsPublished`
+  - `DateTimeOffset? LastFleetEventAt`
+  - `DateTimeOffset? LastPricingEventAt`
+  - `DateTimeOffset? LastRatingEventAt`
+- Read Model Behavior (Idempotent Apply Methods):
+  ```csharp
+  void ApplyPublished(VehiclePublished e);
+  void ApplyUnpublished(VehicleUnpublished e);
+  void ApplyPrice(PricingUpdated e);
+  void ApplyRating(RatingSummaryUpdated e);
+  ```
 
 ---
 
 ## 6. Persistence & EF Core (`Data/`)
 - `SearchDbContext`: `HasDefaultSchema("search")`.
-- `IEntityTypeConfiguration<SearchableVehicle>`:
-  - Spatial index on `Location`:
-    ```csharp
-    builder.HasIndex(v => v.Location).HasMethod("GIST");
-    ```
-  - Indexes on `(City, District)`, `BaseDailyRate`, `IsListed`.
-- `IEntityTypeConfiguration<Favorite>`:
-  - Composite primary key on `(UserId, VehicleId)`.
-- Migration: `AddSearchInitialMigration`.
+- Table mapping (snake_case):
+  - `vehicle_search_documents` (PK `vehicle_id`)
+- PostGIS spatial indexing (`GIST` on `Location`).
 
 ---
 
-## 7. Event Handlers & Query Pipeline (`EventHandlers/`, `Services/`)
-- Wolverine Event Projections:
-  - `VehicleApprovedHandler`, `VehicleListingChangedHandler`, `VehiclePausedHandler`
-  - `PricingPlanChangedHandler`
-  - `ReviewPublishedHandler`
-- Two-Stage Search Algorithm:
-  1. **Stage 1 (PostGIS Candidate Retrieval):** Fetch top `N * 2` vehicles matching location (`ST_DWithin`), price, and filters from `SearchableVehicle`.
-  2. **Stage 2 (Availability Filter):** If `DesiredPeriod` is provided, call `IAvailabilityApi.AreAvailableAsync(candidateIds, period)` to prune unavailable slots.
-  3. **Stage 3 (Paginate & Return):** Return final page of results.
+## 7. Event Handlers & Endpoints (`EventHandlers/`, `Endpoints/`)
+- Integration Event Handlers (Idempotent):
+  - `VehiclePublishedHandler`
+  - `VehicleUnpublishedHandler`
+  - `PricingUpdatedHandler`
+  - `RatingSummaryUpdatedHandler`
+- Minimal API Endpoints (`MapGroup("/api/search")`):
+  - `GET /vehicles` (query parameters: `lat`, `lon`, `radiusKm`, `brand`, `model`, `seats`, `transmission`, `minPrice`, `maxPrice`, `page`, `pageSize`)
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Implement `SearchableVehicle` read model and `Favorite` aggregate.
-- [ ] Setup `SearchDbContext` with NetTopologySuite PostGIS configuration.
-- [ ] Write EF Core migration with spatial GIST index.
-- [ ] Implement Wolverine idempotent event projection handlers.
-- [ ] Implement two-stage query service with `IAvailabilityApi`.
-- [ ] Build Minimal API endpoints (`GET /api/search`, `POST /api/favorites/{vehicleId}`).
-- [ ] Unit tests for `SearchableVehicle` event mutation methods.
-- [ ] Integration tests using Testcontainers PostgreSQL + PostGIS:
-  - Spatial distance filtering.
-  - Candidate pruning via mocked availability.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `VehicleSearchDocument` read model and idempotent mutation methods.
+- [ ] Setup `SearchDbContext` with schema `search` and PostGIS GIST indexing.
+- [ ] Implement Wolverine integration event handlers for Fleet, Pricing, and Reviews events.
+- [ ] Add unit and query tests for PostGIS radius calculation and projection idempotency.

@@ -4,7 +4,22 @@
 > **Target Project:** `CarRental.BuildingBlocks.csproj`  
 > **Dedicated Git Branch:** `feat/shared-kernel`  
 > **Phase:** 0 (Foundation — Prerequisite for all modules)  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 1 & 2)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 1 & 2)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Shared Kernel domain primitives, base classes, value objects, and messaging abstractions**.
+> - **In Scope:** Entity<TId>, AggregateRoot<TId>, IDomainEvent, ValueObject, Result<T>, Guard, Money, DateTimeRange, GeoPoint, Address, PhoneNumber, Rating, FileReference, IIntegrationEvent.
+> - **Out of Scope (Do NOT build):** Application services, repository implementations, controllers, and database migrations.
+
+
+---
+
+## 0. Alignment with Reworked Domain Model (Changelog)
+- **Reference Updated:** Harmonized with `domain-model-entities-reworked.md` (source of truth derived from `Thiết kế hệ thống, CSDL và API`).
+- **Pragmatic Layered Architecture:** Confirmed single-assembly modular monolith convention. Every module directly references `CarRental.BuildingBlocks` in addition to other modules' `*.Contracts` projects.
+- **Pure Domain Encapsulation:** Enforced via `DomainEncapsulationTests` in `CarRental.ArchitectureTests` (zero EF Core / ASP.NET dependencies in domain entities/primitives).
+- **Core Primitives & Value Objects Status:** `Entity<TId>`, `AggregateRoot<TId>`, `IDomainEvent`, `ValueObject`, `Result<T>`, `Guard`, `Money`, `DateTimeRange`, `GeoPoint`, `Address`, `PhoneNumber`, `Rating`, `FileReference` are fully implemented with 75/75 unit tests passing.
 
 ---
 

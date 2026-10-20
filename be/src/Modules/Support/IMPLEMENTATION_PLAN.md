@@ -5,12 +5,32 @@
 > **Dedicated Git Branch:** `feat/module-support`  
 > **Phase:** 3 (Physical Fulfillment & Trust — Parallel Stream 3)  
 > **PostgreSQL Schema:** `support`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.10 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.10 & 5)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Aggregate Root** | `Dispute` aggregate root with complex arbitration splits | `SupportTicket` (table `SupportTickets`) with `Id`, `BookingId`, `ReporterId`, `Status` (`Open`/`InProgress`/`Resolved`), `DepositToCustomerPercent` (0..100), `ResolutionNote`, `ResolvedBy`, `ResolvedAt`. |
+| **Child Entities** | `DisputeEvidence`, `DisputeMessage` | `TicketMessage` (table `TicketMessages`, `Id`, `SenderId`, `Content`, `AttachmentKey`). |
+| **Deposit Resolution** | Multi-account ledger debit/credit | Single authoritative `DepositToCustomerPercent` (0..100) determining the deposit refund vs forfeiture ruling. |
+| **Published Events** | `DisputeOpened`, `DisputeResolved` | `TicketOpened` (triggers deposit freeze in Payments), `TicketResolved` (triggers deposit settlement). |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`support_tickets`, `ticket_messages`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Support module handles customer inquiries, tickets with internal team notes, and binding booking dispute arbitrations (damage compensation, late returns, fuel discrepancies, security deposit deductions).
+The Support module handles customer and owner issue ticketing, incident claims following vehicle return, and administrative dispute arbitration. Admin rulings establish the percentage of the held deposit refunded to the customer versus forfeited/awarded to the owner.
 
 ---
 
@@ -26,99 +46,86 @@ dotnet build src/Modules/Support/CarRental.Modules.Support/CarRental.Modules.Sup
 ---
 
 ## 3. Dependencies
-- **Shared Kernel:** `CarRental.BuildingBlocks` (Money, FileReference, Result, Guard, AggregateRoot).
-- **Consumes Events from:**
-  - `Bookings`: `TripCompleted` (allows opening a dispute within 72 hours).
-  - `Handover`: `ReturnCompleted` (if `TripSummary.NewDamages` is not empty, flags/suggests dispute claim).
+- **Shared Kernel:** `CarRental.BuildingBlocks` (Result, Guard, AggregateRoot, Entity).
+- **Synchronous Upstream Contracts:**
+  - `IBookingApi.IsParticipantAsync` (`Bookings.Contracts`)
 - **Downstream Consumers of Support Contracts:**
-  - `Payments`: Consumes `DisputeOpened` to freeze owner payout, `DisputeResolved` to apply refunds or penalty charges.
-  - `Notifications`, `Reporting`.
+  - `Payments`: Consumes `TicketOpened` to freeze deposit, and `TicketResolved` to execute financial settlement.
+  - `Notifications`: Consumes `TicketResolved` to alert both parties.
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Support.Contracts`)
-### 4.1 Synchronous Interface (`ISupportApi`)
-```csharp
-public interface ISupportApi
-{
-    Task<bool> HasActiveDisputeAsync(Guid bookingId, CancellationToken ct = default);
-}
-```
+
+### 4.1 Synchronous Interface
+*(No synchronous interface required; interactions are event-driven via Wolverine Outbox).*
 
 ### 4.2 Published Integration Events (2 Published Events)
-- `DisputeOpened(Guid EventId, DateTimeOffset OccurredAt, Guid DisputeId, Guid BookingId, Guid OpenedBy, Guid AgainstUserId, string Reason, Money? ClaimedAmount)`
-- `DisputeResolved(Guid EventId, DateTimeOffset OccurredAt, Guid DisputeId, Guid BookingId, DisputeResolutionDto Resolution)`
-
-*(Note: `TicketOpened` and `TicketResolved` are internal domain events; ticket interactions are served via real-time SignalR).*
-
-### 4.3 DTOs
-- `DisputeResolutionDto(string Outcome, Money RefundToRenter, Money ChargeToRenter, Money PayoutAdjustment, string Notes, Guid DecidedBy)`
+- `TicketOpened(Guid EventId, DateTimeOffset OccurredAt, Guid TicketId, Guid BookingId, Guid ReporterId)`
+- `TicketResolved(Guid EventId, DateTimeOffset OccurredAt, Guid TicketId, Guid BookingId, int DepositToCustomerPercent, string Note, Guid AdminId)`
 
 ---
 
-## 5. Domain Layer (`Entities/`, `Enums/`, `ValueObjects/`)
+## 5. Domain Layer (`Entities/`, `Enums/`)
 
-### 5.1 Enums & Value Objects
-- `TicketCategory` (`Payment`, `Vehicle`, `Owner`, `Renter`, `Account`, `Other`)
-- `TicketPriority` (`Low`, `Normal`, `High`, `Urgent`)
-- `TicketStatus` (`Open`, `InReview`, `WaitingForCustomer`, `Resolved`, `Closed`)
-- `DisputeReason` (`Damage`, `LateReturn`, `NoShow`, `FuelOrMileage`, `Other`)
-- `DisputeStatus` (`Opened`, `UnderReview`, `Resolved`, `Withdrawn`)
-- `DisputeOutcome` (`FavorOpener`, `FavorOpponent`, `Split`)
-- `DisputeResolution(DisputeOutcome Outcome, Money RefundToRenter, Money ChargeToRenter, Money PayoutAdjustment, string Notes, Guid DecidedBy, DateTimeOffset DecidedAt)`
+### 5.1 Enums & Strongly-Typed IDs
+- `readonly record struct TicketId(Guid Value)`
+- `TicketStatus`: `Open`, `InProgress`, `Resolved`.
 
-### 5.2 Aggregate Root: `SupportTicket`
-- Properties: `string Number` (e.g. `TK-10023`), `Guid CreatedBy`, `Guid? BookingId`, `TicketCategory Category`, `TicketPriority Priority`, `TicketStatus Status`, `Guid? AssignedTo`, `List<TicketMessage> Messages`, `DateTimeOffset? ResolvedAt`.
-- Methods: `Open(...)`, `Assign(adminId)`, `AddMessage(authorId, role, body, attachments, isInternalNote)`, `Resolve(adminId)`, `Reopen()`, `Close()`.
-- Rules:
-  - Customers cannot view messages with `IsInternalNote = true`.
-  - Admin message automatically transitions status to `WaitingForCustomer`.
+### 5.2 Child Entity: `TicketMessage`
+- Table `TicketMessages`:
+  - `Guid Id`
+  - `Guid SupportTicketId`
+  - `Guid SenderId`
+  - `string Content`
+  - `string? AttachmentKey`
+  - `DateTimeOffset CreatedAt`
 
-### 5.3 Aggregate Root: `Dispute`
-- Properties:
-  - `Guid BookingId`, `Guid OpenedBy`, `Guid AgainstUserId`, `DisputeReason Reason`, `Money? ClaimedAmount`, `List<EvidenceItem> Evidence`, `DisputeStatus Status`, `DisputeResolution? Resolution`.
-- Invariants & Methods:
-  - Each booking has at most one unresolved dispute.
-  - Allowed window: within 72 hours of `TripCompleted`.
-  - Evidence can only be submitted by booking parties or admins.
-  - `Resolve(DisputeResolution resolution, DateTimeOffset now)`: Requires `UnderReview` and valid decision maker.
+### 5.3 Aggregate Root: `SupportTicket`
+- Table `SupportTickets`:
+  - `Guid Id`
+  - `Guid BookingId` (indexed)
+  - `Guid ReporterId` (indexed)
+  - `TicketStatus Status` (`Open`/`InProgress`/`Resolved`)
+  - `int? DepositToCustomerPercent` (0..100) [ASSUMPTION]
+  - `string? ResolutionNote`
+  - `Guid? ResolvedBy`
+  - `DateTimeOffset? ResolvedAt`
+  - `DateTimeOffset CreatedAt`
+  - Child collection: `IReadOnlyCollection<TicketMessage> Messages`.
+- Domain Methods & Invariants:
+  ```csharp
+  static Result<SupportTicket> Open(Guid bookingId, Guid reporterId, string firstMessage, string? attachmentKey, DateTimeOffset now); // Open, raises TicketOpened
+  Result AddMessage(Guid senderId, string content, string? attachmentKey, DateTimeOffset now);
+  Result StartReview(Guid adminId); // Open -> InProgress
+  Result Resolve(Guid adminId, int depositToCustomerPercent, string note, DateTimeOffset now); // InProgress -> Resolved, raises TicketResolved
+  ```
+- Invariants:
+  - Reporter must be a verified booking participant (`IBookingApi`).
+  - No new messages allowed once ticket reaches `Resolved` status.
+  - Only an Admin can resolve a ticket.
+  - `DepositToCustomerPercent` must be between 0 and 100.
+  - At most one unresolved ticket per `(BookingId, ReporterId)`.
 
 ---
 
 ## 6. Persistence & EF Core (`Data/`)
 - `SupportDbContext`: `HasDefaultSchema("support")`.
-- `IEntityTypeConfiguration<SupportTicket>`:
-  - Unique index on `Number`.
-- `IEntityTypeConfiguration<Dispute>`:
-  - Index on `BookingId`.
-  - Owned entity for `DisputeResolution`.
-- Migration: `AddSupportInitialMigration`.
-
----
-
-## 7. Event Handlers & Endpoints (`EventHandlers/`, `Endpoints/`)
-- Minimal API Endpoints (`MapGroup("/api/support")`):
-  - `POST /tickets`
-  - `GET /tickets/{id}`
-  - `POST /tickets/{id}/messages`
-  - `POST /disputes`
-  - `POST /disputes/{id}/evidence`
-  - Admin endpoints:
-    - `POST /admin/disputes/{id}/under-review`
-    - `POST /admin/disputes/{id}/resolve`
+- Table mapping (snake_case):
+  - `support_tickets` (Aggregate Root with `xmin` row version)
+  - `ticket_messages` (FK `support_ticket_id`)
+## 7. Application Services & Endpoints (`Services/`, `Endpoints/`)
+- Minimal API Endpoints (`MapGroup("/api/support/tickets")`):
+  - `POST /` (open new ticket)
+  - `POST /{id}/messages` (add conversation message/attachment)
+  - `PUT /{id}/resolve` (Admin policy: resolve ruling and deposit split)
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Implement Enums, `TicketMessage`, `EvidenceItem`, `DisputeResolution`.
-- [ ] Implement `SupportTicket` aggregate root.
-- [ ] Implement `Dispute` aggregate root with resolution invariants.
-- [ ] Implement `ISupportApi` and integration events in `CarRental.Modules.Support.Contracts`.
-- [ ] Configure `SupportDbContext` and EF Core mappings.
-- [ ] Create EF Core migration for `support` schema.
-- [ ] Build Minimal API endpoints.
-- [ ] Unit tests:
-  - `Ticket_AddAdminMessage_TransitionsToWaitingForCustomer`
-  - `Dispute_Open_WhenPriorUnresolvedDisputeExists_ShouldFail`
-  - `Dispute_Resolve_WhenNotInUnderReview_ShouldFail`
-- [ ] Testcontainers integration tests.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `SupportTicket` aggregate root and `TicketMessage` entity.
+- [ ] Implement `TicketOpened` and `TicketResolved` events in `CarRental.Modules.Support.Contracts`.
+- [ ] Setup `SupportDbContext` with schema `support`.
+- [ ] Add domain unit tests for ticket state transitions, percent validation, and immutability after resolution.
+- [ ] Verify zero EF/ASP.NET dependencies in `Entities/` via `DomainEncapsulationTests`.

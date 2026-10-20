@@ -5,12 +5,33 @@
 > **Dedicated Git Branch:** `feat/module-payments`  
 > **Phase:** 2 (Rental Flow Core — Parallel Stream 2)  
 > **PostgreSQL Schema:** `payments`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.4 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.4, 5, 6)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Aggregate Roots** | `Payment` (with `PaymentAttempt`, `ManualReceipt`, `Refund`) and `OwnerPayout` aggregate root | Two distinct aggregate roots: `Payment` (table `Payments`) and `Deposit` (table `Deposits`). No separate `OwnerPayout` table in source schema. |
+| **Payment Statuses** | `Pending`, `Succeeded`, `Failed`, `Expired`, `Cancelled`, `PartiallyRefunded`, `Refunded` | `PaymentStatus`: `Pending`, `Success`, `Failed`. One single payment covers rent + deposit portion. |
+| **Deposit Lifecycle** | Embedded in booking / payout | Dedicated aggregate root `Deposit` (table `Deposits`) with statuses `Held`, `Released`, `Deducted`, `Forfeited`, `IsFrozen`, `ReleaseAfter`. |
+| **Webhook Idempotency** | In-memory / generic index | Infrastructure entity `WebhookInbox` (table `WebhookInboxes`, `Id` text, `ProcessedAt`, `Payload` JSONB). |
+| **Published Events** | 5 events (`PaymentSucceeded`, `PaymentFailed`, `RefundIssued`, `PayoutScheduled`, `PayoutPaid`) | **2 published events**: `PaymentSucceeded`, `PaymentFailed`. |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`payments`, `deposits`, `webhook_inboxes`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Payments module is responsible for payment collection (via sandbox gateway or manual bank transfer receipt), idempotency in webhook processing, automated refund calculations upon cancellation, and owner payout scheduling with dispute hold mechanisms.
+The Payments module manages transaction checkout, payment gateway integrations (VNPay, MoMo, Bank Transfer), webhook deduplication via `WebhookInbox`, security deposit custody (`Deposit` aggregate), deposit freeze on dispute, and automated deposit release/deduction rulings.
 
 ---
 
@@ -26,104 +47,121 @@ dotnet build src/Modules/Payments/CarRental.Modules.Payments/CarRental.Modules.P
 ---
 
 ## 3. Dependencies
-- **Shared Kernel:** `CarRental.BuildingBlocks` (Money, FileReference, Result, Guard, AggregateRoot).
+- **Shared Kernel:** `CarRental.BuildingBlocks` (Money, Result, Guard, AggregateRoot, Entity).
 - **Consumes Events from:**
-  - `Bookings`: `BookingApproved` (initiates pending deposit payment), `BookingExpired` (cancels pending payment), `BookingCancelled` (cancels pending payment or triggers refund per refund percent), `TripCompleted` (schedules owner payout).
-  - `Support`: `DisputeOpened` (places payout on hold), `DisputeResolved` (adjusts/releases payout or executes refunds/charges).
+  - `Bookings`:
+    - `BookingConfirmed` -> Creates `Payment.CreatePending`.
+    - `BookingExpired`, `BookingRejected` -> `Cancel` pending payment.
+    - `BookingCancelled` -> `Cancel` pending payment, or if paid deduct penalty from deposit.
+    - `BookingCompleted` -> Sets `Deposit.ReleaseAfter` (default 48h after trip end).
+  - `Support`:
+    - `TicketOpened` -> `Deposit.Freeze` (prevents automated release).
+    - `TicketResolved` -> `Deposit.SettleByRuling` (resolves customer/owner split).
 - **Downstream Consumers of Payments Contracts:**
-  - `Bookings`: Consumes `PaymentSucceeded` to advance booking to `Confirmed`.
-  - `Notifications`, `Reporting`.
+  - `Bookings`: Consumes `PaymentSucceeded` to transition to `Paid`.
+  - `Notifications`, `Reporting`: Consume `PaymentSucceeded` and `PaymentFailed`.
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Payments.Contracts`)
-### 4.1 Synchronous Interface (`IPaymentsApi`)
-```csharp
-public interface IPaymentsApi
-{
-    Task<Result<PaymentStatusDto>> GetPaymentStatusAsync(Guid paymentId, CancellationToken ct = default);
-}
-```
 
-### 4.2 Published Integration Events (5 Published Events)
-- `PaymentSucceeded(Guid EventId, DateTimeOffset OccurredAt, Guid PaymentId, Guid BookingId, Money Amount, string Method)`
-- `PaymentFailed(Guid EventId, DateTimeOffset OccurredAt, Guid PaymentId, Guid BookingId, string FailureReason)`
-- `RefundIssued(Guid EventId, DateTimeOffset OccurredAt, Guid RefundId, Guid PaymentId, Guid BookingId, Money RefundAmount)`
-- `PayoutScheduled(Guid EventId, DateTimeOffset OccurredAt, Guid PayoutId, Guid BookingId, Guid OwnerId, Money NetAmount, DateTimeOffset ScheduledFor)`
-- `PayoutPaid(Guid EventId, DateTimeOffset OccurredAt, Guid PayoutId, Guid BookingId, Money NetAmount)`
+### 4.1 Synchronous Interface
+*(No synchronous contract required; all interactions are event-driven via Wolverine Outbox).*
 
-*(Note: `PaymentExpired` is an internal domain event; Booking enforces its own `PaymentDeadline` and publishes `BookingExpired`).*
+### 4.2 Published Integration Events (2 Published Events)
+- `PaymentSucceeded(Guid EventId, DateTimeOffset OccurredAt, Guid BookingId, Guid PaymentId, Money Amount)`
+- `PaymentFailed(Guid EventId, DateTimeOffset OccurredAt, Guid BookingId, Guid PaymentId, string Reason)`
 
 ---
 
-## 5. Domain Layer (`Entities/`, `Enums/`, `ValueObjects/`)
+## 5. Domain Layer (`Entities/`, `Enums/`)
 
 ### 5.1 Enums & Strongly-Typed IDs
-- `PaymentPurpose` (`BookingDeposit`, `RentalBalance`, `DamageCharge`)
-- `PaymentMethod` (`Gateway`, `ManualReceipt`)
-- `PaymentStatus` (`Pending`, `Succeeded`, `Failed`, `Expired`, `Cancelled`, `PartiallyRefunded`, `Refunded`)
-- `PayoutStatus` (`Scheduled`, `Paid`, `Failed`, `OnHold`)
+- `readonly record struct PaymentId(Guid Value)`
+- `readonly record struct DepositId(Guid Value)`
+- `PaymentStatus`: `Pending`, `Success`, `Failed`.
+- `PaymentMethod`: `VNPay`, `Momo`, `Transfer`.
+- `DepositStatus`: `Held`, `Released`, `Deducted`, `Forfeited`.
 
-### 5.2 Child Entities & Value Objects
-- `PaymentAttempt`: `Guid Id`, `string Provider`, `string? ProviderTxnId`, `string Status`, `string? RedirectUrl`, `string? FailureCode`, `DateTimeOffset CreatedAt`, `DateTimeOffset? CompletedAt`.
-- `ManualReceipt`: `FileReference ProofImage`, `string Status` (`Submitted`, `Approved`, `Rejected`), `Guid? ReviewedBy`, `string? RejectReason`.
-- `Refund`: `Guid Id`, `Money Amount`, `string Reason`, `string Status`, `string? ProviderRefundId`.
+### 5.2 Aggregate Root: `Payment`
+- Table `Payments`:
+  - `Guid Id`
+  - `Guid BookingId` (indexed)
+  - `Money Amount`
+  - `PaymentStatus Status` (`Pending`/`Success`/`Failed`)
+  - `string? GatewayTransactionId` (unique when set)
+  - `PaymentMethod Method` (`VNPay`/`Momo`/`Transfer`)
+  - `string? FailureReason` [ASSUMPTION]
+  - `Money DepositPortion` [ASSUMPTION: part of Amount representing refundable deposit]
+- Domain Methods & Invariants:
+  ```csharp
+  static Result<Payment> CreatePending(Guid bookingId, Money amount, Money depositPortion, DateTimeOffset now);
+  Result Checkout(PaymentMethod method, IPaymentGateway gateway, DateTimeOffset now);
+  Result MarkSuccess(string gatewayTransactionId, DateTimeOffset now); // Pending -> Success, raises PaymentSucceeded
+  Result MarkFailed(string gatewayTransactionId, string reason, DateTimeOffset now); // Pending -> Failed, raises PaymentFailed
+  Result Cancel(string reason, DateTimeOffset now); // Pending -> Failed
+  ```
+- Invariants:
+  - `Amount > 0`.
+  - `Success` or `Failed` transitions only valid from `Pending`.
+  - At most one `Success` payment per booking.
+  - `GatewayTransactionId` unique when set.
 
-### 5.3 Aggregate Root: `Payment`
-- Properties: `Guid BookingId`, `Guid PayerId`, `PaymentPurpose Purpose`, `Money Amount`, `PaymentMethod Method`, `PaymentStatus Status`, `string IdempotencyKey`, `DateTimeOffset ExpiresAt`.
-- Business Methods:
-  - `static Result<Payment> Create(...)`
-  - `Result StartGatewayAttempt(string provider, DateTimeOffset now)`
-  - `Result RecordGatewayResult(string providerTxnId, bool success, string? rawCode, DateTimeOffset now)`:
-    - **Idempotency Guarantee**: If already `Succeeded`, repeated webhook must return success without emitting duplicate events.
-  - `Result SubmitReceipt(FileReference proof, DateTimeOffset now)`
-  - `Result ApproveReceipt(Guid adminId, DateTimeOffset now)`
-  - `Result RejectReceipt(Guid adminId, string reason, DateTimeOffset now)`
-  - `Result RequestRefund(Money amount, string reason, DateTimeOffset now)`:
-    - Invariant: Cumulative refunds must not exceed collected amount.
+### 5.3 Aggregate Root: `Deposit`
+- Table `Deposits`:
+  - `Guid Id`
+  - `Guid BookingId` (indexed)
+  - `Money Amount`
+  - `DepositStatus Status` (`Held`/`Released`/`Deducted`/`Forfeited`)
+  - `Money DeductedAmount` [ASSUMPTION]
+  - `DateTimeOffset? ReleaseAfter` [ASSUMPTION: scheduled auto-release timestamp]
+  - `bool IsFrozen` [ASSUMPTION: set when a dispute ticket is opened]
+  - `DateTimeOffset? SettledAt` [ASSUMPTION]
+- Domain Methods & Invariants:
+  ```csharp
+  static Deposit Hold(Guid bookingId, Money amount); // Created upon PaymentSucceeded
+  void Freeze(); // Called on TicketOpened (halts auto-release)
+  Result Release(DateTimeOffset now); // Held -> Released
+  Result Deduct(Money amount, DateTimeOffset now); // Held -> Deducted (remainder refunded)
+  Result Forfeit(DateTimeOffset now); // Held -> Forfeited
+  Result SettleByRuling(int depositToCustomerPercent, DateTimeOffset now); // 100 => Released, 1..99 => Deducted, 0 => Forfeited
+  ```
+- Invariants:
+  - Transitions only from `Held`.
+  - Deductions can never exceed `Amount`.
+  - A frozen deposit (`IsFrozen == true`) is never auto-released.
 
-### 5.4 Aggregate Root: `OwnerPayout`
-- Properties: `Guid BookingId` (Unique), `Guid OwnerId`, `Money GrossAmount`, `Money PlatformFee`, `Money NetAmount`, `PayoutStatus Status`, `DateTimeOffset ScheduledFor`, `PayoutAccount BankAccount`.
-- Methods: `Schedule(...)`, `Hold()` (triggered by dispute), `Release()`, `MarkPaid()`, `MarkFailed()`.
+### 5.4 Infrastructure Entity: `WebhookInbox`
+- Table `WebhookInboxes`:
+  - `string Id` (Primary Key: gateway transaction reference / event ID)
+  - `DateTimeOffset ProcessedAt`
+  - `string PayloadJson` (JSONB)
+- Invariant: First insert ID before processing; duplicate ID returns HTTP 200 immediately (BR-13 idempotent webhook processing).
 
 ---
 
-## 6. Infrastructure & Adapters (`Gateways/`, `Data/`)
-- `IPaymentGateway`: Isolated domain abstraction.
-- `SandboxPaymentGateway`: Simulated gateway adapter for test and local environments.
+## 6. Application Services & Background Jobs (`Services/`, `Jobs/`)
+- `IPaymentGateway`: Gateway adapter abstraction for VNPay, MoMo, and manual Transfer.
+- `ReleaseDueDepositsJob`: Background job running periodically; releases deposits of completed bookings where `now >= ReleaseAfter` and `!IsFrozen`.
+
+---
+
+## 7. Persistence & EF Core (`Data/`)
 - `PaymentsDbContext`: `HasDefaultSchema("payments")`.
-- `IEntityTypeConfiguration<Payment>`:
-  - Unique index on `IdempotencyKey`.
-  - Unique index on `(Provider, ProviderTxnId)`.
-  - Concurrency token `xmin`.
-- Migration: `AddPaymentsInitialMigration`.
-
----
-
-## 7. Event Handlers & Webhooks (`EventHandlers/`, `Endpoints/`)
-- `BookingApprovedHandler`: Consumes `BookingApproved` -> Creates `Payment` with `Pending` status.
-- `BookingCancelledHandler`: Consumes `BookingCancelled` -> Calls `Payment.RequestRefund(Amount * RefundPercent)`.
-- `TripCompletedHandler`: Consumes `TripCompleted` -> Schedules `OwnerPayout`.
-- Minimal API Endpoints:
-  - `POST /api/payments/checkout` (Generates gateway payment URL)
-  - `POST /api/payments/webhook` (Idempotent gateway callback receiver)
-  - `POST /api/payments/{id}/receipt` (Upload transfer screenshot)
-  - `POST /api/payments/admin/receipts/{id}/approve` (Admin manual approval)
+- Table mapping (snake_case):
+  - `payments` (Aggregate Root with `xmin` row version)
+  - `deposits` (Aggregate Root with `xmin` row version)
+  - `webhook_inboxes` (PK `id`)
+- Unique index on `GatewayTransactionId` (where not null).
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Implement Enums, `PaymentAttempt`, `ManualReceipt`, `Refund`.
-- [ ] Implement `Payment` aggregate root with idempotent webhook processing and refund invariants.
-- [ ] Implement `OwnerPayout` aggregate root.
-- [ ] Define `IPaymentGateway` abstraction and sandbox implementation.
-- [ ] Setup `PaymentsDbContext` and EF Core mappings.
-- [ ] Create EF Core migration for `payments` schema.
-- [ ] Implement Wolverine event consumers for booking and dispute events.
-- [ ] Implement Webhook and Manual Receipt endpoints.
-- [ ] Unit tests:
-  - `RecordGatewayResult_CalledMultipleTimes_IsIdempotent`
-  - `RequestRefund_ExceedingTotalAmount_ShouldFail`
-  - `ApproveReceipt_TransitionsToSucceededAndRaisesPaymentSucceeded`
-  - `OwnerPayout_Hold_TransitionsToOnHold`
-- [ ] Testcontainers integration tests.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `Payment` and `Deposit` aggregate roots and `WebhookInbox` entity.
+- [ ] Implement integration events in `CarRental.Modules.Payments.Contracts`.
+- [ ] Setup `PaymentsDbContext` with schema `payments`.
+- [ ] Implement idempotent webhook handler with `WebhookInbox`.
+- [ ] Implement `ReleaseDueDepositsJob` and dispute freeze/ruling handlers.
+- [ ] Add domain unit tests for payment state machine, deposit deduction invariants, and ruling settlements.
+- [ ] Verify zero EF/ASP.NET dependencies in `Entities/` via `DomainEncapsulationTests`.

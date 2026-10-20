@@ -5,12 +5,33 @@
 > **Dedicated Git Branch:** `feat/module-availability`  
 > **Phase:** 1 (Catalog & Core Foundation — Parallel Stream 4)  
 > **PostgreSQL Schema:** `availability`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.3 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.3 & 5)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Aggregate Root** | `VehicleCalendar` with in-memory block collection | `VehicleCalendar` (table `VehicleCalendars`, PK `VehicleId`, `LastSyncedAt`). Loads only overlapping entries for target period. |
+| **Child Entity** | `AvailabilityBlock` (table `availability_blocks`) with `HoldExpiresAt`, `ReleasedAt` | `CalendarEntry` (table `CalendarEntries`) with `Id`, `VehicleId`, `Type` (`Booked`/`Hold`/`OwnerBlocked`/`Maintenance`), `TimeRange` (`tstzrange`), `ExpiresAt` (null for `Booked`/blocks; <= 12h for `Hold`), `BookingId` (nullable). |
+| **Double-Booking Invariant** | Application-level checks | Two-tier guard: Domain invariant check + PostgreSQL exclusion constraint (`btree_gist` on `(VehicleId WITH =, TimeRange WITH &&)`). |
+| **Published Events** | 0 published events | **0 published events** (all operations are invoked synchronously by `Bookings`). |
+| **Contracts** | `PlaceHoldAsync`, `ExtendHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `AreAvailableAsync` | `IAvailabilityApi.PlaceHoldAsync(vehicleId, bookingId, range, ttl)`, `ConfirmHoldAsync(vehicleId, bookingId)`, `ReleaseHoldAsync(vehicleId, bookingId)`, `CheckAvailabilityAsync(vehicleId, range)`. |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`vehicle_calendars`, `calendar_entries`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Availability module is the core concurrency protector against double-booking. It manages temporary rental holds (12h TTL), finalized bookings, owner blocks, and vehicle maintenance intervals using domain invariants combined with a PostgreSQL `tstzrange` exclusion constraint.
+The Availability module is the core concurrency protector against double-booking. It manages temporary rental holds (≤ 12h TTL), finalized bookings, owner blocks, and vehicle maintenance intervals using domain invariants combined with a PostgreSQL `tstzrange` exclusion constraint (BR-05).
 
 ---
 
@@ -26,132 +47,119 @@ dotnet build src/Modules/Availability/CarRental.Modules.Availability/CarRental.M
 ---
 
 ## 3. Dependencies
-- **Shared Kernel:** `CarRental.BuildingBlocks` (DateTimeRange, Result, Guard, AggregateRoot).
-- **Consumes Events from:**
-  - `Bookings`: `BookingConfirmed` -> Confirm hold; `BookingRejected` / `BookingCancelled` / `BookingExpired` -> Release blocks (idempotent compensation).
-  - `Fleet`: `VehicleStatusChanged` (status `Archived`) -> Release all future blocks.
+- **Shared Kernel:** `CarRental.BuildingBlocks` (DateTimeRange, Result, Guard, AggregateRoot, Entity).
+- **Contracts Referenced:** `CarRental.Modules.Fleet.Contracts` (`IFleetApi.GetVehicleSummaryAsync` for owner block permission).
 - **Downstream Consumers of Availability Contracts:**
-  - `Bookings`: Calls `IAvailabilityApi.PlaceHoldAsync`, `ExtendHoldAsync`, and `ReleaseHoldAsync`.
-  - `Search`: Calls `IAvailabilityApi.AreAvailableAsync` (bulk check for search candidates).
+  - `Bookings`: Calls `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, and `ReleaseHoldAsync` synchronously.
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Availability.Contracts`)
+
 ### 4.1 Synchronous Interface (`IAvailabilityApi`)
 ```csharp
 public interface IAvailabilityApi
 {
-    Task<Result<Guid>> PlaceHoldAsync(
+    Task<Result> PlaceHoldAsync(
         Guid vehicleId, 
         Guid bookingId, 
         DateTimeRange range, 
         TimeSpan ttl, 
         CancellationToken ct = default);
 
-    Task<Result> ExtendHoldAsync(
-        Guid holdId, 
-        DateTimeOffset newExpiresAt, 
+    Task<Result> ConfirmHoldAsync(
+        Guid vehicleId, 
+        Guid bookingId, 
         CancellationToken ct = default);
 
-    Task<Result> ConfirmHoldAsync(Guid holdId, CancellationToken ct = default);
+    Task<Result> ReleaseHoldAsync(
+        Guid vehicleId, 
+        Guid bookingId, 
+        CancellationToken ct = default);
 
-    Task<Result> ReleaseHoldAsync(Guid bookingId, CancellationToken ct = default);
-
-    Task<IReadOnlyDictionary<Guid, bool>> AreAvailableAsync(
-        IReadOnlyList<Guid> vehicleIds, 
+    Task<bool> CheckAvailabilityAsync(
+        Guid vehicleId, 
         DateTimeRange range, 
         CancellationToken ct = default);
 }
 ```
 
-### 4.2 Published Integration Events (0 Published Events)
-Per the system event policy (small contract surface), Availability publishes **0 integration events**. All lifecycle occurrences (`HoldPlaced`, `HoldExpired`, `HoldReleased`, `SlotBooked`, `VehicleBlocked`) remain **internal domain events** handled within the module. Booking owns and enforces its own rental deadlines.
+### 4.2 Published Integration Events
+- **0 Published Events** (Per Section 5 of `domain-model-entities-reworked.md`, all Availability operations are synchronous and consume 0 events).
 
 ---
 
 ## 5. Domain Layer (`Entities/`, `Enums/`)
 
 ### 5.1 Enums & Strongly-Typed IDs
-- `BlockType` (`Hold`, `Booked`, `OwnerBlocked`, `Maintenance`)
+- `CalendarEntryType`: `Booked`, `Hold`, `OwnerBlocked`, `Maintenance`.
 
-### 5.2 Child Entity: `AvailabilityBlock`
-- Properties:
+### 5.2 Child Entity: `CalendarEntry`
+- Table `CalendarEntries`:
   - `Guid Id`
-  - `DateTimeRange Range`
-  - `BlockType Type`
-  - `Guid? BookingId`
-  - `DateTimeOffset? HoldExpiresAt` (mandatory when `Type == Hold`)
-  - `string? Reason`
-  - `DateTimeOffset CreatedAt`
-  - `DateTimeOffset? ReleasedAt`
+  - `Guid VehicleId` (indexed)
+  - `CalendarEntryType Type` (`Booked`/`Hold`/`OwnerBlocked`/`Maintenance`)
+  - `DateTimeRange TimeRange` (maps to PostgreSQL `tstzrange`)
+  - `DateTimeOffset? ExpiresAt` (null for `Booked`/blocks; <= 12h for `Hold`, BR-07)
+  - `Guid? BookingId` (nullable, indexed)
 - Rules:
-  - `IsActive(DateTimeOffset now)`: `ReleasedAt == null && (Type != BlockType.Hold || HoldExpiresAt > now)`.
+  - `IsActive(DateTimeOffset now)`: `Type != CalendarEntryType.Hold || (ExpiresAt.HasValue && ExpiresAt.Value > now)`.
 
 ### 5.3 Aggregate Root: `VehicleCalendar`
-- Properties:
-  - `Guid VehicleId` (Aggregate Root Key)
-  - `List<AvailabilityBlock> _blocks`
+- Table `VehicleCalendars`:
+  - `Guid VehicleId` (Aggregate Root Primary Key)
+  - `DateTimeOffset LastSyncedAt`
+  - Child collection: `IReadOnlyCollection<CalendarEntry> Entries`.
 - Methods & Invariants:
-  - `PlaceHold(Guid bookingId, DateTimeRange range, TimeSpan ttl, DateTimeOffset now) : Result<Guid>`:
-    - Hold TTL capped at 12 hours from creation.
-    - Adds 2-hour buffer before and after rental period.
-    - Rejects overlapping active blocks.
-  - `ExtendHold(Guid holdId, DateTimeOffset newExpiresAt, DateTimeOffset now) : Result`:
-    - Executed once when owner approves booking, up to booking's `PaymentDeadline`.
-  - `ConfirmHold(Guid holdId, DateTimeOffset now) : Result`:
-    - Converts `Hold` -> `Booked`, clears `HoldExpiresAt`.
-  - `Release(Guid bookingId, DateTimeOffset now) : Result`:
-    - Sets `ReleasedAt = now` on all active blocks for the booking.
-  - `BlockByOwner(DateTimeRange range, string reason, DateTimeOffset now) : Result<Guid>`
-  - `Unblock(Guid blockId, DateTimeOffset now) : Result`
-  - `ExpireHolds(DateTimeOffset now) : int`: Marks expired holds as released (safety-net cleanup).
-  - `IsAvailable(DateTimeRange range, DateTimeOffset now) : bool`
+  ```csharp
+  Result PlaceHold(Guid bookingId, DateTimeRange range, TimeSpan ttl, DateTimeOffset now); // ttl <= 12h
+  Result ConfirmHold(Guid bookingId, DateTimeOffset now); // Hold -> Booked, ExpiresAt = null
+  Result Release(Guid bookingId, DateTimeOffset now); // removes the booking's entries
+  Result Block(CalendarEntryType type /* OwnerBlocked | Maintenance */, DateTimeRange range, DateTimeOffset now);
+  Result Unblock(Guid entryId, DateTimeOffset now);
+  int ExpireHolds(DateTimeOffset now); // removes expired holds
+  bool IsAvailable(DateTimeRange range, DateTimeOffset now);
+  ```
+- Invariants:
+  - Active entries never overlap (domain check AND Postgres exclusion constraint, BR-05).
+  - `Hold` always has `ExpiresAt` within 12h.
+  - `Booked`/`OwnerBlocked`/`Maintenance` have `ExpiresAt = null`.
+  - Expired `Hold` entries are treated as inactive and can be pruned.
+  - Only `Hold` entries can be confirmed.
+  - Owner blocks cannot overlap `Booked` or active `Hold` entries.
 
 ---
 
 ## 6. Persistence & EF Core (`Data/`)
 - `AvailabilityDbContext`: `HasDefaultSchema("availability")`.
-- Database Constraints (PostgreSQL `btree_gist`):
-  - Add raw SQL migration:
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS btree_gist;
-    
-    ALTER TABLE availability.availability_blocks 
-    ADD CONSTRAINT no_overlapping_blocks 
-    EXCLUDE USING gist (
-        vehicle_id WITH =,
-        tstzrange(range_start, range_end) WITH &&
-    ) WHERE (released_at IS NULL);
-    ```
-- Migration: `AddAvailabilityInitialMigration`.
+- Table mapping (snake_case):
+  - `vehicle_calendars` (PK `vehicle_id`)
+  - `calendar_entries` (FK `vehicle_id`)
+- PostgreSQL `btree_gist` exclusion constraint on `CalendarEntries`:
+  ```sql
+  ALTER TABLE availability."CalendarEntries"
+  ADD CONSTRAINT no_overlapping_active_entries
+  EXCLUDE USING gist (
+      "VehicleId" WITH =,
+      tstzrange("TimeRange_Start", "TimeRange_End") WITH &&
+  );
+  ```
 
 ---
 
-## 7. Background Jobs & Handlers (`Jobs/`, `EventHandlers/`)
-- `ExpireHoldsJob`: Runs every minute (safety-net cleanup only).
-- Wolverine Event Handlers:
-  - `BookingConfirmedHandler` -> invokes `ConfirmHoldAsync`.
-  - `BookingRejectedHandler` / `BookingCancelledHandler` / `BookingExpiredHandler` -> invokes `ReleaseHoldAsync`.
-  - `VehicleStatusChangedHandler` -> when new status is `Archived`, releases all future blocks.
+## 7. Application Services & Endpoints (`Services/`, `Endpoints/`)
+- `AvailabilityApiService`: Implements `IAvailabilityApi`.
+- Background Job: `ExpireHoldsJob` (runs periodically as safety-net pruning; Booking owns its rental deadlines).
+- Minimal API Endpoints (`MapGroup("/api/availability")`):
+  - `GET /vehicles/{id}/check` (`startTime`, `endTime`)
+  - `POST /vehicles/{id}/blocks` (owner blocks dates; verifies ownership via `IFleetApi`)
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Implement `BlockType` enum and `AvailabilityBlock` entity.
-- [ ] Implement `VehicleCalendar` aggregate root with buffer calculations, overlap detection, and `ExtendHold`.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `VehicleCalendar` aggregate root and `CalendarEntry` child entity.
 - [ ] Implement `IAvailabilityApi` in `CarRental.Modules.Availability.Contracts`.
-- [ ] Configure `AvailabilityDbContext` and EF mappings.
-- [ ] Write PostgreSQL migration including `btree_gist` exclusion constraint.
-- [ ] Implement background worker `ExpireHoldsJob`.
-- [ ] Wire Wolverine handlers for booking and vehicle status integration events.
-- [ ] Unit tests:
-  - `PlaceHold_OverlappingWithExistingHold_ShouldFail`
-  - `PlaceHold_WithOver12HoursTtl_ShouldBeClampedOrFailed`
-  - `ExtendHold_AfterOwnerApproval_ExtendsHoldExpiration`
-  - `ConfirmHold_WhenExpired_ShouldFail`
-  - `Release_ShouldReleaseAllBlocksForBooking`
-- [ ] Concurrency test with Testcontainers:
-  - Spin up 20 concurrent threads trying to hold the same car for overlapping dates; verify exactly 1 succeeds and DB constraint rejects the others.
-
-- [ ] Concurrency test with Testcontainers:
-  - Spin up 20 concurrent threads trying to hold the same car for overlapping dates; verify exactly 1 succeeds and DB constraint rejects the others.
+- [ ] Setup `AvailabilityDbContext` with schema `availability` and `tstzrange` mapping.
+- [ ] Add domain unit tests for `PlaceHold`, `ConfirmHold`, `Release`, `ExpireHolds`, and overlap rejection.
+- [ ] Verify zero EF/ASP.NET dependencies in `Entities/` via `DomainEncapsulationTests`.

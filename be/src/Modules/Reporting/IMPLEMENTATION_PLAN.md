@@ -3,20 +3,40 @@
 > **Module Directory:** `src/Modules/Reporting`  
 > **Projects:** `CarRental.Modules.Reporting.csproj`, `CarRental.Modules.Reporting.Contracts.csproj`  
 > **Dedicated Git Branch:** `feat/module-reporting`  
-> **Phase:** 4 (Projections & Platform — Parallel Stream 4)  
+> **Phase:** 4 (Platform Intelligence & Read Projections — Parallel Stream 4)  
 > **PostgreSQL Schema:** `reporting`  
-> **References:** [be/docs/domain-model-entities-updated.md](../../../docs/domain-model-entities-updated.md) (Section 4.13 & 5)
+> **References:** [be/docs/domain-model-entities-reworked.md](../../../docs/domain-model-entities-reworked.md) (Section 4.13 & 5)
+
+> [!IMPORTANT]
+> **Implementation Scope Boundary:**
+> Current implementation scope is strictly restricted to **Contracts, Domain Entities, and EF Core mappings (Data/)**.
+> - **In Scope:** Aggregate roots, child entities, value objects, domain events, strongly-typed IDs, Contracts (interfaces, DTOs, enums, integration events), DbContext, and IEntityTypeConfiguration<T>.
+> - **Out of Scope (Do NOT build yet):** Application services, repositories, minimal API endpoints, controllers, and background jobs. Stop proceeding immediately after domain entities and EF Core data configurations are completed.
+> - **EF Core Migrations Policy:** Do NOT run migrations during entity construction. Database migrations (dotnet ef migrations add) will only be generated after all entities across all modules have been fully implemented and verified.
+
+
+---
+
+## 0. Notification of Changes (Old Design vs. Reworked Source-of-Truth)
+
+| Dimension | Previous (Old Design) | Reworked (Source of Truth from `Thiết kế hệ thống, CSDL và API`) |
+|---|---|---|
+| **Data Entities** | Multiple read models: `DailyPlatformStats`, `VehiclePerformance`, `OwnerEarnings` | Single consolidated read model: `DailyBookingStats` (table `DailyBookingStats`) matching source schema. |
+| **Properties** | Multi-dimensional financial ledgers | `Date` (PK, DateOnly / Timestamptz date bucket in UTC+7), `TotalBookings`, `TotalRevenue`, `CancellationCount`. |
+| **Idempotency** | Unspecified | Dedicated `processed_events` table (PK `EventId`) to guarantee idempotent projection. |
+| **Published Events** | 0 published events | **0 published events**. |
+| **Table Naming** | snake_case tables | Retained snake_case tables (`daily_booking_stats`, `processed_events`) matching PostgreSQL conventions. |
 
 ---
 
 ## 1. Objectives & Scope
-The Reporting module maintains pre-aggregated, read-optimized analytical projections for platform administrators and vehicle owners. It isolates high-volume reporting reads from the core transactional schemas, using an idempotent event inbox (`processed_events`).
+The Reporting module maintains pre-aggregated financial and booking performance read models for executive and administrative dashboards (`GET /api/reporting/dashboard`). It projects metrics asynchronously from Booking and Payment integration events.
 
 ---
 
 ## 2. Git Branch & Setup Instructions
 ```bash
-# Branch out from main after Phase 1 & 2 contracts are available
+# Branch out from main after Phase 1-3 contracts are available
 git checkout -b feat/module-reporting
 
 # Build module
@@ -27,96 +47,62 @@ dotnet build src/Modules/Reporting/CarRental.Modules.Reporting/CarRental.Modules
 
 ## 3. Dependencies
 - **Shared Kernel:** `CarRental.BuildingBlocks` (Money, Result).
-- **Consumes Events from (aligned with 28-Event Catalog):**
-  - `Bookings`: `BookingRequested`, `BookingRejected`, `BookingConfirmed`, `BookingCancelled`, `BookingExpired`, `TripCompleted`.
-  - `Payments`: `PaymentSucceeded`, `PaymentFailed`, `RefundIssued`, `PayoutScheduled`, `PayoutPaid`.
-  - `Users`: `UserRegistered`.
-  - `Fleet`: `VehicleApproved`.
-  - `Reviews`: `ReviewPublished`.
-  - `Support`: `DisputeOpened`, `DisputeResolved`.
+- **Consumes Events from:**
+  - `Bookings`: `BookingRequested`, `BookingCancelled`
+  - `Payments`: `PaymentSucceeded`
 
 ---
 
 ## 4. Contracts Project (`CarRental.Modules.Reporting.Contracts`)
-### 4.1 Synchronous Interface (`IReportingApi`)
-```csharp
-public interface IReportingApi
-{
-    Task<Result<OwnerEarningsDto>> GetOwnerEarningsAsync(Guid ownerId, int year, int month, CancellationToken ct = default);
-    Task<Result<PlatformSummaryDto>> GetPlatformSummaryAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
-}
-```
+
+### 4.1 Synchronous Interface
+*(No synchronous interface required; reporting queries are accessed via HTTP GET).*
+
+### 4.2 Published Integration Events
+- **0 Published Events** (Reporting is a pure read projection).
 
 ---
 
-## 5. Domain & Read Models (`Projections/`)
+## 5. Domain Layer (`ReadModels/`)
 
-### 5.1 Projection: `DailyPlatformStats`
-- Primary Key: `DateOnly Date`
-- Metrics: `int BookingsRequested`, `int BookingsConfirmed`, `int BookingsCancelled`, `int BookingsCompleted`, `Money GrossRevenue`, `Money PlatformFeeRevenue`, `int NewUsers`, `int NewVehicles`.
-- Encapsulated Method: `bool Apply(IDomainEvent e)`
+### 5.1 Read Model: `DailyBookingStats`
+- Table `DailyBookingStats`:
+  - `DateOnly Date` (Primary Key, UTC+7 day bucket)
+  - `int TotalBookings`
+  - `decimal TotalRevenue` (VND)
+  - `int CancellationCount`
+- Domain Projection Methods:
+  ```csharp
+  bool ApplyBookingRequested(DateTimeOffset occurredAt);
+  bool ApplyBookingCancelled(DateTimeOffset occurredAt);
+  bool ApplyPaymentSucceeded(decimal amount, DateTimeOffset occurredAt);
+  ```
 
-### 5.2 Projection: `OwnerEarningsSummary`
-- Composite Key: `(Guid OwnerId, int Year, int Month)`
-- Metrics: `int Trips`, `Money GrossAmount`, `Money NetAmount`, `Money PaidOut`, `Money Pending`.
-- Encapsulated Method: `bool Apply(IDomainEvent e)`
-
-### 5.3 Projection: `VehiclePerformance`
-- Composite Key: `(Guid VehicleId, int Year, int Month)`
-- Metrics: `int Trips`, `int BookedDays`, `Money Revenue`, `decimal AverageRating`, `int CancellationCount`.
-- Encapsulated Method: `bool Apply(IDomainEvent e)`
-
-### 5.4 Projection: `DisputeStats`
-- Key: `(int Year, int Month)`
-- Metrics: `int Opened`, `int Resolved`, `double AvgResolutionHours`, `Money TotalRefunded`.
+### 5.2 Idempotency Entity: `ProcessedEvent`
+- Table `processed_events`:
+  - `Guid EventId` (Primary Key)
+  - `DateTimeOffset ProcessedAt`
 
 ---
 
 ## 6. Persistence & EF Core (`Data/`)
 - `ReportingDbContext`: `HasDefaultSchema("reporting")`.
-- Idempotency Table:
-  ```csharp
-  public class ProcessedEvent
-  {
-      public Guid EventId { get; set; }
-      public DateTimeOffset ProcessedAt { get; set; }
-  }
-  ```
-- EF Core Mapping:
-  - Configure primary keys and monthly indexes for fast dashboard queries.
-- Migration: `AddReportingInitialMigration`.
-
----
-
+- Table mapping (snake_case):
+  - `daily_booking_stats` (PK `date`)
+  - `processed_events` (PK `event_id`)
 ## 7. Event Handlers & Endpoints (`EventHandlers/`, `Endpoints/`)
-- Idempotent Wolverine Consumer Pattern:
-  ```csharp
-  public async Task Handle(TripCompleted e)
-  {
-      if (await _dbContext.ProcessedEvents.AnyAsync(x => x.EventId == e.EventId))
-          return;
-
-      // Update OwnerEarningsSummary & VehiclePerformance
-      _dbContext.ProcessedEvents.Add(new ProcessedEvent { EventId = e.EventId, ProcessedAt = DateTimeOffset.UtcNow });
-      await _dbContext.SaveChangesAsync();
-  }
-  ```
-- Minimal API Endpoints:
-  - `GET /api/reports/owner/earnings` (Owner personal earnings breakdown)
-  - Admin endpoints (`RequireAuthorization("Admin")`):
-    - `GET /api/admin/reports/platform-stats`
-    - `GET /api/admin/reports/vehicle-performance`
-    - `GET /api/admin/reports/disputes`
+- Integration Event Handlers (Idempotent):
+  - `BookingRequestedHandler`: Increments `TotalBookings` for date bucket.
+  - `BookingCancelledHandler`: Increments `CancellationCount` for date bucket.
+  - `PaymentSucceededHandler`: Adds payment amount to `TotalRevenue`.
+- Minimal API Endpoints (`MapGroup("/api/reporting")`):
+  - `GET /dashboard` (Admin policy: returns aggregate platform booking and revenue statistics)
 
 ---
 
 ## 8. Step-by-Step Task Checklist
-- [ ] Implement `ProcessedEvent` entity for idempotent event processing.
-- [ ] Implement Projections: `DailyPlatformStats`, `OwnerEarningsSummary`, `VehiclePerformance`, `DisputeStats`.
-- [ ] Implement `IReportingApi` in `CarRental.Modules.Reporting.Contracts`.
-- [ ] Setup `ReportingDbContext` and EF Core mappings.
-- [ ] Create EF Core migration for `reporting` schema.
-- [ ] Implement Wolverine event consumers with deduplication checks.
-- [ ] Build Minimal API reporting endpoints.
-- [ ] Unit tests for projection `Apply` methods.
-- [ ] Integration tests verifying that duplicate events produce zero state skew.
+- [x] Document updated architecture and database entity mapping.
+- [ ] Implement `DailyBookingStats` read model and idempotent mutation methods.
+- [ ] Setup `ReportingDbContext` with schema `reporting` and `processed_events` table.
+- [ ] Implement Wolverine handlers for `BookingRequested`, `BookingCancelled`, and `PaymentSucceeded`.
+- [ ] Add unit tests for date bucket aggregation and duplicate event handling.
