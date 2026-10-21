@@ -71,22 +71,22 @@ main (Production / Stable)
 
 ## 3. Implementation Phasing & Dependency Matrix
 
-| Phase | Module / Component | Dedicated Git Branch | Local Implementation Plan | Published Events | Synchronous Contracts Provided |
-|---|---|---|---|---|---|
-| **0** | **Shared Kernel** | `feat/shared-kernel` | [BuildingBlocks Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Shared/CarRental.BuildingBlocks/IMPLEMENTATION_PLAN.md) | None | Building blocks, Primitives, Value Objects (`Money`, `DateTimeRange`, `GeoPoint`) |
-| **1** | **Users** | `feat/module-users` | [Users Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Users/IMPLEMENTATION_PLAN.md) | **0** | `IUsersApi.GetBookingEligibilityAsync`, `GetContactAsync` |
-| **1** | **Fleet** | `feat/module-fleet` | [Fleet Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Fleet/IMPLEMENTATION_PLAN.md) | **2** (`VehiclePublished`, `VehicleUnpublished`) | `IFleetApi.GetVehicleSummaryAsync` |
-| **1** | **Pricing** | `feat/module-pricing` | [Pricing Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Pricing/IMPLEMENTATION_PLAN.md) | **1** (`PricingUpdated`) | `IPricingApi.GetQuoteAsync` |
-| **1** | **Availability** | `feat/module-availability` | [Availability Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Availability/IMPLEMENTATION_PLAN.md) | **0** | `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `CheckAvailabilityAsync` |
-| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync` |
-| **2** | **Payments** | `feat/module-payments` | [Payments Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | None |
-| **3** | **Handover** | `feat/module-handover` | [Handover Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Handover/IMPLEMENTATION_PLAN.md) | **1** (`HandoverConfirmed`) | None |
-| **3** | **Reviews** | `feat/module-reviews` | [Reviews Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reviews/IMPLEMENTATION_PLAN.md) | **1** (`RatingSummaryUpdated`) | None |
-| **3** | **Support** | `feat/module-support` | [Support Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Support/IMPLEMENTATION_PLAN.md) | **2** (`TicketOpened`, `TicketResolved`) | None |
-| **4** | **Search** | `feat/module-search` | [Search Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Search/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None |
-| **4** | **Notifications** | `feat/module-notifications` | [Notifications Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Notifications/IMPLEMENTATION_PLAN.md) | **0** (Consumer) | None |
-| **4** | **Audit** | `feat/module-audit` | [Audit Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Audit/IMPLEMENTATION_PLAN.md) | **0** (Cross-cutting) | `RecordAuditEntry` message contract |
-| **4** | **Reporting** | `feat/module-reporting` | [Reporting Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reporting/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None |
+| Phase | Module / Component | Dedicated Git Branch | Local Implementation Plan | Published Events | Synchronous Contracts Provided | Status (Scope: Domain & EF Core Data) |
+|---|---|---|---|---|---|---|
+| **0** | **Shared Kernel** | `feat/shared-kernel` | [BuildingBlocks Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Shared/CarRental.BuildingBlocks/IMPLEMENTATION_PLAN.md) | None | Building blocks, Primitives, Value Objects (`Money`, `DateTimeRange`, `GeoPoint`) | ✅ **Completed** (75 tests passing) |
+| **1** | **Users** | `feat/module-users` | [Users Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Users/IMPLEMENTATION_PLAN.md) | **0** | `IUsersApi.GetBookingEligibilityAsync`, `GetContactAsync` | ✅ **Completed** |
+| **1** | **Fleet** | `feat/module-fleet` | [Fleet Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Fleet/IMPLEMENTATION_PLAN.md) | **2** (`VehiclePublished`, `VehicleUnpublished`) | `IFleetApi.GetVehicleSummaryAsync` | ✅ **Completed** |
+| **1** | **Pricing** | `feat/module-pricing` | [Pricing Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Pricing/IMPLEMENTATION_PLAN.md) | **1** (`PricingUpdated`) | `IPricingApi.GetQuoteAsync` | ✅ **Completed** |
+| **1** | **Availability** | `feat/module-availability` | [Availability Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Availability/IMPLEMENTATION_PLAN.md) | **0** | `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `CheckAvailabilityAsync` | ✅ **Completed** |
+| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync` | ✅ **Completed** |
+| **2** | **Payments** | `feat/module-payments` | [Payments Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | None | ✅ **Completed** |
+| **3** | **Handover** | `feat/module-handover` | [Handover Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Handover/IMPLEMENTATION_PLAN.md) | **1** (`HandoverConfirmed`) | None | ✅ **Completed** |
+| **3** | **Reviews** | `feat/module-reviews` | [Reviews Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reviews/IMPLEMENTATION_PLAN.md) | **1** (`RatingSummaryUpdated`) | None | ✅ **Completed** |
+| **3** | **Support** | `feat/module-support` | [Support Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Support/IMPLEMENTATION_PLAN.md) | **2** (`TicketOpened`, `TicketResolved`) | None | ✅ **Completed** |
+| **4** | **Search** | `feat/module-search` | [Search Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Search/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
+| **4** | **Notifications** | `feat/module-notifications` | [Notifications Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Notifications/IMPLEMENTATION_PLAN.md) | **0** (Consumer) | None | ✅ **Completed** |
+| **4** | **Audit** | `feat/module-audit` | [Audit Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Audit/IMPLEMENTATION_PLAN.md) | **0** (Cross-cutting) | `RecordAuditEntry` message contract | ✅ **Completed** |
+| **4** | **Reporting** | `feat/module-reporting` | [Reporting Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reporting/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
 
 ---
 
@@ -190,3 +190,24 @@ Continuous integration strictly verifies:
 - `ModuleEncapsulationTests`: No cross-module internal references; only `*.Contracts` and `CarRental.BuildingBlocks` allowed.
 - `EntityEncapsulationTests`: Domain entities inherit `Entity<TId>` or `AggregateRoot<TId>` and have private setters only.
 - `IntegrationEventsTests`: All integration events in `*.Contracts` are immutable records implementing `IIntegrationEvent`.
+
+---
+
+## 7. Current Progress & Phase Delivery Summary (Phases 0–4 Completed)
+
+All domain entities, contracts, strongly-typed IDs, and EF Core data configurations across all 13 modules and Shared Kernel have been implemented and verified.
+
+### 7.1 Delivery Breakdown by Phase
+- **Phase 0 (Shared Kernel):** Complete. `Entity<TId>`, `AggregateRoot<TId>`, `ValueObject`, `Result<T>`, `Error`, `DomainException`, value objects (`Money`, `GeoPoint`, `DateTimeRange`, `Address`, `PhoneNumber`, `Rating`, `FileReference`).
+- **Phase 1 (Core Identity, Fleet & Catalog):** Complete. `Users` (roles, KYC profiles), `Fleet` (vehicles, approvals, photos), `Pricing` (base/custom rates, plans), `Availability` (calendar entries, hold lifecycle).
+- **Phase 2 (Lifecycle & Transactions):** Complete. `Bookings` (aggregates, line items, status history, cancellation snapshot, 7 integration events), `Payments` (payments, held/frozen deposits, webhook inbox deduplication, 2 integration events).
+- **Phase 3 (Physical Handover, Feedback & Support):** Complete. `Handover` (contexts, checklists, photo hash inspection, 1 integration event), `Reviews` (reviewable bookings, ratings summaries, 1 integration event), `Support` (tickets, messages, resolution split rulings, 2 integration events).
+- **Phase 4 (Platform Intelligence & Read Projections):** Complete. `Search` (PostGIS read model, LWW out-of-order event convergence), `Notifications` (retry limits, delivery deduplication), `Audit` (append-only log, PII masking, `RecordAuditEntry` command), `Reporting` (UTC+7 daily booking/revenue projections, `ProcessedEvent` idempotency).
+
+### 7.2 Verification Metrics
+- **Test Suite Pass Rate:** 190 / 190 tests passed (100% green).
+  - `CarRental.BuildingBlocks.Tests`: 75 tests passed.
+  - `CarRental.Modules.Tests`: 107 tests passed.
+  - `CarRental.ArchitectureTests`: 8 tests passed.
+- **EF Core Migrations Policy:** 0 migrations generated during entity construction; preserved for global migration phase.
+
