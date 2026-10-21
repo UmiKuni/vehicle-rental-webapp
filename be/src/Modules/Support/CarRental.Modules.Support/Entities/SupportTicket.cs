@@ -39,7 +39,7 @@ public class SupportTicket : AggregateRoot<TicketId>
 
         _messages.Add(new TicketMessage(
             Guid.CreateVersion7(),
-            id.Value,
+            id,
             reporterId,
             firstMessage,
             attachmentKey,
@@ -84,7 +84,7 @@ public class SupportTicket : AggregateRoot<TicketId>
 
         _messages.Add(new TicketMessage(
             Guid.CreateVersion7(),
-            Id.Value,
+            Id,
             senderId,
             content,
             attachmentKey,

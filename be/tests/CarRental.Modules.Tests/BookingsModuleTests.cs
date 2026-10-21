@@ -16,7 +16,7 @@ public class BookingsModuleTests
     private static readonly Guid OwnerId = Guid.NewGuid();
     private static readonly Guid VehicleId = Guid.NewGuid();
 
-    private static (List<BookingLineItem> lines, CancellationPolicySnapshot policy) CreateTestLinesAndPolicy(Guid bookingId)
+    private static (List<BookingLineItem> lines, CancellationPolicySnapshot policy) CreateTestLinesAndPolicy(BookingId bookingId)
     {
         var lines = new List<BookingLineItem>
         {
@@ -31,7 +31,7 @@ public class BookingsModuleTests
     [Fact]
     public void Request_WithValidParameters_ShouldSucceedAndBePending()
     {
-        var tempId = Guid.NewGuid();
+        var tempId = BookingId.New();
         var (lines, policy) = CreateTestLinesAndPolicy(tempId);
 
         var result = Booking.Request(
@@ -99,7 +99,7 @@ public class BookingsModuleTests
     [Fact]
     public void Request_WhenMissingRentOrDepositItem_ShouldFail()
     {
-        var tempId = Guid.NewGuid();
+        var tempId = BookingId.New();
         var onlyRentLines = new List<BookingLineItem>
         {
             new(Guid.NewGuid(), tempId, BookingLineItemType.Rent, Money.Of(1_000_000))

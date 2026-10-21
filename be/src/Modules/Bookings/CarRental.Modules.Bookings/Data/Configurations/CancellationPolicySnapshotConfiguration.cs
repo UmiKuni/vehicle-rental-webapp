@@ -12,6 +12,7 @@ public sealed class CancellationPolicySnapshotConfiguration : IEntityTypeConfigu
 
         builder.HasKey(p => p.BookingId);
         builder.Property(p => p.BookingId)
+            .HasConversion(id => id.Value, val => new BookingId(val))
             .HasColumnName("booking_id");
 
         builder.Ignore(p => p.Id);

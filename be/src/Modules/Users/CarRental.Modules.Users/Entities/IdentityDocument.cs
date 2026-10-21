@@ -5,7 +5,7 @@ namespace CarRental.Modules.Users.Entities;
 
 public class IdentityDocument : Entity<Guid>
 {
-    public Guid UserId { get; private set; }
+    public UserId UserId { get; private set; }
     public DocumentType Type { get; private set; }
     public string StorageKey { get; private set; } = string.Empty;
     public DocumentVerificationStatus VerificationStatus { get; private set; }
@@ -13,7 +13,7 @@ public class IdentityDocument : Entity<Guid>
 
     private IdentityDocument() { }
 
-    internal IdentityDocument(Guid id, Guid userId, DocumentType type, string storageKey)
+    internal IdentityDocument(Guid id, UserId userId, DocumentType type, string storageKey)
     {
         Id = id;
         UserId = userId;

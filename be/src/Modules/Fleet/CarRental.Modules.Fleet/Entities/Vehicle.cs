@@ -108,7 +108,7 @@ public class Vehicle : AggregateRoot<VehicleId>
             return Result.Failure(new Error("fleet.invalid_image", "Storage key cannot be empty."));
 
         bool isPrimary = _images.Count == 0;
-        _images.Add(new VehicleImage(Guid.CreateVersion7(), Id.Value, storageKey.Trim(), isPrimary));
+        _images.Add(new VehicleImage(Guid.CreateVersion7(), Id, storageKey.Trim(), isPrimary));
 
         return Result.Success();
     }
@@ -166,7 +166,7 @@ public class Vehicle : AggregateRoot<VehicleId>
 
         Status = VehicleStatus.Published;
         HiddenByAdmin = false;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id.Value, adminId, ApprovalDecision.Approved, null, DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Approved, null, DateTimeOffset.UtcNow));
 
         return Result.Success();
     }
@@ -177,7 +177,7 @@ public class Vehicle : AggregateRoot<VehicleId>
             return Result.Failure(new Error("fleet.invalid_state", "Only pending approval vehicles can be rejected."));
 
         Status = VehicleStatus.Draft;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id.Value, adminId, ApprovalDecision.Rejected, reason, DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, reason, DateTimeOffset.UtcNow));
 
         return Result.Success();
     }
@@ -189,7 +189,7 @@ public class Vehicle : AggregateRoot<VehicleId>
 
         Status = VehicleStatus.Hidden;
         HiddenByAdmin = true;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id.Value, adminId, ApprovalDecision.Rejected, $"Unpublished by admin: {reason}", DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, $"Unpublished by admin: {reason}", DateTimeOffset.UtcNow));
 
         return Result.Success();
     }

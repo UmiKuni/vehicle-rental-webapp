@@ -2,15 +2,15 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Users.Entities;
 
-public class CustomerProfile : Entity<Guid>
+public class CustomerProfile : Entity<UserId>
 {
-    public Guid UserId => Id;
+    public UserId UserId => Id;
     public string FullName { get; private set; } = string.Empty;
     public string Address { get; private set; } = string.Empty;
 
     private CustomerProfile() { }
 
-    internal CustomerProfile(Guid userId, string fullName, string address)
+    internal CustomerProfile(UserId userId, string fullName, string address)
     {
         Id = userId;
         FullName = fullName;

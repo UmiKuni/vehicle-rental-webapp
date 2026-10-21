@@ -70,7 +70,7 @@ public class Handover : AggregateRoot<HandoverId>
 
         _photos.Add(new HandoverPhoto(
             Guid.CreateVersion7(),
-            Id.Value,
+            Id,
             corner,
             storageKey.Trim(),
             fileHash.Trim(),
@@ -90,7 +90,7 @@ public class Handover : AggregateRoot<HandoverId>
         if (fuelLevel < 0 || fuelLevel > 100)
             return Result.Failure(new Error("handover.invalid_fuel", "Fuel level must be between 0 and 100 percent."));
 
-        Condition = new VehicleCondition(Id.Value, odo, fuelLevel, damageNote?.Trim());
+        Condition = new VehicleCondition(Id, odo, fuelLevel, damageNote?.Trim());
         return Result.Success();
     }
 

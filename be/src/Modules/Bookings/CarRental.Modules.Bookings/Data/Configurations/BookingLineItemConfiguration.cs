@@ -15,6 +15,7 @@ public sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<Book
             .HasColumnName("id");
 
         builder.Property(l => l.BookingId)
+            .HasConversion(id => id.Value, val => new BookingId(val))
             .IsRequired()
             .HasColumnName("booking_id");
 

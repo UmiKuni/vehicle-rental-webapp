@@ -15,6 +15,7 @@ public class VehicleApprovalConfiguration : IEntityTypeConfiguration<VehicleAppr
             .HasColumnName("id");
 
         builder.Property(a => a.VehicleId)
+            .HasConversion(id => id.Value, val => new VehicleId(val))
             .IsRequired()
             .HasColumnName("vehicle_id");
 

@@ -12,6 +12,7 @@ public class CustomerProfileConfiguration : IEntityTypeConfiguration<CustomerPro
 
         builder.HasKey(cp => cp.Id);
         builder.Property(cp => cp.Id)
+            .HasConversion(id => id.Value, val => UserId.From(val))
             .HasColumnName("user_id");
 
         builder.Property(cp => cp.FullName)

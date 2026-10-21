@@ -12,6 +12,7 @@ public class OwnerProfileConfiguration : IEntityTypeConfiguration<OwnerProfile>
 
         builder.HasKey(op => op.Id);
         builder.Property(op => op.Id)
+            .HasConversion(id => id.Value, val => UserId.From(val))
             .HasColumnName("user_id");
 
         builder.Property(op => op.TaxCode)

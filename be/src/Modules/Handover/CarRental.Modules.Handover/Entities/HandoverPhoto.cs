@@ -5,7 +5,7 @@ namespace CarRental.Modules.Handover.Entities;
 
 public class HandoverPhoto : Entity<Guid>
 {
-    public Guid HandoverId { get; private set; }
+    public HandoverId HandoverId { get; private set; }
     public PhotoCorner Corner { get; private set; }
     public string StorageKey { get; private set; } = string.Empty;
     public string FileHash { get; private set; } = string.Empty;
@@ -15,7 +15,7 @@ public class HandoverPhoto : Entity<Guid>
 
     public HandoverPhoto(
         Guid id,
-        Guid handoverId,
+        HandoverId handoverId,
         PhotoCorner corner,
         string storageKey,
         string fileHash,

@@ -15,6 +15,7 @@ public class VehicleImageConfiguration : IEntityTypeConfiguration<VehicleImage>
             .HasColumnName("id");
 
         builder.Property(i => i.VehicleId)
+            .HasConversion(id => id.Value, val => new VehicleId(val))
             .IsRequired()
             .HasColumnName("vehicle_id");
 

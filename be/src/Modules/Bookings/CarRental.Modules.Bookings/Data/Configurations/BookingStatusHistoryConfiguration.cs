@@ -15,6 +15,7 @@ public sealed class BookingStatusHistoryConfiguration : IEntityTypeConfiguration
             .HasColumnName("id");
 
         builder.Property(h => h.BookingId)
+            .HasConversion(id => id.Value, val => new BookingId(val))
             .IsRequired()
             .HasColumnName("booking_id");
 

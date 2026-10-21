@@ -3,16 +3,16 @@ using CarRental.Modules.Users.Contracts.Enums;
 
 namespace CarRental.Modules.Users.Entities;
 
-public class OwnerProfile : Entity<Guid>
+public class OwnerProfile : Entity<UserId>
 {
-    public Guid UserId => Id;
+    public UserId UserId => Id;
     public string TaxCode { get; private set; } = string.Empty;
     public OwnerApprovalStatus ApprovalStatus { get; private set; }
     public string? RejectReason { get; private set; }
 
     private OwnerProfile() { }
 
-    internal OwnerProfile(Guid userId, string taxCode)
+    internal OwnerProfile(UserId userId, string taxCode)
     {
         Id = userId;
         TaxCode = taxCode;

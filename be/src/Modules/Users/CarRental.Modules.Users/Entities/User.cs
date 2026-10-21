@@ -55,7 +55,7 @@ public class User : AggregateRoot<UserId>
 
         if (CustomerProfile == null)
         {
-            CustomerProfile = new CustomerProfile(Id.Value, fullName.Trim(), address?.Trim() ?? string.Empty);
+            CustomerProfile = new CustomerProfile(Id, fullName.Trim(), address?.Trim() ?? string.Empty);
         }
         else
         {
@@ -75,7 +75,7 @@ public class User : AggregateRoot<UserId>
 
         // Replace any existing document of the same type
         _identityDocuments.RemoveAll(d => d.Type == type);
-        _identityDocuments.Add(new IdentityDocument(Guid.CreateVersion7(), Id.Value, type, storageKey));
+        _identityDocuments.Add(new IdentityDocument(Guid.CreateVersion7(), Id, type, storageKey));
 
         return Result.Success();
     }
@@ -90,7 +90,7 @@ public class User : AggregateRoot<UserId>
 
         if (OwnerProfile == null)
         {
-            OwnerProfile = new OwnerProfile(Id.Value, taxCode.Trim());
+            OwnerProfile = new OwnerProfile(Id, taxCode.Trim());
         }
         else
         {

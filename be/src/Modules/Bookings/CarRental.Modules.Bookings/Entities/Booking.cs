@@ -52,7 +52,7 @@ public class Booking : AggregateRoot<BookingId>
         PolicySnapshot = policy;
 
         _lineItems.AddRange(lineItems);
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), id.Value, BookingStatus.Pending, now, "Booking requested"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), id, BookingStatus.Pending, now, "Booking requested"));
     }
 
     public static Result<Booking> Request(
@@ -126,7 +126,7 @@ public class Booking : AggregateRoot<BookingId>
         PaymentDeadline = now.AddHours(2);
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Confirmed, now, "Approved by owner"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Confirmed, now, "Approved by owner"));
         return Result.Success();
     }
 
@@ -141,7 +141,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Rejected;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Rejected, now, reason));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Rejected, now, reason));
         return Result.Success();
     }
 
@@ -153,7 +153,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Paid;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Paid, now, $"Payment marked paid (Payment ID: {paymentId})"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Paid, now, $"Payment marked paid (Payment ID: {paymentId})"));
         return Result.Success();
     }
 
@@ -198,7 +198,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Cancelled, now, reason));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, reason));
         return Result.Success(new CancellationOutcome(penalty, refundable));
     }
 
@@ -213,7 +213,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Cancelled, now, $"Admin cancel: {reason}"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, $"Admin cancel: {reason}"));
         return Result.Success();
     }
 
@@ -225,7 +225,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Expired;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Expired, now, reason));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Expired, now, reason));
         return Result.Success();
     }
 
@@ -237,7 +237,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.InProgress;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.InProgress, now, "Trip started"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.InProgress, now, "Trip started"));
         return Result.Success();
     }
 
@@ -249,7 +249,7 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Completed;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id.Value, BookingStatus.Completed, now, "Trip completed"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Completed, now, "Trip completed"));
         return Result.Success();
     }
 
@@ -261,7 +261,7 @@ public class Booking : AggregateRoot<BookingId>
         if (amount == null || amount.Amount <= 0)
             return Result.Failure(new Error("booking.invalid_fee", "Over-km fee amount must be greater than zero."));
 
-        _lineItems.Add(new BookingLineItem(Guid.CreateVersion7(), Id.Value, BookingLineItemType.OverKmFee, amount));
+        _lineItems.Add(new BookingLineItem(Guid.CreateVersion7(), Id, BookingLineItemType.OverKmFee, amount));
         return Result.Success();
     }
 

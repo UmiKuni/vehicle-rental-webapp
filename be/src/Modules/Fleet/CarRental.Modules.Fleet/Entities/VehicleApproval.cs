@@ -5,7 +5,7 @@ namespace CarRental.Modules.Fleet.Entities;
 
 public class VehicleApproval : Entity<Guid>
 {
-    public Guid VehicleId { get; private set; }
+    public VehicleId VehicleId { get; private set; }
     public Guid AdminId { get; private set; }
     public ApprovalDecision Decision { get; private set; }
     public string? Reason { get; private set; }
@@ -13,7 +13,7 @@ public class VehicleApproval : Entity<Guid>
 
     private VehicleApproval() { }
 
-    internal VehicleApproval(Guid id, Guid vehicleId, Guid adminId, ApprovalDecision decision, string? reason, DateTimeOffset createdAt)
+    internal VehicleApproval(Guid id, VehicleId vehicleId, Guid adminId, ApprovalDecision decision, string? reason, DateTimeOffset createdAt)
     {
         Id = id;
         VehicleId = vehicleId;

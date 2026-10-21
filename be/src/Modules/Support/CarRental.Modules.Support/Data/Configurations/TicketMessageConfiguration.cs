@@ -15,6 +15,7 @@ public sealed class TicketMessageConfiguration : IEntityTypeConfiguration<Ticket
             .HasColumnName("id");
 
         builder.Property(m => m.SupportTicketId)
+            .HasConversion(id => id.Value, val => new TicketId(val))
             .IsRequired()
             .HasColumnName("support_ticket_id");
 

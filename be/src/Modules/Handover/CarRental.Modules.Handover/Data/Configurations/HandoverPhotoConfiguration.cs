@@ -15,6 +15,7 @@ public sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<Handov
             .HasColumnName("id");
 
         builder.Property(p => p.HandoverId)
+            .HasConversion(id => id.Value, val => new HandoverId(val))
             .IsRequired()
             .HasColumnName("handover_id");
 

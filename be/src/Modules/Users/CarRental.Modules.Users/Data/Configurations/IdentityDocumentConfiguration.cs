@@ -15,6 +15,7 @@ public class IdentityDocumentConfiguration : IEntityTypeConfiguration<IdentityDo
             .HasColumnName("id");
 
         builder.Property(d => d.UserId)
+            .HasConversion(id => id.Value, val => UserId.From(val))
             .IsRequired()
             .HasColumnName("user_id");
 

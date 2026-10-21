@@ -4,7 +4,7 @@ namespace CarRental.Modules.Support.Entities;
 
 public class TicketMessage : Entity<Guid>
 {
-    public Guid SupportTicketId { get; private set; }
+    public TicketId SupportTicketId { get; private set; }
     public Guid SenderId { get; private set; }
     public string Content { get; private set; } = string.Empty;
     public string? AttachmentKey { get; private set; }
@@ -14,7 +14,7 @@ public class TicketMessage : Entity<Guid>
 
     public TicketMessage(
         Guid id,
-        Guid supportTicketId,
+        TicketId supportTicketId,
         Guid senderId,
         string content,
         string? attachmentKey,

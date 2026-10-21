@@ -4,14 +4,14 @@ using CarRental.BuildingBlocks.Domain.ValueObjects;
 
 namespace CarRental.Modules.Bookings.Entities;
 
-public class CancellationPolicySnapshot : Entity<Guid>
+public class CancellationPolicySnapshot : Entity<BookingId>
 {
-    public Guid BookingId { get; private set; }
+    public BookingId BookingId { get; private set; }
     public string PolicyDetailsJson { get; private set; } = string.Empty;
 
     private CancellationPolicySnapshot() { }
 
-    public CancellationPolicySnapshot(Guid bookingId, string policyDetailsJson)
+    public CancellationPolicySnapshot(BookingId bookingId, string policyDetailsJson)
     {
         Id = bookingId;
         BookingId = bookingId;
