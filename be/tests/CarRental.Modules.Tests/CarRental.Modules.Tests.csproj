@@ -14,6 +14,24 @@
     <ProjectReference Include="..\..\src\Modules\Pricing\CarRental.Modules.Pricing.Contracts\CarRental.Modules.Pricing.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Availability\CarRental.Modules.Availability\CarRental.Modules.Availability.csproj" />
     <ProjectReference Include="..\..\src\Modules\Availability\CarRental.Modules.Availability.Contracts\CarRental.Modules.Availability.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Bookings\CarRental.Modules.Bookings\CarRental.Modules.Bookings.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Payments\CarRental.Modules.Payments\CarRental.Modules.Payments.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Payments\CarRental.Modules.Payments.Contracts\CarRental.Modules.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Handover\CarRental.Modules.Handover\CarRental.Modules.Handover.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Handover\CarRental.Modules.Handover.Contracts\CarRental.Modules.Handover.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reviews\CarRental.Modules.Reviews\CarRental.Modules.Reviews.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reviews\CarRental.Modules.Reviews.Contracts\CarRental.Modules.Reviews.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Support\CarRental.Modules.Support\CarRental.Modules.Support.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Support\CarRental.Modules.Support.Contracts\CarRental.Modules.Support.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\CarRental.Modules.Search\CarRental.Modules.Search.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\CarRental.Modules.Search.Contracts\CarRental.Modules.Search.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\CarRental.Modules.Notifications\CarRental.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\CarRental.Modules.Notifications.Contracts\CarRental.Modules.Notifications.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Audit\CarRental.Modules.Audit\CarRental.Modules.Audit.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Audit\CarRental.Modules.Audit.Contracts\CarRental.Modules.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\CarRental.Modules.Reporting\CarRental.Modules.Reporting.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\CarRental.Modules.Reporting.Contracts\CarRental.Modules.Reporting.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
