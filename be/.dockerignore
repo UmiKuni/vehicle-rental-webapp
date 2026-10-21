@@ -1,0 +1,17 @@
+**/.git
+**/.gitignore
+**/.vs
+**/.idea
+**/.vscode
+**/bin
+**/obj
+**/TestResults
+**/*.md
+**/docs
+Dockerfile
+.dockerignore
+appsettings*.local.json
+appsettings.Production.json
+*.user
+*.suo
+*.log
