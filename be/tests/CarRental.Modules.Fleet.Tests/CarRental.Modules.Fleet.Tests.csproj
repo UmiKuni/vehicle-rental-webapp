@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Fleet\CarRental.Modules.Fleet\CarRental.Modules.Fleet.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fleet\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+  </ItemGroup>
+
+</Project>
