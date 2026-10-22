@@ -1,12 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
-    <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
   </ItemGroup>
