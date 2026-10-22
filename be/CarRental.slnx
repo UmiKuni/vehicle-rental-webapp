@@ -39,7 +39,5 @@
     <Project Path="tests/CarRental.ArchitectureTests/CarRental.ArchitectureTests.csproj" />
     <Project Path="tests/CarRental.BuildingBlocks.Tests/CarRental.BuildingBlocks.Tests.csproj" />
     <Project Path="tests/CarRental.Modules.Tests/CarRental.Modules.Tests.csproj" />
-    <Project Path="tests/CarRental.Modules.Users.Tests/CarRental.Modules.Users.Tests.csproj" />
-    <Project Path="tests/CarRental.Modules.Fleet.Tests/CarRental.Modules.Fleet.Tests.csproj" />
   </Folder>
 </Solution>
