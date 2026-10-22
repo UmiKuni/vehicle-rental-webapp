@@ -1,0 +1,86 @@
+services:
+  # ==============================================================================
+  # 1. PostgreSQL 17 with PostGIS & btree_gist extensions
+  # Backing store for all 13 module schemas and Wolverine PostgreSQL Outbox
+  # ==============================================================================
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: carrental-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-carrental}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-carrental}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - carrental-network
+
+  # ==============================================================================
+  # 2. Redis 7
+  # Distributed caching, session store, and lock management (StackExchange.Redis)
+  # ==============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: carrental-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - carrental-network
+
+  # ==============================================================================
+  # 3. Backend Application API (.NET 9 Modular Monolith)
+  # NOTE ON WOLVERINE:
+  # Wolverine operates as an embedded in-process bus with transactional outbox
+  # using WolverineFx.Postgresql. It does NOT require a separate container daemon;
+  # it runs inside this app process and stores outbox/queue tables in PostgreSQL.
+  # ==============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carrental-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-carrental};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Include Error Detail=true;
+      ConnectionStrings__Redis: redis:6379
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - carrental-network
+
+volumes:
+  postgres_data:
+    name: carrental_postgres_data
+  redis_data:
+    name: carrental_redis_data
+
+networks:
+  carrental-network:
+    name: carrental_network
+    driver: bridge

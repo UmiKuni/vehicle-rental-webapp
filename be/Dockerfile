@@ -16,6 +16,8 @@ COPY Directory.Build.props Directory.Packages.props CarRental.slnx ./
 COPY src/Host/CarRental.Api/*.csproj src/Host/CarRental.Api/
 COPY src/Shared/CarRental.BuildingBlocks/*.csproj src/Shared/CarRental.BuildingBlocks/
 COPY tests/CarRental.ArchitectureTests/*.csproj tests/CarRental.ArchitectureTests/
+COPY tests/CarRental.BuildingBlocks.Tests/*.csproj tests/CarRental.BuildingBlocks.Tests/
+COPY tests/CarRental.Modules.Tests/*.csproj tests/CarRental.Modules.Tests/
 
 # Copy Core Rental Flow Module projects
 COPY src/Modules/Bookings/CarRental.Modules.Bookings/*.csproj src/Modules/Bookings/CarRental.Modules.Bookings/

@@ -11,4 +11,8 @@
     <PackageReference Include="WolverineFx" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>
