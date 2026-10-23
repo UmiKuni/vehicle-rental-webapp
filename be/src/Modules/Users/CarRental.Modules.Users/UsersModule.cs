@@ -1,4 +1,9 @@
+using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Data;
+using CarRental.Modules.Users.Entities;
+using CarRental.Modules.Users.Services;
+
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +22,10 @@ public static class UsersModule
         services.AddDbContext<UsersDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", UsersDbContext.Schema)));
+
+        // Register domain services
+        services.AddScoped<IUsersApi, UsersApiService>();
+        services.AddScoped<PasswordHasher<object>>();
 
         return services;
     }

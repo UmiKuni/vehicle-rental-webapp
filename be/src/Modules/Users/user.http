@@ -1,0 +1,163 @@
+@baseUrl = http://localhost:5218
+@userId = 01a167ef-7614-7c92-9864-ada4bd0181a1
+@adminId = 00000000-0000-0000-0000-000000000002
+@ownerId = 00000000-0000-0000-0000-000000000003
+@vehicleId = 00000000-0000-0000-0000-000000000004
+@brandId = 00000000-0000-0000-0000-000000000005
+@modelId = 00000000-0000-0000-0000-000000000006
+@email = renter-{{$timestamp}}@example.com
+@password = Password123!
+
+### Register user
+POST {{baseUrl}}/api/users/register
+Content-Type: application/json
+
+{
+    "email": "{{email}}",
+    "phone": "0901234567",
+    "password": "{{password}}"
+}
+
+###
+
+### Login user
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "0901234567",
+    "password": "{{password}}"
+}
+
+###
+
+### Update user profile
+PUT {{baseUrl}}/api/users/{{userId}}/profile
+Content-Type: application/json
+
+{
+    "fullName": "Nguyen Van A",
+    "address": "123 Nguyen Hue, Ho Chi Minh City"
+}
+
+###
+
+### Get full user profile
+GET {{baseUrl}}/api/users/{{userId}}/profile
+Accept: application/json
+
+###
+
+### Get user booking eligibility
+GET {{baseUrl}}/api/users/eligibility/{{userId}}
+Accept: application/json
+
+###
+
+### Get user contact information
+GET {{baseUrl}}/api/users/contact/{{userId}}
+Accept: application/json
+
+###
+
+### Ban user
+PUT {{baseUrl}}/api/users/ban/{{userId}}/{{adminId}}
+Accept: application/json
+
+###
+
+### Unban user
+PUT {{baseUrl}}/api/users/unban/{{userId}}/{{adminId}}
+Accept: application/json
+
+###
+
+### List published vehicles
+GET {{baseUrl}}/api/fleet/vehicles
+Accept: application/json
+
+###
+
+### Get vehicle summary
+GET {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Accept: application/json
+
+###
+
+### List vehicles owned by a user
+GET {{baseUrl}}/api/fleet/owners/{{ownerId}}/vehicles
+Accept: application/json
+
+###
+
+### Create vehicle
+POST {{baseUrl}}/api/fleet/vehicles
+Content-Type: application/json
+
+{
+    "ownerId": "{{ownerId}}",
+    "plateNumber": "51K-999.88",
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Update vehicle
+PUT {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Content-Type: application/json
+
+{
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Submit vehicle for approval
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/submit
+
+###
+
+### Approve vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/approve/{{adminId}}
+
+###
+
+### Reject vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/reject/{{adminId}}
+Content-Type: application/json
+
+{
+    "reason": "Vehicle documents require correction."
+}
+
+###
+
+### Hide vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/hide
+
+###
+
+### Show vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/show
+
+###
+
+### Unpublish vehicle by admin
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/unpublish/{{adminId}}
+Content-Type: application/json
+
+{
+    "reason": "Safety violation."
+}

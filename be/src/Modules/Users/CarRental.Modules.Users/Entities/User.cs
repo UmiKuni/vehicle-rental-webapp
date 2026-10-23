@@ -116,6 +116,9 @@ public class User : AggregateRoot<UserId>
 
     public Result RejectOwner(Guid adminId, string reason)
     {
+        if (Status == UserStatus.Banned)
+            return Result.Failure(new Error("users.banned", "Cannot approve owner onboarding for a banned user."));
+
         if (OwnerProfile == null || OwnerProfile.ApprovalStatus != OwnerApprovalStatus.Pending)
             return Result.Failure(new Error("users.no_pending_owner_request", "No pending owner onboarding request found."));
 

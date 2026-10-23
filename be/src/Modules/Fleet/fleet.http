@@ -1,0 +1,178 @@
+@baseUrl = http://localhost:5218
+@ownerId = 00000000-0000-0000-0000-000000000003
+@vehicleId = 01a16807-09ee-7e2e-a462-9a1864ea91d6
+@adminId = 00000000-0000-0000-0000-000000000002
+@brandId = 01a1680d-023d-70f9-9074-3da7fb749091
+@modelId = 01a1680d-4f10-767a-a1d2-b0694289b1e1
+
+### List brands
+GET {{baseUrl}}/api/fleet/brands
+Accept: application/json
+
+###
+
+### Get brand
+GET {{baseUrl}}/api/fleet/brands/{{brandId}}
+Accept: application/json
+
+###
+
+### Create brand
+POST {{baseUrl}}/api/fleet/brands
+Content-Type: application/json
+
+{
+    "name": "Toyota"
+}
+
+###
+
+### Update brand
+PUT {{baseUrl}}/api/fleet/brands/{{brandId}}
+Content-Type: application/json
+
+{
+    "name": "Toyota Updated"
+}
+
+###
+
+### Delete brand
+DELETE {{baseUrl}}/api/fleet/brands/{{brandId}}
+
+###
+
+### List models
+GET {{baseUrl}}/api/fleet/models
+Accept: application/json
+
+###
+
+### List models by brand
+GET {{baseUrl}}/api/fleet/models?brandId={{brandId}}
+Accept: application/json
+
+###
+
+### Get model
+GET {{baseUrl}}/api/fleet/models/{{modelId}}
+Accept: application/json
+
+###
+
+### Create model
+POST {{baseUrl}}/api/fleet/models
+Content-Type: application/json
+
+{
+    "brandId": "{{brandId}}",
+    "name": "Camry"
+}
+
+###
+
+### Update model
+PUT {{baseUrl}}/api/fleet/models/{{modelId}}
+Content-Type: application/json
+
+{
+    "brandId": "{{brandId}}",
+    "name": "Camry Updated"
+}
+
+###
+
+### Delete model
+DELETE {{baseUrl}}/api/fleet/models/{{modelId}}
+
+###
+
+### List published vehicles
+GET {{baseUrl}}/api/fleet/vehicles
+Accept: application/json
+
+###
+
+### Get vehicle summary
+GET {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Accept: application/json
+
+###
+
+### List vehicles owned by a user
+GET {{baseUrl}}/api/fleet/owners/{{ownerId}}/vehicles
+Accept: application/json
+
+###
+
+### Create vehicle
+POST {{baseUrl}}/api/fleet/vehicles
+Content-Type: application/json
+
+{
+    "ownerId": "{{ownerId}}",
+    "plateNumber": "51K-999.23",
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Update vehicle
+PUT {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Content-Type: application/json
+
+{
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Submit vehicle for approval
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/submit
+
+###
+
+### Approve vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/approve/{{adminId}}
+
+###
+
+### Reject vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/reject/{{adminId}}
+Content-Type: application/json
+
+{
+    "reason": "Vehicle documents require correction."
+}
+
+###
+
+### Hide vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/hide
+
+###
+
+### Show vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/show
+
+###
+
+### Unpublish vehicle by admin
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/unpublish/{{adminId}}
+Content-Type: application/json
+
+{
+    "reason": "Safety violation."
+}

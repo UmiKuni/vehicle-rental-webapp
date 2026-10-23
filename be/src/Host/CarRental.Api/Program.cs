@@ -3,6 +3,7 @@ using CarRental.Modules.Audit;
 using CarRental.Modules.Availability;
 using CarRental.Modules.Bookings;
 using CarRental.Modules.Fleet;
+using CarRental.Modules.Fleet.Endpoints;
 using CarRental.Modules.Handover;
 using CarRental.Modules.Notifications;
 using CarRental.Modules.Payments;
@@ -13,7 +14,9 @@ using CarRental.Modules.Reviews;
 using CarRental.Modules.Search;
 using CarRental.Modules.Support;
 using CarRental.Modules.Users;
+using CarRental.Modules.Users.Endpoints;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +45,11 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+});
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
 builder.Services.AddOpenApi(options =>
@@ -73,6 +81,7 @@ if (app.Environment.IsDevelopment())
 
 // Map Module Endpoints
 app.MapPricingEndpoints();
+app.MapUsersEndpoints();
+app.MapFleetEndpoints();
 
 app.Run();
-

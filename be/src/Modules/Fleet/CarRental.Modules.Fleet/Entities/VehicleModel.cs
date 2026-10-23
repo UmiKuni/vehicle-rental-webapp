@@ -15,4 +15,10 @@ public class VehicleModel : Entity<Guid>
         BrandId = brandId;
         Name = name;
     }
+
+    public void Update(Guid brandId, string name)
+    {
+        BrandId = brandId;
+        Name = name.Trim();
+    }
 }
