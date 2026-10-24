@@ -21,6 +21,18 @@ public sealed class PricingPlanConfiguration : IEntityTypeConfiguration<PricingP
         builder.HasIndex(p => p.VehicleId)
             .IsUnique();
 
+        builder.OwnsOne(p => p.HourlyRate, nav =>
+        {
+            nav.Property(m => m.Amount)
+                .IsRequired()
+                .HasColumnName("hourly_rate_amount");
+            nav.Property(m => m.Currency)
+                .IsRequired()
+                .HasMaxLength(8)
+                .HasColumnName("hourly_rate_currency");
+        });
+        builder.Navigation(p => p.HourlyRate).IsRequired(false);
+
         builder.OwnsOne(p => p.WeekdayRate, nav =>
         {
             nav.Property(m => m.Amount)

@@ -1,4 +1,6 @@
 using CarRental.Modules.Pricing.Data;
+using CarRental.Modules.Pricing.Contracts;
+using CarRental.Modules.Pricing.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +19,8 @@ public static class PricingModule
         services.AddDbContext<PricingDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", PricingDbContext.Schema)));
+
+        services.AddScoped<IPricingApi, PricingApiService>();
 
         return services;
     }

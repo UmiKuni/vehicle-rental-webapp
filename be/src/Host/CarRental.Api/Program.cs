@@ -12,6 +12,7 @@ using CarRental.Modules.Pricing.Endpoints;
 using CarRental.Modules.Reporting;
 using CarRental.Modules.Reviews;
 using CarRental.Modules.Search;
+using CarRental.Modules.Search.Endpoints;
 using CarRental.Modules.Support;
 using CarRental.Modules.Users;
 using CarRental.Modules.Users.Endpoints;
@@ -83,5 +84,6 @@ if (app.Environment.IsDevelopment())
 app.MapPricingEndpoints();
 app.MapUsersEndpoints();
 app.MapFleetEndpoints();
+app.MapSearchEndpoints();
 
 app.Run();

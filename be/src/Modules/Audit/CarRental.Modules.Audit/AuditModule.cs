@@ -1,4 +1,5 @@
 using CarRental.Modules.Audit.Data;
+using CarRental.Modules.Audit.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,8 @@ public static class AuditModule
         services.AddDbContext<AuditDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", AuditDbContext.Schema)));
+
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
         return services;
     }

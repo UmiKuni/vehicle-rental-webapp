@@ -1,0 +1,25 @@
+@baseUrl = http://localhost:5218
+
+### Search all visible vehicles
+GET {{baseUrl}}/api/search/vehicles?page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Search by vehicle specifications
+GET {{baseUrl}}/api/search/vehicles?brand=Toyota&model=Vios&seats=5&transmission=Auto&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Search by price range
+GET {{baseUrl}}/api/search/vehicles?minPrice=500000&maxPrice=1500000&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Search within a radius (kilometres)
+GET {{baseUrl}}/api/search/vehicles?latitude=10.7769&longitude=106.7009&radiusKm=10&page=1&pageSize=20
+Accept: application/json
+
+###

@@ -1,6 +1,15 @@
-@CarRental.Api_HostAddress = http://localhost:5218
+@baseUrl = http://localhost:5218
 
-GET {{CarRental.Api_HostAddress}}/weatherforecast/
+# Module-specific REST Client files:
+# - ../Modules/Users/user.http
+# - ../Modules/Fleet/fleet.http
+# - ../Modules/Pricing/pricing.http
+# - ../Modules/Search/search.http
+#
+# Availability, Bookings, Payments, Handover, Reviews, Support,
+# Notifications, Audit, and Reporting do not currently expose HTTP endpoints.
+
+GET {{baseUrl}}/api/search/vehicles?page=1&pageSize=20
 Accept: application/json
 
 ###

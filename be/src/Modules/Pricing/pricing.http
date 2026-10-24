@@ -1,0 +1,85 @@
+@baseUrl = http://localhost:5218
+@vehicleId = 00000000-0000-0000-0000-000000000004
+@ownerId = 00000000-0000-0000-0000-000000000003
+
+### Get vehicle pricing
+GET {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Accept: application/json
+
+###
+
+### Configure daily pricing
+PUT {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Content-Type: application/json
+
+{
+    "hourlyRate": null,
+    "weekdayRate": {
+        "amount": 500000,
+        "currency": "VND"
+    },
+    "weekendRate": {
+        "amount": 700000,
+        "currency": "VND"
+    },
+    "depositAmount": {
+        "amount": 5000000,
+        "currency": "VND"
+    },
+    "kmLimit": 300,
+    "overKmFee": {
+        "amount": 5000,
+        "currency": "VND"
+    },
+    "cleaningFee": {
+        "amount": 100000,
+        "currency": "VND"
+    },
+    "ownerId": "{{ownerId}}"
+}
+
+###
+
+### Configure hourly pricing
+PUT {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Content-Type: application/json
+
+{
+    "hourlyRate": {
+        "amount": 100000,
+        "currency": "VND"
+    },
+    "weekdayRate": {
+        "amount": 500000,
+        "currency": "VND"
+    },
+    "weekendRate": {
+        "amount": 700000,
+        "currency": "VND"
+    },
+    "depositAmount": {
+        "amount": 2000000,
+        "currency": "VND"
+    },
+    "kmLimit": 100,
+    "overKmFee": {
+        "amount": 5000,
+        "currency": "VND"
+    },
+    "cleaningFee": null,
+    "ownerId": "{{ownerId}}"
+}
+
+###
+
+### Calculate a rental quote
+POST {{baseUrl}}/api/pricing/quotes
+Content-Type: application/json
+
+{
+    "vehicleId": "{{vehicleId}}",
+    "startTime": "2026-10-26T09:00:00+07:00",
+    "endTime": "2026-10-28T11:00:00+07:00"
+}
+
+###
