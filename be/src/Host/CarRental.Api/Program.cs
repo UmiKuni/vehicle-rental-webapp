@@ -36,6 +36,7 @@ builder.Services
     .AddNotificationsModule(builder.Configuration)
     .AddAuditModule(builder.Configuration)
     .AddReportingModule(builder.Configuration);
+builder.Services.AddUsersAuthentication(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddCors(options =>
@@ -69,12 +70,15 @@ builder.Services.AddOpenApi(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     // Auto-migrate all 13 module schemas on development startup
     await app.ApplyMigrationsAsync();
+    await app.SeedAsync();
 
     app.MapOpenApi();
     app.MapScalarApiReference(); //http://localhost:8080/scalar/v1

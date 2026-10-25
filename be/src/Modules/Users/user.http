@@ -1,71 +1,87 @@
 @baseUrl = http://localhost:5218
-@userId = 01a167ef-7614-7c92-9864-ada4bd0181a1
-@adminId = 00000000-0000-0000-0000-000000000002
-@ownerId = 00000000-0000-0000-0000-000000000003
-@vehicleId = 00000000-0000-0000-0000-000000000004
-@brandId = 00000000-0000-0000-0000-000000000005
-@modelId = 00000000-0000-0000-0000-000000000006
-@email = renter-{{$timestamp}}@example.com
-@password = Password123!
+@seedOwnerEmail = owner.seed@example.com
+@seedCustomerEmail = customer.seed@example.com
+@seedPassword = Password123!
 
-### Register user
-POST {{baseUrl}}/api/users/register
-Content-Type: application/json
-
-{
-    "email": "{{email}}",
-    "phone": "0901234567",
-    "password": "{{password}}"
-}
-
-###
-
-### Login user
+### Login as the seeded owner
+# @name loginOwner
 POST {{baseUrl}}/api/users/login
 Content-Type: application/json
 
 {
-    "identifier": "0901234567",
-    "password": "{{password}}"
+    "identifier": "{{seedOwnerEmail}}",
+    "password": "{{seedPassword}}"
 }
 
 ###
 
-### Update user profile
-PUT {{baseUrl}}/api/users/{{userId}}/profile
+### Login as the seeded customer
+# @name loginCustomer
+POST {{baseUrl}}/api/users/login
 Content-Type: application/json
 
 {
-    "fullName": "Nguyen Van A",
-    "address": "123 Nguyen Hue, Ho Chi Minh City"
+    "identifier": "{{seedCustomerEmail}}",
+    "password": "{{seedPassword}}"
 }
 
 ###
 
-### Get full user profile
+@userId = {{loginOwner.response.body.$.userId}}
+@accessToken = {{loginOwner.response.body.$.accessToken}}
+@refreshToken = {{loginOwner.response.body.$.refreshToken}}
+
+### Refresh the seeded owner's access token
+# @name refreshOwner
+POST {{baseUrl}}/api/users/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+@refreshedRefreshToken = {{refreshOwner.response.body.$.refreshToken}}
+
+### Update the seeded owner's profile
+PUT {{baseUrl}}/api/users/{{userId}}/profile
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "fullName": "Seed Vehicle Owner",
+    "address": "1 Nguyen Hue, Ho Chi Minh City"
+}
+
+###
+
+### Get the seeded owner's profile
 GET {{baseUrl}}/api/users/{{userId}}/profile
 Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###
 
-### Get user booking eligibility
+### Get the seeded owner's booking eligibility
 GET {{baseUrl}}/api/users/eligibility/{{userId}}
 Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###
 
-### Get user contact information
+### Get the seeded owner's contact information
 GET {{baseUrl}}/api/users/contact/{{userId}}
 Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###
 
-### Ban user
-PUT {{baseUrl}}/api/users/ban/{{userId}}/{{adminId}}
-Accept: application/json
+### Logout the seeded owner
+POST {{baseUrl}}/api/users/logout
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
-###
-
-### Unban user
-PUT {{baseUrl}}/api/users/unban/{{userId}}/{{adminId}}
-Accept: application/json
+{
+    "refreshToken": "{{refreshedRefreshToken}}"
+}

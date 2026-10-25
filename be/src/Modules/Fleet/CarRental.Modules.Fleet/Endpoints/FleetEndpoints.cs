@@ -3,6 +3,7 @@ using CarRental.Modules.Fleet.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using System.Security.Claims;
 
 namespace CarRental.Modules.Fleet.Endpoints;
 
@@ -19,13 +20,16 @@ public static class FleetEndpoints
             EntityResult(await api.GetBrandAsync(brandId, ct)));
 
         group.MapPost("/brands", async (CreateBrandDto dto, IFleetApi api, CancellationToken ct) =>
-            CreatedResult(await api.CreateBrandAsync(dto, ct), "brands"));
+            CreatedResult(await api.CreateBrandAsync(dto, ct), "brands"))
+            .RequireAuthorization("AdminOnly");
 
         group.MapPut("/brands/{brandId:guid}", async (Guid brandId, UpdateBrandDto dto, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.UpdateBrandAsync(brandId, dto, ct)));
+            EntityResult(await api.UpdateBrandAsync(brandId, dto, ct)))
+            .RequireAuthorization("AdminOnly");
 
         group.MapDelete("/brands/{brandId:guid}", async (Guid brandId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.DeleteBrandAsync(brandId, ct)));
+            ActionResult(await api.DeleteBrandAsync(brandId, ct)))
+            .RequireAuthorization("AdminOnly");
 
         group.MapGet("/models", async (Guid? brandId, IFleetApi api, CancellationToken ct) =>
             Results.Ok((await api.GetModelsAsync(brandId, ct)).Value));
@@ -34,13 +38,16 @@ public static class FleetEndpoints
             EntityResult(await api.GetModelAsync(modelId, ct)));
 
         group.MapPost("/models", async (CreateModelDto dto, IFleetApi api, CancellationToken ct) =>
-            CreatedResult(await api.CreateModelAsync(dto, ct), "models"));
+            CreatedResult(await api.CreateModelAsync(dto, ct), "models"))
+            .RequireAuthorization("AdminOnly");
 
         group.MapPut("/models/{modelId:guid}", async (Guid modelId, UpdateModelDto dto, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.UpdateModelAsync(modelId, dto, ct)));
+            EntityResult(await api.UpdateModelAsync(modelId, dto, ct)))
+            .RequireAuthorization("AdminOnly");
 
         group.MapDelete("/models/{modelId:guid}", async (Guid modelId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.DeleteModelAsync(modelId, ct)));
+            ActionResult(await api.DeleteModelAsync(modelId, ct)))
+            .RequireAuthorization("AdminOnly");
 
         group.MapGet("/vehicles", async (IFleetApi api, CancellationToken ct) =>
         {
@@ -66,31 +73,37 @@ public static class FleetEndpoints
             return result.IsSuccess
                 ? Results.Created($"/api/fleet/vehicles/{result.Value.VehicleId}", result.Value)
                 : Results.BadRequest(result.Error.Message);
-        });
+        }).RequireAuthorization("OwnerOnly");
 
         group.MapPut("/vehicles/{vehicleId:guid}", async (Guid vehicleId, UpdateVehicleDto dto, IFleetApi api, CancellationToken ct) =>
         {
             var result = await api.UpdateVehicleAsync(vehicleId, dto, ct);
             return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Error.Message);
-        });
+        }).RequireAuthorization("OwnerOnly");
 
         group.MapPost("/vehicles/{vehicleId:guid}/submit", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.SubmitForApprovalAsync(vehicleId, ct)));
+            ActionResult(await api.SubmitForApprovalAsync(vehicleId, ct)))
+            .RequireAuthorization("OwnerOnly");
 
-        group.MapPost("/vehicles/{vehicleId:guid}/approve/{adminId:guid}", async (Guid vehicleId, Guid adminId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.ApproveAsync(vehicleId, adminId, ct)));
+        group.MapPost("/vehicles/{vehicleId:guid}/approve", async (Guid vehicleId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            ActionResult(await api.ApproveAsync(vehicleId, GetUserId(principal), ct)))
+            .RequireAuthorization("AdminOnly");
 
-        group.MapPost("/vehicles/{vehicleId:guid}/reject/{adminId:guid}", async (Guid vehicleId, Guid adminId, RejectVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.RejectAsync(vehicleId, adminId, dto, ct)));
+        group.MapPost("/vehicles/{vehicleId:guid}/reject", async (Guid vehicleId, RejectVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            ActionResult(await api.RejectAsync(vehicleId, GetUserId(principal), dto, ct)))
+            .RequireAuthorization("AdminOnly");
 
         group.MapPost("/vehicles/{vehicleId:guid}/hide", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.HideAsync(vehicleId, ct)));
+            ActionResult(await api.HideAsync(vehicleId, ct)))
+            .RequireAuthorization("OwnerOnly");
 
         group.MapPost("/vehicles/{vehicleId:guid}/show", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.ShowAsync(vehicleId, ct)));
+            ActionResult(await api.ShowAsync(vehicleId, ct)))
+            .RequireAuthorization("OwnerOnly");
 
-        group.MapPost("/vehicles/{vehicleId:guid}/unpublish/{adminId:guid}", async (Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.UnpublishAsync(vehicleId, adminId, dto, ct)));
+        group.MapPost("/vehicles/{vehicleId:guid}/unpublish", async (Guid vehicleId, UnpublishVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            ActionResult(await api.UnpublishAsync(vehicleId, GetUserId(principal), dto, ct)))
+            .RequireAuthorization("AdminOnly");
 
         return app;
     }
@@ -108,5 +121,13 @@ public static class FleetEndpoints
         return result.IsSuccess
             ? Results.Created($"/api/fleet/{resource}", result.Value)
             : Results.BadRequest(result.Error.Message);
+    }
+
+    private static Guid GetUserId(ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(claim, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
     }
 }

@@ -13,3 +13,31 @@ GET {{baseUrl}}/api/search/vehicles?page=1&pageSize=20
 Accept: application/json
 
 ###
+
+### Search seeded Toyota vehicles near District 1
+GET {{baseUrl}}/api/search/vehicles?brand=Toyota&latitude=10.7769&longitude=106.7009&radiusKm=10&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Login as the seeded owner
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "owner.seed@example.com",
+    "password": "Password123!"
+}
+
+###
+
+### Login as the seeded customer
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "customer.seed@example.com",
+    "password": "Password123!"
+}
+
+###

@@ -5,6 +5,7 @@ using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CarRental.Modules.Users.Services;
 
@@ -12,11 +13,19 @@ public class UsersApiService : IUsersApi
 {
     private readonly UsersDbContext _dbContext;
     private readonly PasswordHasher<object> _passwordHasher;
+    private readonly ITokenService _tokenService;
+    private readonly JwtOptions _jwtOptions;
 
-    public UsersApiService(UsersDbContext dbContext, PasswordHasher<object> passwordHasher)
+    public UsersApiService(
+        UsersDbContext dbContext,
+        PasswordHasher<object> passwordHasher,
+        ITokenService tokenService,
+        IOptions<JwtOptions> jwtOptions)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
+        _jwtOptions = jwtOptions.Value;
     }
 
     public async Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default)
@@ -75,8 +84,7 @@ public class UsersApiService : IUsersApi
         await _dbContext.Users.AddAsync(user, ct);
         await _dbContext.SaveChangesAsync(ct);
 
-        var token = Guid.NewGuid().ToString(); // TODO: replace with proper JWT generation
-        return Result.Success(new AuthResultDto(user.Id.Value, token));
+        return await IssueTokensAsync(user, null, ct);
     }
 
     public async Task<Result<AuthResultDto>> LoginAsync(LoginUserDto dto, CancellationToken ct = default)
@@ -86,14 +94,77 @@ public class UsersApiService : IUsersApi
 
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == dto.Identifier || u.Phone == dto.Identifier, ct);
         if (user is null)
-            return Result.Failure<AuthResultDto>(new Error("users.not_found", "User not found"));
+            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Invalid credentials"));
+        if (user.Status == Contracts.Enums.UserStatus.Banned)
+            return Result.Failure<AuthResultDto>(new Error("users.banned", "This account is unavailable"));
 
         var verification = _passwordHasher.VerifyHashedPassword(new object(), user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Invalid password"));
+            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Invalid credentials"));
 
-        var token = Guid.NewGuid().ToString(); // TODO: replace with proper JWT generation
-        return Result.Success(new AuthResultDto(user.Id.Value, token));
+        return await IssueTokensAsync(user, null, ct);
+    }
+
+    public async Task<Result<AuthResultDto>> RefreshAsync(string refreshToken, string? deviceInfo = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is required"));
+
+        var hash = _tokenService.HashRefreshToken(refreshToken);
+        var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
+        if (existing is null || !existing.IsActive)
+            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is invalid or expired"));
+
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == UserId.From(existing.UserId), ct);
+        if (user is null || user.Status == Contracts.Enums.UserStatus.Banned)
+            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is invalid"));
+
+        return await IssueTokensAsync(user, existing, ct, deviceInfo);
+    }
+
+    public async Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Result.Success();
+
+        var hash = _tokenService.HashRefreshToken(refreshToken);
+        var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
+        if (existing is not null && existing.IsActive)
+        {
+            existing.Revoke();
+            await _dbContext.SaveChangesAsync(ct);
+        }
+
+        return Result.Success();
+    }
+
+    private async Task<Result<AuthResultDto>> IssueTokensAsync(
+        User user,
+        RefreshToken? replacedToken,
+        CancellationToken ct,
+        string? deviceInfo = null)
+    {
+        var access = _tokenService.CreateAccessToken(user);
+        var refresh = _tokenService.CreateRefreshToken();
+        var refreshEntity = new RefreshToken(
+            Guid.CreateVersion7(),
+            user.Id.Value,
+            refresh.Hash,
+            refresh.ExpiresAt,
+            deviceInfo,
+            DateTimeOffset.UtcNow);
+
+        if (replacedToken is not null)
+            replacedToken.Revoke(refreshEntity.Id);
+
+        await _dbContext.RefreshTokens.AddAsync(refreshEntity, ct);
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success(new AuthResultDto(
+            user.Id.Value,
+            access.Token,
+            access.ExpiresAt,
+            refresh.Token,
+            refresh.ExpiresAt));
     }
 
     public async Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileDto dto, CancellationToken ct = default)

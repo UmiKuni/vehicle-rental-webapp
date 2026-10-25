@@ -51,7 +51,8 @@ public static class PricingEndpoints
             .WithSummary("Configure hourly/daily rental pricing, deposit, fees, kilometre limit, and conditions")
             .Produces<PricingPlanDto>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .RequireAuthorization("OwnerOnly");
 
         return app;
     }
