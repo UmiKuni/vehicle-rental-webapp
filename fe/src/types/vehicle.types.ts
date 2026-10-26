@@ -30,4 +30,7 @@ export interface VehicleFilterParams {
   seats?: number
   transmission?: TransmissionType | 'ALL'
   location?: string
+  brand?: string
+  pickupAt?: string
+  returnAt?: string
 }

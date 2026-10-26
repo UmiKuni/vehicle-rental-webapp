@@ -104,7 +104,7 @@ export default function RegisterPage() {
           {/* Segmented Control Switcher (Login / Register) */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <Link
-              to={ROUTES.LOGIN}
+              to={`${ROUTES.PROFILE_AUTH}?mode=login`}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
               Sign In

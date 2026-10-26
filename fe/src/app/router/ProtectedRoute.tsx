@@ -21,7 +21,7 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
+    return <Navigate to={ROUTES.PROFILE_AUTH} state={{ from: location }} replace />
   }
 
   // Role-based guard: if specific roles required, redirect if user doesn't match
@@ -52,7 +52,7 @@ export function CustomerRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
+    return <Navigate to={ROUTES.PROFILE_AUTH} state={{ from: location }} replace />
   }
 
   return <Outlet />
@@ -74,13 +74,8 @@ export function AdminRoute() {
     )
   }
 
-  // Unauthenticated guests:
-  // If navigating to root '/' -> redirect to '/search' for public vehicle browsing
-  // If navigating to admin subpages (such as '/users') -> redirect to '/login'
+  // Unauthenticated visitors can browse public routes; admin pages require sign in.
   if (!isAuthenticated) {
-    if (location.pathname === '/' || location.pathname === ROUTES.DASHBOARD) {
-      return <Navigate to={ROUTES.SEARCH} replace />
-    }
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 

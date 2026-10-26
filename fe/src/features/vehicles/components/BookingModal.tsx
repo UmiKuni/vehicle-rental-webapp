@@ -47,7 +47,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      navigate(ROUTES.LOGIN, { state: { from: ROUTES.SEARCH } })
+      navigate(ROUTES.PROFILE_AUTH, { state: { from: ROUTES.SEARCH } })
       return
     }
 
@@ -194,7 +194,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
           ) : (
             <Button
               type="button"
-              onClick={() => navigate(ROUTES.LOGIN, { state: { from: ROUTES.SEARCH } })}
+              onClick={() => navigate(ROUTES.PROFILE_AUTH, { state: { from: ROUTES.SEARCH } })}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press flex items-center justify-center gap-2"
             >
               <LogIn className="size-4" />

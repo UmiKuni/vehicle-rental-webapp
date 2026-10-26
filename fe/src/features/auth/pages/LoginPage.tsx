@@ -105,7 +105,7 @@ export default function LoginPage() {
               Sign In
             </div>
             <Link
-              to={ROUTES.REGISTER}
+              to={`${ROUTES.PROFILE_AUTH}?mode=register`}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
               Register
