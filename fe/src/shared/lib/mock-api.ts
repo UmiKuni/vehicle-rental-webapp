@@ -537,7 +537,7 @@ if (isDev) {
       }
       if (brand) list = list.filter((v) => v.brand.toLowerCase().includes(brand))
       if (location) {
-        const normalizedLocation = location.replace('ho chi minh city', 'hcmc').replace('tp. hồ chí minh', 'hcmc')
+        const normalizedLocation = location.replace('ho chi minh city', 'hcmc')
         list = list.filter((v) => v.location.toLowerCase().includes(normalizedLocation))
       }
       if (minPrice) list = list.filter((v) => v.pricePerDay >= minPrice)

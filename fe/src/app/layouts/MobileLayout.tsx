@@ -14,13 +14,13 @@ function BottomNav() {
 
   const navItems = isCustomer
     ? [
-        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
+        { to: ROUTES.HOME, icon: House, label: 'Home' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
-        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Hồ sơ' },
+        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
       ]
     : [
         { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
+        { to: ROUTES.HOME, icon: House, label: 'Home' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
         { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
       ]
