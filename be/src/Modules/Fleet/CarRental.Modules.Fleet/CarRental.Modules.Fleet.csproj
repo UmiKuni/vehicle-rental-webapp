@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -10,6 +11,10 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" />
     <PackageReference Include="CloudinaryDotNet" />
     <PackageReference Include="WolverineFx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>
