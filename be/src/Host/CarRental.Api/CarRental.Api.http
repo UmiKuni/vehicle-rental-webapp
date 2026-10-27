@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5218
+@baseUrl = http://localhost:8080
 
 # Module-specific REST Client files:
 # - ../Modules/Users/user.http

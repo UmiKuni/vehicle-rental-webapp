@@ -1,4 +1,5 @@
 using CarRental.BuildingBlocks.Domain;
+using CarRental.Modules.Support.Contracts.Events;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Support.Contracts.Enums;
 
@@ -62,13 +63,22 @@ public class SupportTicket : AggregateRoot<TicketId>
         if (string.IsNullOrWhiteSpace(firstMessage))
             return Result.Failure<SupportTicket>(new Error("support.empty_message", "An initial message describing the issue is required."));
 
-        return Result.Success(new SupportTicket(
+        var ticket = new SupportTicket(
             TicketId.New(),
             bookingId,
             reporterId,
             firstMessage,
             attachmentKey,
-            now));
+            now);
+
+        ticket.Raise(new TicketOpened(
+            Guid.CreateVersion7(),
+            now,
+            ticket.Id,
+            bookingId,
+            reporterId));
+
+        return Result.Success(ticket);
     }
 
     public Result AddMessage(Guid senderId, string content, string? attachmentKey, DateTimeOffset now)
@@ -127,6 +137,15 @@ public class SupportTicket : AggregateRoot<TicketId>
         ResolvedBy = adminId;
         ResolvedAt = now;
         UpdatedAt = now;
+
+        Raise(new TicketResolved(
+            Guid.CreateVersion7(),
+            now,
+            Id,
+            BookingId,
+            depositToCustomerPercent,
+            ResolutionNote,
+            adminId));
 
         return Result.Success();
     }

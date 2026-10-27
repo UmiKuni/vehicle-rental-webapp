@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5218
+@baseUrl = http://localhost:8080
 
 ### Search all visible vehicles
 GET {{baseUrl}}/api/search/vehicles?page=1&pageSize=20

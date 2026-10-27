@@ -62,7 +62,7 @@ public sealed class SearchEventHandlers
         CancellationToken ct)
     {
         var document = await dbContext.VehicleSearchDocuments
-            .SingleOrDefaultAsync(d => d.VehicleId == vehicleId, ct);
+            .SingleOrDefaultAsync(d => d.Id == vehicleId, ct);
         if (document is not null)
             return document;
 

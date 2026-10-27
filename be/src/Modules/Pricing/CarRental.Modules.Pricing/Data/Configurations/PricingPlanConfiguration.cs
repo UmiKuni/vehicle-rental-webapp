@@ -70,9 +70,7 @@ public sealed class PricingPlanConfiguration : IEntityTypeConfiguration<PricingP
             .IsRequired()
             .HasColumnName("km_limit");
 
-        builder.Property(p => p.Version)
-            .IsRowVersion()
-            .HasColumnName("xmin");
+        builder.Ignore(p => p.Version);
 
         builder.HasMany(p => p.FeeRules)
             .WithOne()

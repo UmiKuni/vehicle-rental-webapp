@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5218
+@baseUrl = http://localhost:8080
 @seedOwnerEmail = owner.seed@example.com
 @seedPassword = Password123!
 @brandId = 00000000-0000-0000-0000-000000000101

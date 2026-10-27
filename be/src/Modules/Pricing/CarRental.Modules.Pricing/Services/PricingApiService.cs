@@ -69,8 +69,10 @@ public sealed class PricingApiService : IPricingApi
             return Result.Failure<PricingPlanDto>(
                 new Error("pricing.owner_required", "Only the vehicle owner can configure pricing."));
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
         var now = DateTimeOffset.UtcNow;
         var plan = await _dbContext.PricingPlans
+            .IgnoreAutoIncludes()
             .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
 
         if (plan is null)
@@ -91,6 +93,10 @@ public sealed class PricingApiService : IPricingApi
         }
         else
         {
+            await _dbContext.FeeRules
+                .Where(rule => rule.PricingPlanId == plan.Id)
+                .ExecuteDeleteAsync(ct);
+
             var updateResult = plan.Update(
                 dto.WeekdayRate,
                 dto.WeekendRate,
@@ -110,6 +116,7 @@ public sealed class PricingApiService : IPricingApi
         if (feeResult.IsFailure)
             return Result.Failure<PricingPlanDto>(feeResult.Error);
 
+        _dbContext.FeeRules.AddRange(plan.FeeRules);
         await _dbContext.SaveChangesAsync(ct);
         _dbContext.PricingPlanVersions.Add(plan.CreateVersionSnapshot(now));
         await _dbContext.SaveChangesAsync(ct);

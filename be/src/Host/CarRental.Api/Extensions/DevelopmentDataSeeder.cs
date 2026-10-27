@@ -4,6 +4,8 @@ using CarRental.Modules.Fleet.Data;
 using CarRental.Modules.Fleet.Entities;
 using CarRental.Modules.Pricing.Data;
 using CarRental.Modules.Pricing.Entities;
+using CarRental.Modules.Search.Data;
+using CarRental.Modules.Search.Entities;
 using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -43,11 +45,13 @@ public static class DevelopmentDataSeeder
             var users = services.GetRequiredService<UsersDbContext>();
             var fleet = services.GetRequiredService<FleetDbContext>();
             var pricing = services.GetRequiredService<PricingDbContext>();
+            var search = services.GetRequiredService<SearchDbContext>();
             var passwordHasher = services.GetRequiredService<PasswordHasher<object>>();
 
             var owner = await SeedOwnerAsync(users, passwordHasher);
             await SeedCustomerAsync(users, passwordHasher);
             await SeedFleetAsync(fleet, pricing, owner.Id.Value);
+            await RebuildSearchProjectionAsync(fleet, pricing, search);
 
             logger.LogInformation(
                 "Development data seed completed. Owner login: {OwnerEmail}; customer login: {CustomerEmail}",
@@ -180,6 +184,55 @@ public static class DevelopmentDataSeeder
             "208 Nguyen Van Cu, District 5, Ho Chi Minh City",
             1_200_000,
             1_400_000);
+    }
+
+    private static async Task RebuildSearchProjectionAsync(
+        FleetDbContext fleet,
+        PricingDbContext pricing,
+        SearchDbContext search)
+    {
+        var vehicles = await fleet.Vehicles
+            .AsNoTracking()
+            .Where(vehicle => vehicle.Status == VehicleStatus.Published && !vehicle.HiddenByAdmin)
+            .ToListAsync();
+        var brandNames = await fleet.VehicleBrands
+            .AsNoTracking()
+            .ToDictionaryAsync(brand => brand.Id, brand => brand.Name);
+        var modelNames = await fleet.VehicleModels
+            .AsNoTracking()
+            .ToDictionaryAsync(model => model.Id, model => model.Name);
+        var pricingPlans = await pricing.PricingPlans
+            .AsNoTracking()
+            .ToDictionaryAsync(plan => plan.VehicleId);
+
+        foreach (var vehicle in vehicles)
+        {
+            if (!pricingPlans.TryGetValue(vehicle.Id.Value, out var plan))
+                continue;
+
+            var document = await search.VehicleSearchDocuments
+                .SingleOrDefaultAsync(item => item.Id == vehicle.Id.Value);
+            if (document is null)
+            {
+                document = VehicleSearchDocument.Create(vehicle.Id.Value);
+                search.VehicleSearchDocuments.Add(document);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            document.ApplyPublished(
+                brandNames[vehicle.BrandId],
+                modelNames[vehicle.ModelId],
+                vehicle.Seats,
+                vehicle.Transmission.ToString(),
+                vehicle.Location,
+                vehicle.Address,
+                now);
+            document.ApplyPrice(
+                Math.Min(plan.WeekdayRate.Amount, plan.WeekendRate.Amount),
+                now);
+        }
+
+        await search.SaveChangesAsync();
     }
 
     private static async Task SeedVehicleAsync(

@@ -1,4 +1,5 @@
 using CarRental.Modules.Support.Contracts.Enums;
+using CarRental.Modules.Support.Contracts.Events;
 using CarRental.Modules.Support.Entities;
 using FluentAssertions;
 using Xunit;
@@ -25,6 +26,8 @@ public class SupportModuleTests
         ticket.Messages.Should().HaveCount(1);
         ticket.Messages.First().Content.Should().Be("Air conditioning was broken during the rental");
         ticket.Messages.First().AttachmentKey.Should().Be("evidence/ac.jpg");
+        ticket.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<TicketOpened>();
     }
 
     [Fact]
@@ -74,6 +77,7 @@ public class SupportModuleTests
         ticket.ResolutionNote.Should().Be("Owner justified cleaning fee; 80% refunded to customer.");
         ticket.ResolvedBy.Should().Be(AdminId);
         ticket.ResolvedAt.Should().Be(Now.AddMinutes(30));
+        ticket.DomainEvents.Should().ContainItemsAssignableTo<TicketResolved>();
     }
 
     [Fact]
