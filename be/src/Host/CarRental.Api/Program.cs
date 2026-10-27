@@ -1,14 +1,19 @@
 using CarRental.Api.Extensions;
 using CarRental.Modules.Audit;
 using CarRental.Modules.Availability;
+using CarRental.Modules.Availability.Endpoints;
 using CarRental.Modules.Bookings;
+using CarRental.Modules.Bookings.Endpoints;
 using CarRental.Modules.Fleet;
 using CarRental.Modules.Handover;
+using CarRental.Modules.Handover.Endpoints;
 using CarRental.Modules.Notifications;
 using CarRental.Modules.Payments;
+using CarRental.Modules.Payments.Endpoints;
 using CarRental.Modules.Pricing;
 using CarRental.Modules.Pricing.Endpoints;
 using CarRental.Modules.Reporting;
+using CarRental.Modules.Reporting.Endpoints;
 using CarRental.Modules.Reviews;
 using CarRental.Modules.Search;
 using CarRental.Modules.Support;
@@ -71,8 +76,13 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
 }
 
-// Map Module Endpoints
+// Map Module Endpoints (Mock Implementation)
 app.MapPricingEndpoints();
+app.MapAvailabilityEndpoints();
+app.MapBookingsEndpoints();
+app.MapPaymentsEndpoints();
+app.MapHandoverEndpoints();
+app.MapReportingEndpoints();
 
 app.Run();
 
