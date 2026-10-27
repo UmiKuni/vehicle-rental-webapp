@@ -1,3 +1,4 @@
+using CarRental.Modules.Pricing.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
@@ -59,7 +60,7 @@ public sealed class PricingApiService : IPricingApi
     {
         if (vehicleId == Guid.Empty)
             return Result.Failure<PricingPlanDto>(
-                new Error("pricing.invalid_vehicle", "Vehicle ID is required."));
+                PricingErrors.InvalidVehicle);
 
         var vehicleResult = await _fleetApi.GetVehicleSummaryAsync(vehicleId, ct);
         if (vehicleResult.IsFailure)
@@ -67,7 +68,7 @@ public sealed class PricingApiService : IPricingApi
 
         if (vehicleResult.Value.OwnerId != dto.OwnerId)
             return Result.Failure<PricingPlanDto>(
-                new Error("pricing.owner_required", "Only the vehicle owner can configure pricing."));
+                PricingErrors.OwnerRequired);
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
         var now = DateTimeOffset.UtcNow;

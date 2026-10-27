@@ -1,3 +1,4 @@
+using CarRental.Modules.Search.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Search.Contracts;
@@ -22,13 +23,13 @@ public sealed class SearchApiService : ISearchApi
     {
         if (request.Page < 1 || request.PageSize is < 1 or > 100)
             return Result.Failure<PagedVehicleSearchResultDto>(
-                new Error("search.invalid_paging", "Page must be at least 1 and page size must be between 1 and 100."));
+                SearchErrors.InvalidPaging);
 
         if (request.MinPrice.HasValue && request.MinPrice < 0 ||
             request.MaxPrice.HasValue && request.MaxPrice < 0 ||
             request.MinPrice.HasValue && request.MaxPrice.HasValue && request.MinPrice > request.MaxPrice)
             return Result.Failure<PagedVehicleSearchResultDto>(
-                new Error("search.invalid_price_range", "Price range is invalid."));
+                SearchErrors.InvalidPriceRange);
 
         GeoPoint? center = null;
         if (request.Latitude.HasValue || request.Longitude.HasValue || request.RadiusKm.HasValue)
@@ -36,7 +37,7 @@ public sealed class SearchApiService : ISearchApi
             if (!request.Latitude.HasValue || !request.Longitude.HasValue ||
                 !request.RadiusKm.HasValue || request.RadiusKm <= 0)
                 return Result.Failure<PagedVehicleSearchResultDto>(
-                    new Error("search.invalid_location", "Latitude, longitude, and a positive radius are required together."));
+                    SearchErrors.InvalidLocation);
 
             var centerResult = GeoPoint.Create(request.Latitude.Value, request.Longitude.Value);
             if (centerResult.IsFailure)

@@ -1,3 +1,4 @@
+using CarRental.Modules.Handover.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Handover.Contracts.Enums;
@@ -40,13 +41,13 @@ public class Handover : AggregateRoot<HandoverId>
         DateTimeOffset serverNow)
     {
         if (ctx == null)
-            return Result.Failure<Handover>(new Error("handover.invalid_context", "Handover context is required."));
+            return Result.Failure<Handover>(HandoverErrors.InvalidContext);
 
         if (!ctx.IsActive)
-            return Result.Failure<Handover>(new Error("handover.inactive_context", "Booking is not active for handover."));
+            return Result.Failure<Handover>(HandoverErrors.InactiveContext);
 
         if (startedBy != ctx.CustomerId && startedBy != ctx.OwnerId)
-            return Result.Failure<Handover>(new Error("handover.unauthorized", "Only the customer or owner can initiate handover."));
+            return Result.Failure<Handover>(HandoverErrors.Unauthorized5CEF8A);
 
         return Result.Success(new Handover(HandoverId.New(), ctx.BookingId, type, serverNow));
     }
@@ -54,13 +55,13 @@ public class Handover : AggregateRoot<HandoverId>
     public Result AddPhoto(PhotoCorner corner, string storageKey, string fileHash, DateTimeOffset clientCapturedAt)
     {
         if (Status != HandoverStatus.Draft)
-            return Result.Failure(new Error("handover.immutable", "Photos can only be added to draft handovers."));
+            return Result.Failure(HandoverErrors.ImmutableB8F729);
 
         if (string.IsNullOrWhiteSpace(storageKey))
-            return Result.Failure(new Error("handover.invalid_photo", "Photo storage key cannot be empty."));
+            return Result.Failure(HandoverErrors.InvalidPhoto);
 
         if (string.IsNullOrWhiteSpace(fileHash))
-            return Result.Failure(new Error("handover.missing_hash", "Tamper-verification file hash is mandatory."));
+            return Result.Failure(HandoverErrors.MissingHash);
 
         var existing = _photos.FirstOrDefault(p => p.Corner == corner);
         if (existing != null)
@@ -82,13 +83,13 @@ public class Handover : AggregateRoot<HandoverId>
     public Result SetCondition(int odo, int fuelLevel, string? damageNote)
     {
         if (Status != HandoverStatus.Draft)
-            return Result.Failure(new Error("handover.immutable", "Vehicle condition can only be updated for draft handovers."));
+            return Result.Failure(HandoverErrors.ImmutableA1098D);
 
         if (odo < 0)
-            return Result.Failure(new Error("handover.invalid_odometer", "Odometer reading cannot be negative."));
+            return Result.Failure(HandoverErrors.InvalidOdometer);
 
         if (fuelLevel < 0 || fuelLevel > 100)
-            return Result.Failure(new Error("handover.invalid_fuel", "Fuel level must be between 0 and 100 percent."));
+            return Result.Failure(HandoverErrors.InvalidFuel);
 
         Condition = new VehicleCondition(Id, odo, fuelLevel, damageNote?.Trim());
         return Result.Success();
@@ -102,19 +103,19 @@ public class Handover : AggregateRoot<HandoverId>
         int? pickupOdometer = null)
     {
         if (Status != HandoverStatus.Draft)
-            return Result.Failure(new Error("handover.already_confirmed", "Handover has already been confirmed and is immutable."));
+            return Result.Failure(HandoverErrors.AlreadyConfirmed);
 
         if (actorId != customerId && actorId != ownerId)
-            return Result.Failure(new Error("handover.unauthorized", "Only the customer or owner can confirm this handover."));
+            return Result.Failure(HandoverErrors.UnauthorizedE2911A);
 
         if (Condition == null)
-            return Result.Failure(new Error("handover.missing_condition", "Vehicle condition must be recorded before confirmation."));
+            return Result.Failure(HandoverErrors.MissingCondition);
 
         if (Type == HandoverType.Return)
         {
             if (pickupOdometer.HasValue && Condition.Odometer < pickupOdometer.Value)
             {
-                return Result.Failure(new Error(
+                return Result.Failure(Error.Validation(
                     "handover.odometer_decreased",
                     $"Return odometer ({Condition.Odometer}) cannot be less than pickup odometer ({pickupOdometer.Value})."));
             }
@@ -133,7 +134,7 @@ public class Handover : AggregateRoot<HandoverId>
         {
             if (!_photos.Any(p => p.Corner == corner))
             {
-                return Result.Failure(new Error("handover.missing_mandatory_photo", $"Missing mandatory photo for corner: {corner}."));
+                return Result.Failure(Error.Validation("handover.missing_mandatory_photo", $"Missing mandatory photo for corner: {corner}."));
             }
         }
 

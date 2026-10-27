@@ -1,3 +1,4 @@
+using CarRental.Modules.Payments.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
@@ -35,10 +36,10 @@ public class Deposit : AggregateRoot<DepositId>
     public static Result<Deposit> Hold(Guid bookingId, Money amount, DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure<Deposit>(new Error("deposit.invalid_booking", "Booking ID is required."));
+            return Result.Failure<Deposit>(PaymentsErrors.DepositInvalidBooking);
 
         if (amount == null || amount.Amount < 0)
-            return Result.Failure<Deposit>(new Error("deposit.invalid_amount", "Deposit amount cannot be negative."));
+            return Result.Failure<Deposit>(PaymentsErrors.DepositInvalidAmount);
 
         return Result.Success(new Deposit(DepositId.New(), bookingId, amount, now));
     }
@@ -61,10 +62,10 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Release(DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(new Error("deposit.invalid_state", $"Only held deposits can be released. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be released. Current status: {Status}."));
 
         if (IsFrozen)
-            return Result.Failure(new Error("deposit.frozen", "Cannot release a frozen deposit."));
+            return Result.Failure(PaymentsErrors.Frozen);
 
         Status = DepositStatus.Released;
         SettledAt = now;
@@ -74,13 +75,13 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Deduct(Money amount, DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(new Error("deposit.invalid_state", $"Only held deposits can be deducted. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be deducted. Current status: {Status}."));
 
         if (amount == null || amount.Amount <= 0)
-            return Result.Failure(new Error("deposit.invalid_deduction", "Deduction amount must be greater than zero."));
+            return Result.Failure(PaymentsErrors.InvalidDeduction);
 
         if (amount.Amount > Amount.Amount)
-            return Result.Failure(new Error("deposit.deduction_exceeds_amount", "Deduction amount cannot exceed total deposit amount."));
+            return Result.Failure(PaymentsErrors.DeductionExceedsAmount);
 
         Status = DepositStatus.Deducted;
         DeductedAmount = amount;
@@ -91,7 +92,7 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Forfeit(DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(new Error("deposit.invalid_state", $"Only held deposits can be forfeited. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be forfeited. Current status: {Status}."));
 
         Status = DepositStatus.Forfeited;
         DeductedAmount = Amount;
@@ -102,10 +103,10 @@ public class Deposit : AggregateRoot<DepositId>
     public Result SettleByRuling(int depositToCustomerPercent, DateTimeOffset now)
     {
         if (depositToCustomerPercent < 0 || depositToCustomerPercent > 100)
-            return Result.Failure(new Error("deposit.invalid_percent", "Customer refund percentage must be between 0 and 100."));
+            return Result.Failure(PaymentsErrors.InvalidPercent);
 
         if (Status != DepositStatus.Held)
-            return Result.Failure(new Error("deposit.invalid_state", $"Only held deposits can be settled. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be settled. Current status: {Status}."));
 
         IsFrozen = false;
 

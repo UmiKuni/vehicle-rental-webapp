@@ -1,3 +1,4 @@
+using CarRental.Modules.Users.Errors;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
@@ -33,7 +34,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure<BookingEligibilityDto>(new Error("users.not_found", "User not found"));
+            return Result.Failure<BookingEligibilityDto>(UsersErrors.NotFound);
         return Result.Success(user.GetBookingEligibility());
     }
 
@@ -42,7 +43,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure<UserContactDto>(new Error("users.not_found", "User not found"));
+            return Result.Failure<UserContactDto>(UsersErrors.NotFound);
         var fullName = user.CustomerProfile?.FullName ?? string.Empty;
         return Result.Success(new UserContactDto(user.Id.Value, user.Email, user.Phone, fullName));
     }
@@ -52,7 +53,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure<UserProfileDto>(new Error("users.not_found", "User not found"));
+            return Result.Failure<UserProfileDto>(UsersErrors.NotFound);
 
         return Result.Success(new UserProfileDto(
             user.Id.Value,
@@ -65,15 +66,15 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> RegisterAsync(RegisterUserDto dto, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Email))
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_email", "Email cannot be empty"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidEmail4D9514);
         if (string.IsNullOrWhiteSpace(dto.Phone))
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_phone", "Phone cannot be empty"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPhone8199CF);
         if (string.IsNullOrWhiteSpace(dto.Password))
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_password", "Password cannot be empty"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPassword4BB6F3);
 
         var exists = await _dbContext.Users.AnyAsync(u => u.Email == dto.Email || u.Phone == dto.Phone, ct);
         if (exists)
-            return Result.Failure<AuthResultDto>(new Error("users.duplicate", "Email or phone already in use"));
+            return Result.Failure<AuthResultDto>(UsersErrors.Duplicate);
 
         var passwordHash = _passwordHasher.HashPassword(new object(), dto.Password);
         var createResult = User.Register(dto.Email, dto.Phone, passwordHash);
@@ -90,17 +91,17 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> LoginAsync(LoginUserDto dto, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Identifier) || string.IsNullOrWhiteSpace(dto.Password))
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Identifier and password required"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentials2B2E58);
 
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == dto.Identifier || u.Phone == dto.Identifier, ct);
         if (user is null)
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Invalid credentials"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentialsE41784);
         if (user.Status == Contracts.Enums.UserStatus.Banned)
-            return Result.Failure<AuthResultDto>(new Error("users.banned", "This account is unavailable"));
+            return Result.Failure<AuthResultDto>(UsersErrors.Banned3C3263);
 
         var verification = _passwordHasher.VerifyHashedPassword(new object(), user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_credentials", "Invalid credentials"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentialsE41784);
 
         return await IssueTokensAsync(user, null, ct);
     }
@@ -108,16 +109,16 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> RefreshAsync(string refreshToken, string? deviceInfo = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is required"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken7F376E);
 
         var hash = _tokenService.HashRefreshToken(refreshToken);
         var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
         if (existing is null || !existing.IsActive)
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is invalid or expired"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken339042);
 
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == UserId.From(existing.UserId), ct);
         if (user is null || user.Status == Contracts.Enums.UserStatus.Banned)
-            return Result.Failure<AuthResultDto>(new Error("users.invalid_refresh_token", "Refresh token is invalid"));
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken0C6350);
 
         return await IssueTokensAsync(user, existing, ct, deviceInfo);
     }
@@ -172,7 +173,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure(new Error("users.not_found", "User not found"));
+            return Result.Failure(UsersErrors.NotFound);
 
         var result = user.UpdateProfile(dto.FullName, dto.Address);
         if (result.IsFailure)
@@ -187,7 +188,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure(new Error("users.not_found", "User not found"));
+            return Result.Failure(UsersErrors.NotFound);
 
         var result = user.Ban(adminId, "Banned by admin");
         if (result.IsFailure)
@@ -202,7 +203,7 @@ public class UsersApiService : IUsersApi
         var userIdValue = UserId.From(userId);
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
         if (user is null)
-            return Result.Failure(new Error("users.not_found", "User not found"));
+            return Result.Failure(UsersErrors.NotFound);
 
         var result = user.Unban(adminId);
         if (result.IsFailure)

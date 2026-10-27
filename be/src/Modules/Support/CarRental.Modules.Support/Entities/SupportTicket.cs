@@ -1,3 +1,4 @@
+using CarRental.Modules.Support.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.Modules.Support.Contracts.Events;
 using CarRental.BuildingBlocks.Results;
@@ -55,13 +56,13 @@ public class SupportTicket : AggregateRoot<TicketId>
         DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure<SupportTicket>(new Error("support.invalid_booking", "Booking ID is required."));
+            return Result.Failure<SupportTicket>(SupportErrors.InvalidBooking);
 
         if (reporterId == Guid.Empty)
-            return Result.Failure<SupportTicket>(new Error("support.invalid_reporter", "Reporter ID is required."));
+            return Result.Failure<SupportTicket>(SupportErrors.InvalidReporter);
 
         if (string.IsNullOrWhiteSpace(firstMessage))
-            return Result.Failure<SupportTicket>(new Error("support.empty_message", "An initial message describing the issue is required."));
+            return Result.Failure<SupportTicket>(SupportErrors.EmptyMessage98E994);
 
         var ticket = new SupportTicket(
             TicketId.New(),
@@ -84,13 +85,13 @@ public class SupportTicket : AggregateRoot<TicketId>
     public Result AddMessage(Guid senderId, string content, string? attachmentKey, DateTimeOffset now)
     {
         if (Status == TicketStatus.Resolved)
-            return Result.Failure(new Error("support.ticket_resolved", "Cannot add messages to a resolved ticket."));
+            return Result.Failure(SupportErrors.TicketResolved);
 
         if (senderId == Guid.Empty)
-            return Result.Failure(new Error("support.invalid_sender", "Sender ID is required."));
+            return Result.Failure(SupportErrors.InvalidSender);
 
         if (string.IsNullOrWhiteSpace(content))
-            return Result.Failure(new Error("support.empty_message", "Message content cannot be empty."));
+            return Result.Failure(SupportErrors.EmptyMessageE27D76);
 
         _messages.Add(new TicketMessage(
             Guid.CreateVersion7(),
@@ -107,10 +108,10 @@ public class SupportTicket : AggregateRoot<TicketId>
     public Result StartReview(Guid adminId, DateTimeOffset now)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(new Error("support.invalid_admin", "Admin ID is required."));
+            return Result.Failure(SupportErrors.InvalidAdmin);
 
         if (Status != TicketStatus.Open)
-            return Result.Failure(new Error("support.invalid_state", $"Only open tickets can be moved to in-progress. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("support.invalid_state", $"Only open tickets can be moved to in-progress. Current status: {Status}."));
 
         Status = TicketStatus.InProgress;
         UpdatedAt = now;
@@ -120,16 +121,16 @@ public class SupportTicket : AggregateRoot<TicketId>
     public Result Resolve(Guid adminId, int depositToCustomerPercent, string note, DateTimeOffset now)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(new Error("support.invalid_admin", "Admin ID is required."));
+            return Result.Failure(SupportErrors.InvalidAdmin);
 
         if (Status == TicketStatus.Resolved)
-            return Result.Failure(new Error("support.already_resolved", "Ticket has already been resolved."));
+            return Result.Failure(SupportErrors.AlreadyResolved);
 
         if (depositToCustomerPercent < 0 || depositToCustomerPercent > 100)
-            return Result.Failure(new Error("support.invalid_percent", "Customer deposit refund percentage must be between 0 and 100."));
+            return Result.Failure(SupportErrors.InvalidPercent);
 
         if (string.IsNullOrWhiteSpace(note))
-            return Result.Failure(new Error("support.missing_resolution_note", "Resolution ruling note is required."));
+            return Result.Failure(SupportErrors.MissingResolutionNote);
 
         Status = TicketStatus.Resolved;
         DepositToCustomerPercent = depositToCustomerPercent;

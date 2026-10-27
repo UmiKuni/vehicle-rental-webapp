@@ -1,3 +1,4 @@
+using CarRental.Modules.Availability.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
@@ -35,16 +36,16 @@ public class VehicleCalendar : AggregateRoot<Guid>
         DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(new Error("availability.invalid_booking", "Booking ID is required."));
+            return Result.Failure(AvailabilityErrors.InvalidBooking);
 
         if (range == null)
-            return Result.Failure(new Error("availability.invalid_range", "Time range is required."));
+            return Result.Failure(AvailabilityErrors.InvalidRange);
 
         if (range.Start <= now)
-            return Result.Failure(new Error("availability.past_date", "Time range must start in the future."));
+            return Result.Failure(AvailabilityErrors.PastDate);
 
         if (!IsAvailable(range, now))
-            return Result.Failure(new Error("availability.slot_unavailable", "The requested time slot is not available."));
+            return Result.Failure(AvailabilityErrors.SlotUnavailable3493D3);
 
         var effectiveTtl = ttl > MaxHoldTtl ? MaxHoldTtl : ttl;
         if (effectiveTtl <= TimeSpan.Zero)
@@ -69,11 +70,11 @@ public class VehicleCalendar : AggregateRoot<Guid>
     public Result ConfirmHold(Guid bookingId, DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(new Error("availability.invalid_booking", "Booking ID is required."));
+            return Result.Failure(AvailabilityErrors.InvalidBooking);
 
         var holdEntry = _entries.FirstOrDefault(e => e.BookingId == bookingId && e.Type == CalendarEntryType.Hold);
         if (holdEntry == null || !holdEntry.IsActive(now))
-            return Result.Failure(new Error("availability.hold_not_found_or_expired", "Active hold for booking was not found or has expired."));
+            return Result.Failure(AvailabilityErrors.HoldNotFoundOrExpired);
 
         holdEntry.Confirm();
         LastSyncedAt = now;
@@ -84,7 +85,7 @@ public class VehicleCalendar : AggregateRoot<Guid>
     public Result Release(Guid bookingId, DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(new Error("availability.invalid_booking", "Booking ID is required."));
+            return Result.Failure(AvailabilityErrors.InvalidBooking);
 
         _entries.RemoveAll(e => e.BookingId == bookingId);
         LastSyncedAt = now;
@@ -95,13 +96,13 @@ public class VehicleCalendar : AggregateRoot<Guid>
     public Result Block(CalendarEntryType type, DateTimeRange range, DateTimeOffset now)
     {
         if (type != CalendarEntryType.OwnerBlocked && type != CalendarEntryType.Maintenance)
-            return Result.Failure(new Error("availability.invalid_block_type", "Only OwnerBlocked or Maintenance blocks are allowed."));
+            return Result.Failure(AvailabilityErrors.InvalidBlockType);
 
         if (range == null)
-            return Result.Failure(new Error("availability.invalid_range", "Time range is required."));
+            return Result.Failure(AvailabilityErrors.InvalidRange);
 
         if (!IsAvailable(range, now))
-            return Result.Failure(new Error("availability.slot_unavailable", "Cannot block over existing active bookings or holds."));
+            return Result.Failure(AvailabilityErrors.SlotUnavailableEA8C70);
 
         var entry = new CalendarEntry(
             Guid.CreateVersion7(),
@@ -121,10 +122,10 @@ public class VehicleCalendar : AggregateRoot<Guid>
     {
         var entry = _entries.FirstOrDefault(e => e.Id == entryId);
         if (entry == null)
-            return Result.Failure(new Error("availability.entry_not_found", "Calendar entry not found."));
+            return Result.Failure(AvailabilityErrors.EntryNotFound);
 
         if (entry.Type != CalendarEntryType.OwnerBlocked && entry.Type != CalendarEntryType.Maintenance)
-            return Result.Failure(new Error("availability.invalid_entry_type", "Only owner or maintenance blocks can be unblocked directly."));
+            return Result.Failure(AvailabilityErrors.InvalidEntryType);
 
         _entries.Remove(entry);
         LastSyncedAt = now;

@@ -1,3 +1,4 @@
+using CarRental.Modules.Fleet.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
@@ -60,7 +61,7 @@ public sealed class FleetApiService : IFleetApi
             if (ownerResult.Error.Code == "users.not_found")
             {
                 return Result.Failure<VehicleSummaryDto>(
-                    new Error("fleet.owner_not_found", "Owner user was not found."));
+                    FleetErrors.OwnerNotFound);
             }
 
             return Result.Failure<VehicleSummaryDto>(ownerResult.Error);
@@ -72,14 +73,14 @@ public sealed class FleetApiService : IFleetApi
 
         if (string.IsNullOrWhiteSpace(dto.PlateNumber))
             return Result.Failure<VehicleSummaryDto>(
-                new Error("fleet.invalid_plate", "Plate number cannot be empty."));
+                FleetErrors.InvalidPlate);
 
         var normalizedPlateNumber = dto.PlateNumber.Trim().ToUpperInvariant();
         if (await _dbContext.Vehicles.AnyAsync(
                 vehicle => vehicle.PlateNumber == normalizedPlateNumber, ct))
         {
             return Result.Failure<VehicleSummaryDto>(
-                new Error("fleet.plate_duplicate", "Plate number is already registered."));
+                FleetErrors.PlateDuplicate);
         }
 
         var locationResult = GeoPoint.Create(dto.Latitude, dto.Longitude);
@@ -184,7 +185,7 @@ public sealed class FleetApiService : IFleetApi
 
         var exists = await _dbContext.VehicleBrands.AnyAsync(brand => brand.Name == name, ct);
         if (exists)
-            return Result.Failure<BrandDto>(new Error("fleet.brand_duplicate", "Brand name already exists."));
+            return Result.Failure<BrandDto>(FleetErrors.BrandDuplicate);
 
         var brand = new VehicleBrand(Guid.CreateVersion7(), name);
         await _dbContext.VehicleBrands.AddAsync(brand, ct);
@@ -205,7 +206,7 @@ public sealed class FleetApiService : IFleetApi
         var duplicate = await _dbContext.VehicleBrands
             .AnyAsync(item => item.Id != brandId && item.Name == name, ct);
         if (duplicate)
-            return Result.Failure<BrandDto>(new Error("fleet.brand_duplicate", "Brand name already exists."));
+            return Result.Failure<BrandDto>(FleetErrors.BrandDuplicate);
 
         brand.UpdateName(name);
         await _dbContext.SaveChangesAsync(ct);
@@ -219,9 +220,9 @@ public sealed class FleetApiService : IFleetApi
             return Result.Failure(BrandNotFound());
 
         if (await _dbContext.VehicleModels.AnyAsync(model => model.BrandId == brandId, ct))
-            return Result.Failure(new Error("fleet.brand_in_use", "Brand cannot be deleted while models reference it."));
+            return Result.Failure(FleetErrors.BrandInUse018A61);
         if (await _dbContext.Vehicles.AnyAsync(vehicle => vehicle.BrandId == brandId, ct))
-            return Result.Failure(new Error("fleet.brand_in_use", "Brand cannot be deleted while vehicles reference it."));
+            return Result.Failure(FleetErrors.BrandInUseAA1F56);
 
         _dbContext.VehicleBrands.Remove(brand);
         await _dbContext.SaveChangesAsync(ct);
@@ -262,7 +263,7 @@ public sealed class FleetApiService : IFleetApi
         var exists = await _dbContext.VehicleModels
             .AnyAsync(model => model.BrandId == dto.BrandId && model.Name == name, ct);
         if (exists)
-            return Result.Failure<ModelDto>(new Error("fleet.model_duplicate", "Model name already exists for this brand."));
+            return Result.Failure<ModelDto>(FleetErrors.ModelDuplicate);
 
         var model = new VehicleModel(Guid.CreateVersion7(), dto.BrandId, name);
         await _dbContext.VehicleModels.AddAsync(model, ct);
@@ -287,7 +288,7 @@ public sealed class FleetApiService : IFleetApi
         var duplicate = await _dbContext.VehicleModels
             .AnyAsync(item => item.Id != modelId && item.BrandId == dto.BrandId && item.Name == name, ct);
         if (duplicate)
-            return Result.Failure<ModelDto>(new Error("fleet.model_duplicate", "Model name already exists for this brand."));
+            return Result.Failure<ModelDto>(FleetErrors.ModelDuplicate);
 
         model.Update(dto.BrandId, name);
         await _dbContext.SaveChangesAsync(ct);
@@ -300,7 +301,7 @@ public sealed class FleetApiService : IFleetApi
         if (model is null)
             return Result.Failure(ModelNotFound());
         if (await _dbContext.Vehicles.AnyAsync(vehicle => vehicle.ModelId == modelId, ct))
-            return Result.Failure(new Error("fleet.model_in_use", "Model cannot be deleted while vehicles reference it."));
+            return Result.Failure(FleetErrors.ModelInUse);
 
         _dbContext.VehicleModels.Remove(model);
         await _dbContext.SaveChangesAsync(ct);
@@ -341,16 +342,16 @@ public sealed class FleetApiService : IFleetApi
         var brandExists = await _dbContext.VehicleBrands
             .AnyAsync(brand => brand.Id == brandId, ct);
         if (!brandExists)
-            return Result.Failure(new Error("fleet.brand_not_found", "Vehicle brand was not found."));
+            return Result.Failure(FleetErrors.BrandNotFound);
 
         var model = await _dbContext.VehicleModels
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == modelId, ct);
         if (model is null)
-            return Result.Failure(new Error("fleet.model_not_found", "Vehicle model was not found."));
+            return Result.Failure(FleetErrors.ModelNotFound);
 
         if (model.BrandId != brandId)
-            return Result.Failure(new Error(
+            return Result.Failure(Error.Validation(
                 "fleet.model_brand_mismatch",
                 "Vehicle model does not belong to the selected brand."));
 
@@ -404,16 +405,16 @@ public sealed class FleetApiService : IFleetApi
     }
 
     private static Error NotFound() =>
-        new("fleet.not_found", "Vehicle not found.");
+        Error.NotFound("fleet.not_found", "Vehicle not found.");
 
     private static Error BrandNotFound() =>
-        new("fleet.brand_not_found", "Vehicle brand was not found.");
+        Error.NotFound("fleet.brand_not_found", "Vehicle brand was not found.");
 
     private static Error ModelNotFound() =>
-        new("fleet.model_not_found", "Vehicle model was not found.");
+        Error.NotFound("fleet.model_not_found", "Vehicle model was not found.");
 
     private static Error InvalidName(string message) =>
-        new("fleet.invalid_name", message);
+        Error.Validation("fleet.invalid_name", message);
 
     private static bool TryGetUniqueConstraintError(
         DbUpdateException exception,
@@ -423,12 +424,8 @@ public sealed class FleetApiService : IFleetApi
         {
             error = postgresException.ConstraintName switch
             {
-                "IX_vehicles_plate_number" => new Error(
-                    "fleet.plate_duplicate",
-                    "Plate number is already registered."),
-                "IX_vehicle_brands_name" => new Error(
-                    "fleet.brand_duplicate",
-                    "Brand name already exists."),
+                "IX_vehicles_plate_number" => FleetErrors.PlateDuplicate,
+                "IX_vehicle_brands_name" => FleetErrors.BrandDuplicate,
                 _ => Error.None
             };
 

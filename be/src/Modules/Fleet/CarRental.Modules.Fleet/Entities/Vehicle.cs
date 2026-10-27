@@ -1,3 +1,4 @@
+using CarRental.Modules.Fleet.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
@@ -61,19 +62,19 @@ public class Vehicle : AggregateRoot<VehicleId>
         string address)
     {
         if (ownerId == Guid.Empty)
-            return Result.Failure<Vehicle>(new Error("fleet.invalid_owner", "Owner ID is required."));
+            return Result.Failure<Vehicle>(FleetErrors.InvalidOwner);
 
         if (string.IsNullOrWhiteSpace(plateNumber))
-            return Result.Failure<Vehicle>(new Error("fleet.invalid_plate", "Plate number cannot be empty."));
+            return Result.Failure<Vehicle>(FleetErrors.InvalidPlate);
 
         if (seats <= 0)
-            return Result.Failure<Vehicle>(new Error("fleet.invalid_seats", "Seats must be greater than zero."));
+            return Result.Failure<Vehicle>(FleetErrors.InvalidSeats);
 
         if (location == null)
-            return Result.Failure<Vehicle>(new Error("fleet.invalid_location", "Valid vehicle location is required."));
+            return Result.Failure<Vehicle>(FleetErrors.InvalidLocation);
 
         if (string.IsNullOrWhiteSpace(address))
-            return Result.Failure<Vehicle>(new Error("fleet.invalid_address", "Address is required."));
+            return Result.Failure<Vehicle>(FleetErrors.InvalidAddress);
 
         return Result.Success(new Vehicle(VehicleId.New(), ownerId, plateNumber, brandId, modelId, transmission, seats, location, address));
     }
@@ -87,10 +88,10 @@ public class Vehicle : AggregateRoot<VehicleId>
         string address)
     {
         if (seats <= 0)
-            return Result.Failure(new Error("fleet.invalid_seats", "Seats must be greater than zero."));
+            return Result.Failure(FleetErrors.InvalidSeats);
 
         if (location == null)
-            return Result.Failure(new Error("fleet.invalid_location", "Valid vehicle location is required."));
+            return Result.Failure(FleetErrors.InvalidLocation);
 
         BrandId = brandId;
         ModelId = modelId;
@@ -105,7 +106,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result AddImage(string storageKey)
     {
         if (string.IsNullOrWhiteSpace(storageKey))
-            return Result.Failure(new Error("fleet.invalid_image", "Storage key cannot be empty."));
+            return Result.Failure(FleetErrors.InvalidImage);
 
         bool isPrimary = _images.Count == 0;
         _images.Add(new VehicleImage(Guid.CreateVersion7(), Id, storageKey.Trim(), isPrimary));
@@ -117,7 +118,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     {
         var image = _images.FirstOrDefault(i => i.Id == imageId);
         if (image == null)
-            return Result.Failure(new Error("fleet.image_not_found", "Image not found."));
+            return Result.Failure(FleetErrors.ImageNotFound);
 
         bool wasPrimary = image.IsPrimary;
         _images.Remove(image);
@@ -134,7 +135,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     {
         var target = _images.FirstOrDefault(i => i.Id == imageId);
         if (target == null)
-            return Result.Failure(new Error("fleet.image_not_found", "Image not found."));
+            return Result.Failure(FleetErrors.ImageNotFound);
 
         foreach (var img in _images)
         {
@@ -147,13 +148,13 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result SubmitForApproval()
     {
         if (Status != VehicleStatus.Draft)
-            return Result.Failure(new Error("fleet.invalid_state", "Only draft vehicles can be submitted for approval."));
+            return Result.Failure(FleetErrors.InvalidStateFCC971);
 
         if (!_images.Any(i => i.IsPrimary))
-            return Result.Failure(new Error("fleet.missing_primary_image", "A primary image is required."));
+            return Result.Failure(FleetErrors.MissingPrimaryImage);
 
         if (_images.Count < 3)
-            return Result.Failure(new Error("fleet.insufficient_images", "At least 3 images are required for approval."));
+            return Result.Failure(FleetErrors.InsufficientImages);
 
         Status = VehicleStatus.PendingApproval;
         return Result.Success();
@@ -162,7 +163,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Approve(Guid adminId)
     {
         if (Status != VehicleStatus.PendingApproval)
-            return Result.Failure(new Error("fleet.invalid_state", "Only pending approval vehicles can be approved."));
+            return Result.Failure(FleetErrors.InvalidState458A59);
 
         Status = VehicleStatus.Published;
         HiddenByAdmin = false;
@@ -174,7 +175,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Reject(Guid adminId, string reason)
     {
         if (Status != VehicleStatus.PendingApproval)
-            return Result.Failure(new Error("fleet.invalid_state", "Only pending approval vehicles can be rejected."));
+            return Result.Failure(FleetErrors.InvalidState921A2E);
 
         Status = VehicleStatus.Draft;
         _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, reason, DateTimeOffset.UtcNow));
@@ -185,7 +186,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Unpublish(Guid adminId, string reason)
     {
         if (Status != VehicleStatus.Published)
-            return Result.Failure(new Error("fleet.invalid_state", "Only published vehicles can be unpublished."));
+            return Result.Failure(FleetErrors.InvalidState6745DC);
 
         Status = VehicleStatus.Hidden;
         HiddenByAdmin = true;
@@ -197,7 +198,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Hide()
     {
         if (Status != VehicleStatus.Published)
-            return Result.Failure(new Error("fleet.invalid_state", "Only published vehicles can be hidden."));
+            return Result.Failure(FleetErrors.InvalidStateB3AEDE);
 
         Status = VehicleStatus.Hidden;
         return Result.Success();
@@ -206,10 +207,10 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Show()
     {
         if (Status != VehicleStatus.Hidden)
-            return Result.Failure(new Error("fleet.invalid_state", "Only hidden vehicles can be shown."));
+            return Result.Failure(FleetErrors.InvalidState756344);
 
         if (HiddenByAdmin)
-            return Result.Failure(new Error("fleet.hidden_by_admin", "Vehicle was unpublished by admin and must be resubmitted and re-approved."));
+            return Result.Failure(FleetErrors.HiddenByAdmin);
 
         Status = VehicleStatus.Published;
         return Result.Success();

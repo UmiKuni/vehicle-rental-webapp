@@ -1,3 +1,4 @@
+using CarRental.Modules.Pricing.Errors;
 using System.Text.Json;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
@@ -50,22 +51,22 @@ public class PricingPlan : AggregateRoot<Guid>
         Money? hourlyRate = null)
     {
         if (vehicleId == Guid.Empty)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_vehicle", "Vehicle ID is required."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidVehicle);
 
         if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_weekday_rate", "Weekday rate must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekdayRate);
 
         if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_weekend_rate", "Weekend rate must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekendRate);
 
         if (hourlyRate is not null && hourlyRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_hourly_rate", "Hourly rate must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidHourlyRate);
 
         if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_deposit", "Deposit amount cannot be negative."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidDeposit);
 
         if (kmLimit <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_km_limit", "Daily KM limit must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidKmLimit);
 
         var plan = new PricingPlan(Guid.CreateVersion7(), vehicleId, hourlyRate, weekdayRate, weekendRate, depositAmount, kmLimit);
 
@@ -84,19 +85,19 @@ public class PricingPlan : AggregateRoot<Guid>
         Money? hourlyRate = null)
     {
         if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure(new Error("pricing.invalid_weekday_rate", "Weekday rate must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidWeekdayRate);
 
         if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure(new Error("pricing.invalid_weekend_rate", "Weekend rate must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidWeekendRate);
 
         if (hourlyRate is not null && hourlyRate.Amount <= 0)
-            return Result.Failure(new Error("pricing.invalid_hourly_rate", "Hourly rate must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidHourlyRate);
 
         if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure(new Error("pricing.invalid_deposit", "Deposit amount cannot be negative."));
+            return Result.Failure(PricingErrors.InvalidDeposit);
 
         if (kmLimit <= 0)
-            return Result.Failure(new Error("pricing.invalid_km_limit", "Daily KM limit must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidKmLimit);
 
         HourlyRate = hourlyRate;
         WeekdayRate = weekdayRate;
@@ -113,7 +114,7 @@ public class PricingPlan : AggregateRoot<Guid>
     public Result SetFeeRule(FeeType type, Money amount, DateTimeOffset now)
     {
         if (amount == null || amount.Amount < 0)
-            return Result.Failure(new Error("pricing.invalid_fee_amount", "Fee amount cannot be negative."));
+            return Result.Failure(PricingErrors.InvalidFeeAmount);
 
         var existing = _feeRules.FirstOrDefault(f => f.Type == type);
         if (existing == null)
@@ -153,7 +154,7 @@ public class PricingPlan : AggregateRoot<Guid>
     public Result<Quote> CalculateQuote(DateTimeRange period)
     {
         if (period == null)
-            return Result.Failure<Quote>(new Error("pricing.invalid_period", "Rental period is required."));
+            return Result.Failure<Quote>(PricingErrors.InvalidPeriod);
 
         var lines = new List<QuoteLine>();
         var currency = WeekdayRate.Currency;
