@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Modules\Bookings\CarRental.Modules.Bookings\CarRental.Modules.Bookings.csproj" />
+    <ProjectReference Include="..\..\Modules\Pricing\CarRental.Modules.Pricing\CarRental.Modules.Pricing.csproj" />
+    <ProjectReference Include="..\..\Modules\Availability\CarRental.Modules.Availability\CarRental.Modules.Availability.csproj" />
+    <ProjectReference Include="..\..\Modules\Payments\CarRental.Modules.Payments\CarRental.Modules.Payments.csproj" />
+    <ProjectReference Include="..\..\Modules\Handover\CarRental.Modules.Handover\CarRental.Modules.Handover.csproj" />
+    <ProjectReference Include="..\..\Modules\Users\CarRental.Modules.Users\CarRental.Modules.Users.csproj" />
+    <ProjectReference Include="..\..\Modules\Fleet\CarRental.Modules.Fleet\CarRental.Modules.Fleet.csproj" />
+    <ProjectReference Include="..\..\Modules\Search\CarRental.Modules.Search\CarRental.Modules.Search.csproj" />
+    <ProjectReference Include="..\..\Modules\Reviews\CarRental.Modules.Reviews\CarRental.Modules.Reviews.csproj" />
+    <ProjectReference Include="..\..\Modules\Support\CarRental.Modules.Support\CarRental.Modules.Support.csproj" />
+    <ProjectReference Include="..\..\Modules\Notifications\CarRental.Modules.Notifications\CarRental.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\..\Modules\Audit\CarRental.Modules.Audit\CarRental.Modules.Audit.csproj" />
+    <ProjectReference Include="..\..\Modules\Reporting\CarRental.Modules.Reporting\CarRental.Modules.Reporting.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
