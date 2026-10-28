@@ -5,6 +5,7 @@ using CarRental.Modules.Availability.Endpoints;
 using CarRental.Modules.Bookings;
 using CarRental.Modules.Bookings.Endpoints;
 using CarRental.Modules.Fleet;
+using CarRental.Modules.Fleet.Endpoints;
 using CarRental.Modules.Handover;
 using CarRental.Modules.Handover.Endpoints;
 using CarRental.Modules.Notifications;
@@ -16,9 +17,12 @@ using CarRental.Modules.Reporting;
 using CarRental.Modules.Reporting.Endpoints;
 using CarRental.Modules.Reviews;
 using CarRental.Modules.Search;
+using CarRental.Modules.Search.Endpoints;
 using CarRental.Modules.Support;
 using CarRental.Modules.Users;
+using CarRental.Modules.Users.Endpoints;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +41,7 @@ builder.Services
     .AddNotificationsModule(builder.Configuration)
     .AddAuditModule(builder.Configuration)
     .AddReportingModule(builder.Configuration);
+builder.Services.AddUsersAuthentication(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddCors(options =>
@@ -47,6 +52,11 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+});
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
 builder.Services.AddOpenApi(options =>
@@ -65,12 +75,15 @@ builder.Services.AddOpenApi(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     // Auto-migrate all 13 module schemas on development startup
     await app.ApplyMigrationsAsync();
+    await app.SeedAsync();
 
     app.MapOpenApi();
     app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
@@ -78,6 +91,9 @@ if (app.Environment.IsDevelopment())
 
 // Map Module Endpoints (Mock Implementation)
 app.MapPricingEndpoints();
+app.MapUsersEndpoints();
+app.MapFleetEndpoints();
+app.MapSearchEndpoints();
 app.MapAvailabilityEndpoints();
 app.MapBookingsEndpoints();
 app.MapPaymentsEndpoints();
@@ -85,4 +101,3 @@ app.MapHandoverEndpoints();
 app.MapReportingEndpoints();
 
 app.Run();
-

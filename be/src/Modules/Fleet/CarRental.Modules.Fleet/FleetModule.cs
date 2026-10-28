@@ -1,4 +1,6 @@
 using CarRental.Modules.Fleet.Data;
+using CarRental.Modules.Fleet.Contracts;
+using CarRental.Modules.Fleet.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +19,8 @@ public static class FleetModule
         services.AddDbContext<FleetDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", FleetDbContext.Schema)));
+
+        services.AddScoped<IFleetApi, FleetApiService>();
 
         return services;
     }

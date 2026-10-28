@@ -1,3 +1,4 @@
+using CarRental.Modules.Notifications.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Notifications.Contracts.Enums;
@@ -44,13 +45,13 @@ public class Notification : AggregateRoot<NotificationId>
         DateTimeOffset now)
     {
         if (userId == Guid.Empty)
-            return Result.Failure<Notification>(new Error("notification.invalid_user", "User ID is required."));
+            return Result.Failure<Notification>(NotificationsErrors.InvalidUser);
 
         if (string.IsNullOrWhiteSpace(content))
-            return Result.Failure<Notification>(new Error("notification.invalid_content", "Notification content cannot be empty."));
+            return Result.Failure<Notification>(NotificationsErrors.InvalidContent);
 
         if (string.IsNullOrWhiteSpace(dedupKey))
-            return Result.Failure<Notification>(new Error("notification.invalid_dedup_key", "Deduplication key is required."));
+            return Result.Failure<Notification>(NotificationsErrors.InvalidDedupKey);
 
         return Result.Success(new Notification(
             NotificationId.New(),

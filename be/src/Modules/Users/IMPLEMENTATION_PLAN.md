@@ -136,19 +136,31 @@ public interface IUsersApi
 ## 7. Application Services & Endpoints (`Services/`, `Endpoints/`)
 - `UsersApiService`: Implements `IUsersApi`.
 - Minimal API Endpoints (`MapGroup("/api/users")`):
-  - `POST /auth/register`
-  - `POST /auth/login`
-  - `PUT /me/profile`
+  - `POST /register`
+  - `POST /login`
+  - `POST /refresh`
+  - `POST /logout`
+  - `GET /me`
+  - `PUT /{userId}/profile` (authenticated owner only)
   - `POST /me/identity-docs` (returns presigned upload URL)
   - `POST /me/owner-onboarding`
-  - `PUT /{id}/ban` (Admin policy, records audit entry)
+  - `PUT /{userId}/ban` (Admin policy, records audit entry)
+  - `PUT /{userId}/unban` (Admin policy)
+
+Authentication is implemented with short-lived JWT access tokens and rotating,
+hashed refresh tokens. JWT issuer, audience, signing key, and token lifetimes
+are configured under `Authentication:Jwt`. Authentication middleware checks
+the current user status on token validation, so banned users cannot use
+existing access tokens or refresh tokens.
 
 ---
 
 ## 8. Step-by-Step Task Checklist
 - [x] Document updated architecture and database entity mapping.
-- [ ] Implement `User` aggregate root and child entities (`CustomerProfile`, `OwnerProfile`, `IdentityDocument`, `RefreshToken`).
-- [ ] Implement `IUsersApi` and DTOs in `CarRental.Modules.Users.Contracts`.
-- [ ] Setup `UsersDbContext` with schema `users` and snake_case tables.
+- [x] Implement `User` aggregate root and child entities (`CustomerProfile`, `OwnerProfile`, `IdentityDocument`, `RefreshToken`).
+- [x] Implement `IUsersApi` and DTOs in `CarRental.Modules.Users.Contracts`.
+- [x] Setup `UsersDbContext` with schema `users` and snake_case tables.
+- [x] Configure JWT bearer authentication, authorization policies, access-token issuance, refresh-token rotation, logout revocation, and banned-user enforcement.
+- [x] Protect user profile and administrative endpoints with authentication and role policies.
 - [ ] Add domain unit tests for `User` invariants, registration, document replacement, owner onboarding approval, and booking eligibility.
 - [ ] Verify zero EF/ASP.NET dependencies in `Entities/` via `DomainEncapsulationTests`.

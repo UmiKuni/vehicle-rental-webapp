@@ -1,0 +1,2 @@
+# No HTTP endpoints are currently mapped for the Audit module.
+# Audit records are currently written through module services/events.

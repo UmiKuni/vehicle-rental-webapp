@@ -1,0 +1,87 @@
+@baseUrl = http://localhost:8080
+@seedOwnerEmail = owner.seed@example.com
+@seedCustomerEmail = customer.seed@example.com
+@seedPassword = Password123!
+
+### Login as the seeded owner
+# @name loginOwner
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedOwnerEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+### Login as the seeded customer
+# @name loginCustomer
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedCustomerEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@userId = {{loginOwner.response.body.$.userId}}
+@accessToken = {{loginOwner.response.body.$.accessToken}}
+@refreshToken = {{loginOwner.response.body.$.refreshToken}}
+
+### Refresh the seeded owner's access token
+# @name refreshOwner
+POST {{baseUrl}}/api/users/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+@refreshedRefreshToken = {{refreshOwner.response.body.$.refreshToken}}
+
+### Update the seeded owner's profile
+PUT {{baseUrl}}/api/users/{{userId}}/profile
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "fullName": "Seed Vehicle Owner",
+    "address": "1 Nguyen Hue, Ho Chi Minh City"
+}
+
+###
+
+### Get the seeded owner's profile
+GET {{baseUrl}}/api/users/{{userId}}/profile
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Get the seeded owner's booking eligibility
+GET {{baseUrl}}/api/users/eligibility/{{userId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Get the seeded owner's contact information
+GET {{baseUrl}}/api/users/contact/{{userId}}
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Logout the seeded owner
+POST {{baseUrl}}/api/users/logout
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "refreshToken": "{{refreshedRefreshToken}}"
+}

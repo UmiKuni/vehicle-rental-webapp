@@ -1,0 +1,110 @@
+@baseUrl = http://localhost:8080
+@seedOwnerEmail = owner.seed@example.com
+@seedPassword = Password123!
+
+### Login as the seeded owner
+# @name loginOwner
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedOwnerEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@ownerId = {{loginOwner.response.body.$.userId}}
+@accessToken = {{loginOwner.response.body.$.accessToken}}
+
+### Find the seeded owner's vehicles
+# @name ownerVehicles
+GET {{baseUrl}}/api/fleet/owners/{{ownerId}}/vehicles
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+@vehicleId = {{ownerVehicles.response.body.$[0].vehicleId}}
+
+### Get pricing for the first seeded vehicle
+GET {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Accept: application/json
+
+###
+
+### Configure daily pricing for the first seeded vehicle
+PUT {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "hourlyRate": null,
+    "weekdayRate": {
+        "amount": 500000,
+        "currency": "VND"
+    },
+    "weekendRate": {
+        "amount": 700000,
+        "currency": "VND"
+    },
+    "depositAmount": {
+        "amount": 5000000,
+        "currency": "VND"
+    },
+    "kmLimit": 300,
+    "overKmFee": {
+        "amount": 5000,
+        "currency": "VND"
+    },
+    "cleaningFee": {
+        "amount": 100000,
+        "currency": "VND"
+    },
+    "ownerId": "{{ownerId}}"
+}
+
+###
+
+### Configure hourly pricing for the first seeded vehicle
+PUT {{baseUrl}}/api/pricing/vehicles/{{vehicleId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "hourlyRate": {
+        "amount": 100000,
+        "currency": "VND"
+    },
+    "weekdayRate": {
+        "amount": 500000,
+        "currency": "VND"
+    },
+    "weekendRate": {
+        "amount": 700000,
+        "currency": "VND"
+    },
+    "depositAmount": {
+        "amount": 2000000,
+        "currency": "VND"
+    },
+    "kmLimit": 100,
+    "overKmFee": {
+        "amount": 5000,
+        "currency": "VND"
+    },
+    "cleaningFee": null,
+    "ownerId": "{{ownerId}}"
+}
+
+###
+
+### Calculate a rental quote for the first seeded vehicle
+POST {{baseUrl}}/api/pricing/quotes
+Content-Type: application/json
+
+{
+    "vehicleId": "{{vehicleId}}",
+    "startTime": "2026-10-26T09:00:00+07:00",
+    "endTime": "2026-10-28T11:00:00+07:00"
+}

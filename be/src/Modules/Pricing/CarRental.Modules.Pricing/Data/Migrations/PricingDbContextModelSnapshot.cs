@@ -63,12 +63,6 @@ namespace CarRental.Modules.Pricing.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("vehicle_id");
 
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
                     b.HasKey("Id");
 
                     b.HasIndex("VehicleId")
@@ -164,6 +158,29 @@ namespace CarRental.Modules.Pricing.Data.Migrations
                                 .HasForeignKey("PricingPlanId");
                         });
 
+                    b.OwnsOne("CarRental.BuildingBlocks.Domain.ValueObjects.Money", "HourlyRate", b1 =>
+                        {
+                            b1.Property<Guid>("PricingPlanId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<long>("Amount")
+                                .HasColumnType("bigint")
+                                .HasColumnName("hourly_rate_amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(8)
+                                .HasColumnType("character varying(8)")
+                                .HasColumnName("hourly_rate_currency");
+
+                            b1.HasKey("PricingPlanId");
+
+                            b1.ToTable("pricing_plans", "pricing");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PricingPlanId");
+                        });
+
                     b.OwnsOne("CarRental.BuildingBlocks.Domain.ValueObjects.Money", "WeekdayRate", b1 =>
                         {
                             b1.Property<Guid>("PricingPlanId")
@@ -212,6 +229,8 @@ namespace CarRental.Modules.Pricing.Data.Migrations
 
                     b.Navigation("DepositAmount")
                         .IsRequired();
+
+                    b.Navigation("HourlyRate");
 
                     b.Navigation("WeekdayRate")
                         .IsRequired();

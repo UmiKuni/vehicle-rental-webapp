@@ -1,3 +1,4 @@
+using CarRental.Modules.Users.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts.Dtos;
@@ -34,13 +35,13 @@ public class User : AggregateRoot<UserId>
     public static Result<User> Register(string email, string phone, string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(email))
-            return Result.Failure<User>(new Error("users.invalid_email", "Email cannot be empty."));
+            return Result.Failure<User>(UsersErrors.InvalidEmail2D5974);
 
         if (string.IsNullOrWhiteSpace(phone))
-            return Result.Failure<User>(new Error("users.invalid_phone", "Phone number cannot be empty."));
+            return Result.Failure<User>(UsersErrors.InvalidPhoneA912AF);
 
         if (string.IsNullOrWhiteSpace(passwordHash))
-            return Result.Failure<User>(new Error("users.invalid_password", "Password hash cannot be empty."));
+            return Result.Failure<User>(UsersErrors.InvalidPassword87B027);
 
         return Result.Success(new User(UserId.New(), email, phone, passwordHash));
     }
@@ -48,10 +49,10 @@ public class User : AggregateRoot<UserId>
     public Result UpdateProfile(string fullName, string address)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(new Error("users.banned", "Cannot update profile of a banned user."));
+            return Result.Failure(UsersErrors.Banned152FB7);
 
         if (string.IsNullOrWhiteSpace(fullName))
-            return Result.Failure(new Error("users.invalid_fullname", "Full name cannot be empty."));
+            return Result.Failure(UsersErrors.InvalidFullname);
 
         if (CustomerProfile == null)
         {
@@ -68,10 +69,10 @@ public class User : AggregateRoot<UserId>
     public Result AddIdentityDocument(DocumentType type, string storageKey)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(new Error("users.banned", "Cannot submit documents for a banned user."));
+            return Result.Failure(UsersErrors.Banned3E03B5);
 
         if (string.IsNullOrWhiteSpace(storageKey))
-            return Result.Failure(new Error("users.invalid_document", "Storage key cannot be empty."));
+            return Result.Failure(UsersErrors.InvalidDocument);
 
         // Replace any existing document of the same type
         _identityDocuments.RemoveAll(d => d.Type == type);
@@ -83,10 +84,10 @@ public class User : AggregateRoot<UserId>
     public Result SubmitOwnerOnboarding(string taxCode, IEnumerable<string>? businessDocKeys = null)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(new Error("users.banned", "Cannot onboard a banned user as owner."));
+            return Result.Failure(UsersErrors.Banned7B690E);
 
         if (string.IsNullOrWhiteSpace(taxCode))
-            return Result.Failure(new Error("users.invalid_tax_code", "Tax code is required for owner onboarding."));
+            return Result.Failure(UsersErrors.InvalidTaxCode);
 
         if (OwnerProfile == null)
         {
@@ -103,10 +104,10 @@ public class User : AggregateRoot<UserId>
     public Result ApproveOwner(Guid adminId)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(new Error("users.banned", "Cannot approve owner onboarding for a banned user."));
+            return Result.Failure(UsersErrors.Banned29AEB1);
 
         if (OwnerProfile == null || OwnerProfile.ApprovalStatus != OwnerApprovalStatus.Pending)
-            return Result.Failure(new Error("users.no_pending_owner_request", "No pending owner onboarding request found."));
+            return Result.Failure(UsersErrors.NoPendingOwnerRequest);
 
         OwnerProfile.Approve();
         Role = UserRole.Owner;
@@ -116,8 +117,11 @@ public class User : AggregateRoot<UserId>
 
     public Result RejectOwner(Guid adminId, string reason)
     {
+        if (Status == UserStatus.Banned)
+            return Result.Failure(UsersErrors.Banned29AEB1);
+
         if (OwnerProfile == null || OwnerProfile.ApprovalStatus != OwnerApprovalStatus.Pending)
-            return Result.Failure(new Error("users.no_pending_owner_request", "No pending owner onboarding request found."));
+            return Result.Failure(UsersErrors.NoPendingOwnerRequest);
 
         OwnerProfile.Reject(reason);
         return Result.Success();
@@ -127,7 +131,7 @@ public class User : AggregateRoot<UserId>
     {
         var doc = _identityDocuments.FirstOrDefault(d => d.Id == docId);
         if (doc == null)
-            return Result.Failure(new Error("users.document_not_found", "Identity document not found."));
+            return Result.Failure(UsersErrors.DocumentNotFound);
 
         doc.Verify(ok, reason);
         return Result.Success();
