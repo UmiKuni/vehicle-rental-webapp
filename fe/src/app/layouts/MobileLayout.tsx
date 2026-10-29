@@ -26,7 +26,7 @@ function BottomNav() {
       ]
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
+    <nav aria-label="Primary navigation" className="app-bottom-nav fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
       <div className="flex items-stretch max-w-md mx-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink

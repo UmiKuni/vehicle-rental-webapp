@@ -9,6 +9,7 @@ import { BookingModal } from '../components/BookingModal'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
 import { ErrorState } from '@/shared/components/common/StateViews'
 import { ROUTES } from '@/shared/constants'
+import { reverseGeocode } from '../lib/reverseGeocode'
 
 const pinPositions = [
   { left: '19%', top: '31%' }, { left: '44%', top: '23%' }, { left: '70%', top: '38%' }, { left: '31%', top: '57%' },
@@ -19,6 +20,7 @@ export default function SearchVehiclesPage() {
   const navigate = useNavigate()
   const [filters, setFilters] = useState<VehicleFilterParams>({ category: 'ALL', transmission: 'ALL' })
   const [location, setLocation] = useState('Finding your location...')
+  const [locationFromGoogle, setLocationFromGoogle] = useState(false)
   const [locating, setLocating] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -31,17 +33,26 @@ export default function SearchVehiclesPage() {
   const locate = () => {
     if (!navigator.geolocation) {
       setLocation('Ho Chi Minh City')
+      setLocationFromGoogle(false)
       return
     }
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocation(`My location · ${coords.latitude.toFixed(3)}, ${coords.longitude.toFixed(3)}`)
+      async ({ coords }) => {
         setFilters((current) => ({ ...current, location: undefined }))
-        setLocating(false)
+        try {
+          setLocation(await reverseGeocode(coords.latitude, coords.longitude))
+          setLocationFromGoogle(true)
+        } catch {
+          setLocation('Near your current location')
+          setLocationFromGoogle(false)
+        } finally {
+          setLocating(false)
+        }
       },
       () => {
         setLocation('Ho Chi Minh City')
+        setLocationFromGoogle(false)
         setFilters((current) => ({ ...current, location: undefined }))
         setLocating(false)
       },
@@ -51,6 +62,7 @@ export default function SearchVehiclesPage() {
 
   const changeLocation = (value: string) => {
     setLocation(value)
+    setLocationFromGoogle(false)
     setFilters((current) => ({ ...current, location: value.trim() || undefined }))
   }
 
@@ -70,7 +82,7 @@ export default function SearchVehiclesPage() {
 
   return (
     <div className={`vehicle-search-page ${isExpanded ? 'is-expanded' : ''}`}>
-      <VehicleFilterBar location={location} onLocationChange={changeLocation} onLocate={locate} locating={locating} filters={filters} onApply={setFilters} />
+      <VehicleFilterBar location={location} locationFromGoogle={locationFromGoogle} onLocationChange={changeLocation} onLocate={locate} locating={locating} filters={filters} onApply={setFilters} />
       <div className="search-map-stage">
         <div className="map-canvas" aria-label="Map of matching vehicles">
           <div className="map-water" />
@@ -94,7 +106,7 @@ export default function SearchVehiclesPage() {
         <button type="button" className="sheet-handle-area" onClick={() => setIsExpanded((value) => !value)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} aria-label={isExpanded ? 'Collapse vehicle list' : 'Expand vehicle list'} aria-expanded={isExpanded}>
           <span className="sheet-handle" /><span className="sheet-handle-text">{isExpanded ? 'Collapse list' : 'Swipe up to view all cars'}</span>
         </button>
-        <div className="search-results-heading"><div><span className="search-results-kicker">AVAILABLE NEAR YOU</span><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} cars found`}</h1></div><span className="search-results-location"><MapPin size={13} /> {location.startsWith('My location') ? 'Near you' : location}</span></div>
+        <div className="search-results-heading"><div><span className="search-results-kicker">AVAILABLE NEAR YOU</span><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} cars found`}</h1></div><span className="search-results-location"><MapPin size={13} /> {location.startsWith('Near your current') ? 'Near you' : location}</span></div>
         <div className="sheet-content">
           {isLoading && <div className="grid gap-3"><CardSkeleton /><CardSkeleton /></div>}
           {isError && <ErrorState message="Could not load vehicles." onRetry={() => void refetch()} />}

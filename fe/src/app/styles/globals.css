@@ -295,3 +295,68 @@
   }
 }
 
+/* Keep the map fixed as the results sheet expands to fill the available view. */
+.vehicle-search-page {
+  position: relative;
+  height: calc(100dvh - 70px);
+  min-height: 0;
+  display: block;
+  isolation: isolate;
+}
+.vehicle-search-page > .search-toolbar,
+.vehicle-search-page > .search-query-row { position: relative; z-index: 2; }
+.vehicle-search-page > .search-map-stage {
+  position: absolute;
+  z-index: 0;
+  inset: 123px 0 0;
+  min-height: 0;
+}
+.vehicle-search-page > .search-results-sheet {
+  position: absolute;
+  z-index: 3;
+  inset: auto 0 0;
+  height: 44%;
+  min-height: 230px;
+  max-height: none;
+  flex: none;
+  margin-top: 0;
+  transition: height .25s ease, top .25s ease;
+}
+.vehicle-search-page.is-expanded > .search-results-sheet { top: 123px; height: auto; }
+.search-featured-vehicle .rounded-2xl { grid-template-columns: minmax(96px, 34%) minmax(0, 1fr); }
+.search-featured-vehicle .aspect-\[16\/10\] { min-height: 150px; }
+.search-featured-vehicle .grid-cols-3,
+.search-featured-vehicle .flex.flex-wrap { display: none; }
+.search-featured-vehicle .text-base,
+.search-featured-vehicle .sm\:text-lg { font-size: 12px; }
+.search-featured-vehicle button.min-w-\[100px\] { min-width: 78px; padding-inline: 8px; }
+.home-step-top { justify-content: flex-start; }
+.home-step-index { color: #367a64; font-size: 11px; letter-spacing: .06em; }
+@media (min-width: 640px) {
+  .vehicle-search-page > .search-map-stage { inset-block-start: 134px; }
+  .vehicle-search-page.is-expanded > .search-results-sheet { top: 134px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vehicle-search-page > .search-results-sheet { transition: none; }
+}
+@media (max-width: 380px) {
+  .detail-title-row { flex-wrap: wrap; }
+  .detail-rating { margin-top: 2px; }
+  .detail-price { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .detail-book-button { align-items: flex-start; flex-direction: column; justify-content: center; gap: 3px; }
+}
+.detail-image-wrap { height: clamp(190px, 64vw, 300px); }
+.detail-main { min-width: 0; }
+.detail-title-row > div:first-child { min-width: 0; }
+.detail-title-row h1 { overflow-wrap: anywhere; }
+.detail-price { flex-wrap: wrap; gap: 8px 12px; }
+.detail-price small { max-width: 48%; text-align: right; overflow-wrap: anywhere; }
+.location-attribution { color: #9aa39f; font-size: 8px; font-weight: 500; }
+.booking-modal-panel { height: min(85dvh, 760px); min-height: 260px; }
+.booking-modal-form { min-height: 0; overscroll-behavior: contain; }
+.app-bottom-nav {
+  background-color: hsl(var(--background) / 0.98);
+  backdrop-filter: blur(14px);
+}
+body:has(.booking-modal-overlay) .app-bottom-nav { visibility: hidden; }
+

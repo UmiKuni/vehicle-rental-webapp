@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 interface VehicleFilterBarProps {
   location: string
+  locationFromGoogle: boolean
   onLocationChange: (value: string) => void
   onLocate: () => void
   locating: boolean
@@ -15,7 +16,7 @@ interface VehicleFilterBarProps {
 const fieldClass = 'h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15'
 const fieldLabel = 'mb-1.5 block text-xs font-semibold text-foreground'
 
-export function VehicleFilterBar({ location, onLocationChange, onLocate, locating, filters, onApply }: VehicleFilterBarProps) {
+export function VehicleFilterBar({ location, locationFromGoogle, onLocationChange, onLocate, locating, filters, onApply }: VehicleFilterBarProps) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<VehicleFilterParams>(filters)
   const [query, setQuery] = useState('')
@@ -32,7 +33,7 @@ export function VehicleFilterBar({ location, onLocationChange, onLocate, locatin
       <div className="search-toolbar">
         <label className="search-location">
           <MapPin size={18} className="search-location-icon" />
-          <span className="search-location-copy"><small>Pickup area</small><input value={location} onChange={(event) => onLocationChange(event.target.value)} aria-label="Search area" placeholder="Finding your location..." /></span>
+          <span className="search-location-copy"><small>Pickup area{locationFromGoogle && <span className="location-attribution"> · Google Maps</span>}</small><input value={location} onChange={(event) => onLocationChange(event.target.value)} aria-label="Search area" placeholder="Finding your location..." /></span>
         </label>
         <button type="button" onClick={onLocate} disabled={locating} className="locate-button" aria-label="Use my current location"><MapPin size={17} />{locating ? 'Locating…' : 'My location'}</button>
         <button type="button" className="filter-open-button" onClick={() => { setDraft(filters); setOpen(true) }}><SlidersHorizontal size={17} /><span>Filters</span></button>

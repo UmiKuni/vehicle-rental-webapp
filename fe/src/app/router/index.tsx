@@ -36,18 +36,7 @@ function wrap(Page: React.ComponentType) {
 }
 
 const router = createBrowserRouter([
-  { path: ROUTES.HOME, element: wrap(HomePage) },
-  { path: ROUTES.PROFILE_AUTH, element: wrap(AuthPage) },
   // ── Public Auth Pages ───────────────────────────────────────────────────────
-  {
-    path: ROUTES.LOGIN,
-    element: wrap(LoginPage),
-  },
-  {
-    path: ROUTES.REGISTER,
-    element: wrap(RegisterPage),
-  },
-
   // ── Root & Admin Desktop Dashboard ──────────────────────────────────────────
   {
     element: <AdminRoute />,
@@ -66,6 +55,10 @@ const router = createBrowserRouter([
   {
     element: <MobileLayout />,
     children: [
+      { path: ROUTES.HOME, element: wrap(HomePage) },
+      { path: ROUTES.PROFILE_AUTH, element: wrap(AuthPage) },
+      { path: ROUTES.LOGIN, element: wrap(LoginPage) },
+      { path: ROUTES.REGISTER, element: wrap(RegisterPage) },
       // 1. PUBLIC: Guests & customers can browse and search vehicles
       {
         path: ROUTES.SEARCH,
