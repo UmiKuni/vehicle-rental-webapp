@@ -1,0 +1,41 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Host/CarRental.Api/CarRental.Api.csproj" />
+    <Project Path="src/Shared/CarRental.BuildingBlocks/CarRental.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/RentalFlow/">
+    <Project Path="src/Modules/Bookings/CarRental.Modules.Bookings/CarRental.Modules.Bookings.csproj" />
+    <Project Path="src/Modules/Bookings/CarRental.Modules.Bookings.Contracts/CarRental.Modules.Bookings.Contracts.csproj" />
+    <Project Path="src/Modules/Pricing/CarRental.Modules.Pricing/CarRental.Modules.Pricing.csproj" />
+    <Project Path="src/Modules/Pricing/CarRental.Modules.Pricing.Contracts/CarRental.Modules.Pricing.Contracts.csproj" />
+    <Project Path="src/Modules/Availability/CarRental.Modules.Availability/CarRental.Modules.Availability.csproj" />
+    <Project Path="src/Modules/Availability/CarRental.Modules.Availability.Contracts/CarRental.Modules.Availability.Contracts.csproj" />
+    <Project Path="src/Modules/Payments/CarRental.Modules.Payments/CarRental.Modules.Payments.csproj" />
+    <Project Path="src/Modules/Payments/CarRental.Modules.Payments.Contracts/CarRental.Modules.Payments.Contracts.csproj" />
+    <Project Path="src/Modules/Handover/CarRental.Modules.Handover/CarRental.Modules.Handover.csproj" />
+    <Project Path="src/Modules/Handover/CarRental.Modules.Handover.Contracts/CarRental.Modules.Handover.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Catalog/">
+    <Project Path="src/Modules/Users/CarRental.Modules.Users/CarRental.Modules.Users.csproj" />
+    <Project Path="src/Modules/Users/CarRental.Modules.Users.Contracts/CarRental.Modules.Users.Contracts.csproj" />
+    <Project Path="src/Modules/Fleet/CarRental.Modules.Fleet/CarRental.Modules.Fleet.csproj" />
+    <Project Path="src/Modules/Fleet/CarRental.Modules.Fleet.Contracts/CarRental.Modules.Fleet.Contracts.csproj" />
+    <Project Path="src/Modules/Search/CarRental.Modules.Search/CarRental.Modules.Search.csproj" />
+    <Project Path="src/Modules/Search/CarRental.Modules.Search.Contracts/CarRental.Modules.Search.Contracts.csproj" />
+    <Project Path="src/Modules/Reviews/CarRental.Modules.Reviews/CarRental.Modules.Reviews.csproj" />
+    <Project Path="src/Modules/Reviews/CarRental.Modules.Reviews.Contracts/CarRental.Modules.Reviews.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Platform/">
+    <Project Path="src/Modules/Support/CarRental.Modules.Support/CarRental.Modules.Support.csproj" />
+    <Project Path="src/Modules/Support/CarRental.Modules.Support.Contracts/CarRental.Modules.Support.Contracts.csproj" />
+    <Project Path="src/Modules/Notifications/CarRental.Modules.Notifications/CarRental.Modules.Notifications.csproj" />
+    <Project Path="src/Modules/Notifications/CarRental.Modules.Notifications.Contracts/CarRental.Modules.Notifications.Contracts.csproj" />
+    <Project Path="src/Modules/Audit/CarRental.Modules.Audit/CarRental.Modules.Audit.csproj" />
+    <Project Path="src/Modules/Audit/CarRental.Modules.Audit.Contracts/CarRental.Modules.Audit.Contracts.csproj" />
+    <Project Path="src/Modules/Reporting/CarRental.Modules.Reporting/CarRental.Modules.Reporting.csproj" />
+    <Project Path="src/Modules/Reporting/CarRental.Modules.Reporting.Contracts/CarRental.Modules.Reporting.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CarRental.ArchitectureTests/CarRental.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>
