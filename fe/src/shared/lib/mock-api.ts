@@ -522,6 +522,11 @@ if (isDev) {
       const category = params.category
       const search = (params.search ?? '').toLowerCase().trim()
       const transmission = params.transmission
+      const brand = (params.brand ?? '').toLowerCase().trim()
+      const location = (params.location ?? '').toLowerCase().trim()
+      const minPrice = Number(params.minPrice ?? 0)
+      const maxPrice = Number(params.maxPrice ?? Number.POSITIVE_INFINITY)
+      const seats = Number(params.seats ?? 0)
 
       let list = [...MOCK_VEHICLES]
       if (category && category !== 'ALL') {
@@ -530,6 +535,14 @@ if (isDev) {
       if (transmission && transmission !== 'ALL') {
         list = list.filter((v) => v.transmission === transmission)
       }
+      if (brand) list = list.filter((v) => v.brand.toLowerCase().includes(brand))
+      if (location) {
+        const normalizedLocation = location.replace('ho chi minh city', 'hcmc')
+        list = list.filter((v) => v.location.toLowerCase().includes(normalizedLocation))
+      }
+      if (minPrice) list = list.filter((v) => v.pricePerDay >= minPrice)
+      if (Number.isFinite(maxPrice)) list = list.filter((v) => v.pricePerDay <= maxPrice)
+      if (seats) list = list.filter((v) => v.seats >= seats)
       if (search) {
         list = list.filter(
           (v) =>

@@ -34,7 +34,7 @@ export default function RegisterPage() {
   const onSubmit = (values: RegisterFormValues) => registerUser(values)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-zinc-950 p-4 sm:p-6 lg:p-8">
+    <div className="flex min-h-[calc(100dvh-6rem)] items-center justify-center bg-slate-100 dark:bg-zinc-950 p-4 sm:p-6 lg:p-8">
       {/* Centered Card Container */}
       <div className="w-full max-w-md md:max-w-4xl overflow-hidden rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl grid grid-cols-1 md:grid-cols-12">
         {/* Left Column (Brand & Benefits - Desktop only) */}
@@ -104,7 +104,7 @@ export default function RegisterPage() {
           {/* Segmented Control Switcher (Login / Register) */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <Link
-              to={ROUTES.LOGIN}
+              to={`${ROUTES.PROFILE_AUTH}?mode=login`}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
               Sign In

@@ -8,12 +8,15 @@ import { MobileLayout } from '@/app/layouts/MobileLayout'
 // Lazy loaded pages
 const LoginPage        = lazy(() => import('@/features/auth/pages/LoginPage'))
 const RegisterPage     = lazy(() => import('@/features/auth/pages/RegisterPage'))
+const AuthPage = lazy(() => import('@/features/auth/pages/AuthPage'))
 const DashboardPage    = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 const UsersPage        = lazy(() => import('@/features/users/pages/UsersPage'))
 const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
 const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
 const SearchVehiclesPage = lazy(() => import('@/features/vehicles/pages/SearchVehiclesPage'))
+const HomePage = lazy(() => import('@/features/home/pages/HomePage'))
+const VehicleDetailPage = lazy(() => import('@/features/vehicles/pages/VehicleDetailPage'))
 const MyBookingsPage   = lazy(() => import('@/features/bookings/pages/MyBookingsPage'))
 
 function PageLoader() {
@@ -34,15 +37,6 @@ function wrap(Page: React.ComponentType) {
 
 const router = createBrowserRouter([
   // ── Public Auth Pages ───────────────────────────────────────────────────────
-  {
-    path: ROUTES.LOGIN,
-    element: wrap(LoginPage),
-  },
-  {
-    path: ROUTES.REGISTER,
-    element: wrap(RegisterPage),
-  },
-
   // ── Root & Admin Desktop Dashboard ──────────────────────────────────────────
   {
     element: <AdminRoute />,
@@ -61,10 +55,18 @@ const router = createBrowserRouter([
   {
     element: <MobileLayout />,
     children: [
+      { path: ROUTES.HOME, element: wrap(HomePage) },
+      { path: ROUTES.PROFILE_AUTH, element: wrap(AuthPage) },
+      { path: ROUTES.LOGIN, element: wrap(LoginPage) },
+      { path: ROUTES.REGISTER, element: wrap(RegisterPage) },
       // 1. PUBLIC: Guests & customers can browse and search vehicles
       {
         path: ROUTES.SEARCH,
         element: wrap(SearchVehiclesPage),
+      },
+      {
+        path: '/vehicles/:vehicleId',
+        element: wrap(VehicleDetailPage),
       },
 
       // 2. PROTECTED: Login required to view trips and profile

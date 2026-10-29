@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from '../api/auth.api'
 import { useAuth } from '@/shared/contexts/AuthContext'
@@ -11,6 +11,7 @@ import type { LoginFormValues } from '../schemas/login.schema'
 export function useLogin() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   return useMutation({
     mutationFn: (data: LoginFormValues) => authApi.login(data),
@@ -18,7 +19,8 @@ export function useLogin() {
       login(user, token.accessToken, token.refreshToken)
       toast.success(`Welcome, ${user.fullName}!`)
       const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.SEARCH : ROUTES.DASHBOARD
-      navigate(destination, { replace: true })
+      const from = (location.state as { from?: string | { pathname?: string } } | null)?.from
+      navigate(typeof from === 'string' ? from : from?.pathname ?? destination, { replace: true })
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

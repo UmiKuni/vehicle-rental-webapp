@@ -1,13 +1,15 @@
 export const APP_NAME = import.meta.env.VITE_APP_NAME ?? 'Vehicle Rental'
 
 export const ROUTES = {
+  HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
-  DASHBOARD: '/',
+  DASHBOARD: '/dashboard',
   USERS: '/users',
   SEARCH: '/search',
   BOOKINGS: '/bookings',
   PROFILE: '/profile',
+  PROFILE_AUTH: '/profile/auth',
   PROFILE_VERIFY: '/profile/verify',
   NOT_FOUND: '/404',
 } as const
