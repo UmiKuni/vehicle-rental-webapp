@@ -22,6 +22,9 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Messaging: Wolverine with PostgreSQL transactional outbox
+builder.AddMessaging();
+
 // Register modular monolith modules
 builder.Services
     .AddUsersModule(builder.Configuration)
