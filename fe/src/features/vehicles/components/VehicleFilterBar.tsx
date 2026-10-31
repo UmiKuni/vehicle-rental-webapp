@@ -19,7 +19,7 @@ const fieldLabel = 'mb-1.5 block text-xs font-semibold text-foreground'
 export function VehicleFilterBar({ location, locationFromGoogle, onLocationChange, onLocate, locating, filters, onApply }: VehicleFilterBarProps) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<VehicleFilterParams>(filters)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(filters.search ?? '')
   const update = <K extends keyof VehicleFilterParams>(key: K, value: VehicleFilterParams[K]) => setDraft((prev) => ({ ...prev, [key]: value }))
 
   const submit = (event: React.FormEvent) => {

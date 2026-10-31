@@ -18,6 +18,7 @@ const SearchVehiclesPage = lazy(() => import('@/features/vehicles/pages/SearchVe
 const HomePage = lazy(() => import('@/features/home/pages/HomePage'))
 const VehicleDetailPage = lazy(() => import('@/features/vehicles/pages/VehicleDetailPage'))
 const MyBookingsPage   = lazy(() => import('@/features/bookings/pages/MyBookingsPage'))
+const BookingDetailPage = lazy(() => import('@/features/bookings/pages/BookingDetailPage'))
 
 function PageLoader() {
   return (
@@ -74,6 +75,7 @@ const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           { path: ROUTES.BOOKINGS, element: wrap(MyBookingsPage) },
+          { path: '/booking/:bookingId', element: wrap(BookingDetailPage) },
           { path: ROUTES.PROFILE,  element: wrap(ProfilePage) },
         ],
       },

@@ -1,23 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AtSign, ShieldCheck, Zap, Sparkles } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AtSign, ShieldCheck, Zap, Sparkles, AlertCircle } from 'lucide-react'
 import { registerSchema, type RegisterFormValues } from '../schemas/register.schema'
 import { useRegister } from '../hooks/useRegister'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
 import { ROUTES } from '@/shared/constants'
+import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const { mutate: registerUser, isPending } = useRegister()
+  const location = useLocation()
+  const { mutate: registerUser, isPending, error } = useRegister()
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -30,6 +33,17 @@ export default function RegisterPage() {
       confirmPassword: '',
     },
   })
+
+  useEffect(() => {
+    if (!error) return
+    const validFields = ['fullName', 'username', 'email', 'phone', 'password', 'confirmPassword']
+    Object.entries(getFieldErrors(error)).forEach(([field, messages]) => {
+      const name = field.charAt(0).toLowerCase() + field.slice(1)
+      if (validFields.includes(name) && messages[0]) {
+        setError(name as keyof RegisterFormValues, { type: 'server', message: messages[0] })
+      }
+    })
+  }, [error, setError])
 
   const onSubmit = (values: RegisterFormValues) => registerUser(values)
 
@@ -105,29 +119,28 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <Link
               to={`${ROUTES.PROFILE_AUTH}?mode=login`}
+              state={location.state}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
-              Sign In
+              Đăng nhập
             </Link>
             <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Register
+              Đăng ký
             </div>
           </div>
 
           {/* Greeting */}
           <div className="mb-4">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Create New Account ✨
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Đăng ký tài khoản</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Register as a member for contactless vehicle pickup
+              Điền thông tin bên dưới để tạo tài khoản của bạn.
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Full Name" error={errors.fullName?.message}>
+              <FormField label="Họ và tên" error={errors.fullName?.message}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -139,7 +152,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Username" error={errors.username?.message}>
+              <FormField label="Tên đăng nhập" error={errors.username?.message}>
                 <div className="relative">
                   <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -166,7 +179,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Phone Number" error={errors.phone?.message}>
+              <FormField label="Số điện thoại" error={errors.phone?.message}>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -181,7 +194,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Password" error={errors.password?.message}>
+              <FormField label="Mật khẩu" error={errors.password?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -202,7 +215,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Confirm Password" error={errors.confirmPassword?.message}>
+              <FormField label="Xác nhận mật khẩu" error={errors.confirmPassword?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -224,12 +237,13 @@ export default function RegisterPage() {
               </FormField>
             </div>
 
+            {error && <p className="auth-form-error" role="alert"><AlertCircle size={16} />{getErrorMessage(error)}</p>}
             <Button
               type="submit"
               loading={isPending}
               className="mt-4 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
             >
-              Create Account & Sign In
+              Tạo tài khoản
             </Button>
           </form>
         </div>

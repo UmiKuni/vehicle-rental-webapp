@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from '../api/auth.api'
 import { useAuth } from '@/shared/contexts/AuthContext'
@@ -11,6 +11,7 @@ import type { RegisterFormValues } from '../schemas/register.schema'
 export function useRegister() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   return useMutation({
     mutationFn: (data: RegisterFormValues) => {
@@ -27,7 +28,10 @@ export function useRegister() {
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
       toast.success(`Registration successful! Welcome, ${user.fullName}`)
-      navigate(ROUTES.PROFILE, { replace: true })
+      const from = (location.state as { from?: string | { pathname?: string; search?: string; hash?: string; state?: unknown } } | null)?.from
+      if (typeof from === 'string') navigate(from, { replace: true })
+      else if (from?.pathname) navigate({ pathname: from.pathname, search: from.search, hash: from.hash }, { replace: true, state: from.state })
+      else navigate(ROUTES.PROFILE, { replace: true })
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

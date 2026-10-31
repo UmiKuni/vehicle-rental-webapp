@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
 import { LayoutDashboard, User, ArrowLeft, Car, House } from 'lucide-react'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
@@ -7,6 +7,7 @@ import { useAuth } from '@/shared/contexts/AuthContext'
 import { ADMIN_ROLES, CUSTOMER_ROLES } from '@/types/auth.types'
 
 function BottomNav() {
+  const location = useLocation()
   const { user } = useAuth()
   const { data: kyc } = useKycStatus(!!user)
   const isUnverified = user && (!kyc || kyc.status === 'UNVERIFIED')
@@ -14,15 +15,15 @@ function BottomNav() {
 
   const navItems = isCustomer
     ? [
-        { to: ROUTES.HOME, icon: House, label: 'Home' },
+        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
-        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
+        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Hồ sơ' },
       ]
     : [
         { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-        { to: ROUTES.HOME, icon: House, label: 'Home' },
+        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
-        { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
+        { to: ROUTES.PROFILE, icon: User, label: 'Hồ sơ' },
       ]
 
   return (
@@ -33,32 +34,34 @@ function BottomNav() {
             key={to}
             to={to}
               end={to === ROUTES.HOME || to === ROUTES.DASHBOARD || to === ROUTES.PROFILE}
-            className={({ isActive }) =>
-              cn(
+            className={({ isActive }) => {
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Hồ sơ' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
-                isActive
+                itemIsActive
                   ? 'text-[#1a8a9d]'
                   : 'text-muted-foreground hover:text-foreground'
               )
-            }
+            }}
           >
-            {({ isActive }) => (
-              <>
+            {({ isActive }) => {
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Hồ sơ' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              return <>
                 <div className="relative">
-                  <Icon className={cn('size-5 transition-transform', isActive && 'scale-110')} />
+                  <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />
                   {/* Unverified dot on profile */}
                   {to === ROUTES.PROFILE && isUnverified && (
                     <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 border border-background" />
                   )}
                 </div>
-                <span className={cn('text-[10px] font-medium transition-all', isActive && 'font-bold text-[#1a8a9d]')}>
+                <span className={cn('text-[10px] font-medium transition-all', itemIsActive && 'font-bold text-[#1a8a9d]')}>
                   {label}
                 </span>
-                {isActive && (
+                {itemIsActive && (
                   <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#1a8a9d]" />
                 )}
               </>
-            )}
+            }}
           </NavLink>
         ))}
       </div>

@@ -1,28 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Car, KeyRound, Sparkles, ShieldCheck, Zap } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Eye, EyeOff, User, Lock, Car, KeyRound, Sparkles, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
 import { loginSchema, type LoginFormValues } from '../schemas/login.schema'
 import { useLogin } from '../hooks/useLogin'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
 import { ROUTES } from '@/shared/constants'
+import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const { mutate: login, isPending } = useLogin()
+  const location = useLocation()
+  const { mutate: login, isPending, error } = useLogin()
 
   const {
     register,
     handleSubmit,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: '', password: '' },
   })
+
+  useEffect(() => {
+    if (!error) return
+    Object.entries(getFieldErrors(error)).forEach(([field, messages]) => {
+      const name = field.toLowerCase()
+      if ((name === 'username' || name === 'password') && messages[0]) {
+        setError(name, { type: 'server', message: messages[0] })
+      }
+    })
+  }, [error, setError])
 
   const fillQuickAccount = (user: string, pass: string) => {
     setValue('username', user, { shouldValidate: true })
@@ -102,34 +115,33 @@ export default function LoginPage() {
           {/* Segmented Control Switcher (Login / Register) */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Sign In
+              Đăng nhập
             </div>
             <Link
               to={`${ROUTES.PROFILE_AUTH}?mode=register`}
+              state={location.state}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
-              Register
+              Đăng ký
             </Link>
           </div>
 
           {/* Greeting */}
           <div className="mb-5">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Welcome back! 👋
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Đăng nhập</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Sign in to rent vehicles or manage your journeys
+              Đăng nhập để tiếp tục thuê xe và quản lý chuyến đi.
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
-            <FormField label="Username or Email" error={errors.username?.message}>
+            <FormField label="Email / Số điện thoại" error={errors.username?.message}>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                 <Input
                   id="username"
-                  placeholder="user, admin or email..."
+                  placeholder="Email hoặc số điện thoại"
                   autoComplete="username"
                   autoFocus
                   className="h-11 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs font-medium focus-visible:border-[#1a8a9d]"
@@ -139,14 +151,14 @@ export default function LoginPage() {
             </FormField>
 
             <FormField
-              label="Password"
+              label="Mật khẩu"
               rightAction={
                 <a
                   href="#forgot"
                   onClick={(e) => e.preventDefault()}
                   className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Forgot password?
+                Forgot password?
                 </a>
               }
               error={errors.password?.message}
@@ -172,12 +184,13 @@ export default function LoginPage() {
               </div>
             </FormField>
 
+            {error && <p className="auth-form-error" role="alert"><AlertCircle size={16} />{getErrorMessage(error)}</p>}
             <Button
               type="submit"
               loading={isPending}
               className="mt-5 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
             >
-              Sign In Now
+              Đăng nhập
             </Button>
           </form>
 
@@ -185,7 +198,7 @@ export default function LoginPage() {
           <div className="mt-5 pt-4 border-t border-border/60">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
               <KeyRound className="size-3.5 text-zinc-400" />
-              <span>Demo test accounts (Click to auto-fill):</span>
+              <span>Tài khoản demo (nhấn để điền nhanh):</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[

@@ -18,9 +18,11 @@ export function useLogin() {
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
       toast.success(`Welcome, ${user.fullName}!`)
-      const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.SEARCH : ROUTES.DASHBOARD
-      const from = (location.state as { from?: string | { pathname?: string } } | null)?.from
-      navigate(typeof from === 'string' ? from : from?.pathname ?? destination, { replace: true })
+      const destination = CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
+      const from = (location.state as { from?: string | { pathname?: string; search?: string; hash?: string; state?: unknown } } | null)?.from
+      if (typeof from === 'string') navigate(from, { replace: true })
+      else if (from?.pathname) navigate({ pathname: from.pathname, search: from.search, hash: from.hash }, { replace: true, state: from.state })
+      else navigate(destination, { replace: true })
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

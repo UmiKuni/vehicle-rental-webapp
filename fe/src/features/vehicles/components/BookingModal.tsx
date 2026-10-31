@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, ShieldAlert, LogIn } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Vehicle } from '@/types/vehicle.types'
-import type { DeliveryType } from '@/types/booking.types'
+import type { Booking, DeliveryType } from '@/types/booking.types'
 import { useCreateBooking } from '@/features/bookings/hooks/useBookings'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
@@ -14,24 +14,32 @@ import { BookingDatesDelivery } from './BookingDatesDelivery'
 interface BookingModalProps {
   vehicle: Vehicle | null
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (booking: Booking) => void
+  initialStartDate?: string
+  initialEndDate?: string
 }
 
-export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps) {
+export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, initialEndDate }: BookingModalProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: kyc } = useKycStatus(!!user)
   const { mutate: createBooking, isPending } = useCreateBooking()
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
   const dayAfter = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]
 
-  const [startDate, setStartDate] = useState(tomorrow)
-  const [endDate, setEndDate] = useState(dayAfter)
+  const [startDate, setStartDate] = useState(initialStartDate?.slice(0, 10) || tomorrow)
+  const [endDate, setEndDate] = useState(initialEndDate?.slice(0, 10) || dayAfter)
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('STATION')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [customerName, setCustomerName] = useState(user?.fullName ?? '')
   const [customerPhone, setCustomerPhone] = useState('0912345678')
+
+  useEffect(() => {
+    setStartDate(initialStartDate?.slice(0, 10) || tomorrow)
+    setEndDate(initialEndDate?.slice(0, 10) || dayAfter)
+  }, [vehicle?.id, initialStartDate, initialEndDate, tomorrow, dayAfter])
 
   if (!vehicle) return null
 
@@ -44,10 +52,24 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
   const rentalAmount = totalDays * vehicle.pricePerDay
   const totalAmount = rentalAmount + deliveryFee
 
+  const requestLogin = () => {
+    const previousState = location.state && typeof location.state === 'object' ? location.state : {}
+    navigate(ROUTES.PROFILE_AUTH, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: location.search,
+          state: { ...previousState, pickupAt: startDate, returnAt: endDate, resumeBookingVehicleId: vehicle.id, resumeBookingVehicle: vehicle },
+        },
+      },
+      replace: true,
+    })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      navigate(ROUTES.PROFILE_AUTH, { state: { from: ROUTES.SEARCH } })
+      requestLogin()
       return
     }
 
@@ -62,8 +84,8 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
         customerPhone: customerPhone.trim(),
       },
       {
-        onSuccess: () => {
-          onSuccess()
+        onSuccess: (booking) => {
+          onSuccess(booking)
           onClose()
         },
       }
@@ -194,7 +216,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
           ) : (
             <Button
               type="button"
-              onClick={() => navigate(ROUTES.PROFILE_AUTH, { state: { from: ROUTES.SEARCH } })}
+              onClick={requestLogin}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press flex items-center justify-center gap-2"
             >
               <LogIn className="size-4" />
