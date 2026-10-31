@@ -15,15 +15,15 @@ function BottomNav() {
 
   const navItems = isCustomer
     ? [
-        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
+        { to: ROUTES.HOME, icon: House, label: 'Home' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
-        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Hồ sơ' },
+        { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
       ]
     : [
         { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-        { to: ROUTES.HOME, icon: House, label: 'Trang chủ' },
+        { to: ROUTES.HOME, icon: House, label: 'Home' },
         { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
-        { to: ROUTES.PROFILE, icon: User, label: 'Hồ sơ' },
+        { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
       ]
 
   return (
@@ -35,7 +35,7 @@ function BottomNav() {
             to={to}
               end={to === ROUTES.HOME || to === ROUTES.DASHBOARD || to === ROUTES.PROFILE}
             className={({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Hồ sơ' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
               return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
                 itemIsActive
@@ -45,7 +45,7 @@ function BottomNav() {
             }}
           >
             {({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Hồ sơ' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
               return <>
                 <div className="relative">
                   <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />

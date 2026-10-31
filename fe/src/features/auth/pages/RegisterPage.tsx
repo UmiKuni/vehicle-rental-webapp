@@ -122,25 +122,25 @@ export default function RegisterPage() {
               state={location.state}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
-              Đăng nhập
+              Sign In
             </Link>
             <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Đăng ký
+              Sign Up
             </div>
           </div>
 
           {/* Greeting */}
           <div className="mb-4">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Đăng ký tài khoản</h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Create an account</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Điền thông tin bên dưới để tạo tài khoản của bạn.
+              Enter your details below to create your account.
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Họ và tên" error={errors.fullName?.message}>
+              <FormField label="Full name" error={errors.fullName?.message}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -152,7 +152,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Tên đăng nhập" error={errors.username?.message}>
+              <FormField label="Username" error={errors.username?.message}>
                 <div className="relative">
                   <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -179,7 +179,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Số điện thoại" error={errors.phone?.message}>
+              <FormField label="Phone number" error={errors.phone?.message}>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -194,7 +194,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Mật khẩu" error={errors.password?.message}>
+              <FormField label="Password" error={errors.password?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -215,7 +215,7 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Xác nhận mật khẩu" error={errors.confirmPassword?.message}>
+              <FormField label="Confirm password" error={errors.confirmPassword?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
@@ -243,7 +243,7 @@ export default function RegisterPage() {
               loading={isPending}
               className="mt-4 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
             >
-              Tạo tài khoản
+              Create Account
             </Button>
           </form>
         </div>

@@ -11,11 +11,11 @@ export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { 
   return (
     <section id="vehicle-reviews" className="detail-section vehicle-reviews" aria-labelledby="vehicle-reviews-title">
       <div className="detail-section-heading">
-        <div><span className="detail-eyebrow">ĐÁNH GIÁ TỪ KHÁCH THUÊ</span><h2 id="vehicle-reviews-title">Nhận xét</h2></div>
-        <span className="vehicle-review-total">{totalCount} đánh giá</span>
+        <div><span className="detail-eyebrow">RENTER FEEDBACK</span><h2 id="vehicle-reviews-title">Reviews</h2></div>
+        <span className="vehicle-review-total">{totalCount} reviews</span>
       </div>
       {reviews.length === 0 ? (
-        <p className="vehicle-reviews-empty">{totalCount === 0 ? 'Chưa có đánh giá' : 'Danh sách nhận xét hiện chưa được cung cấp.'}</p>
+        <p className="vehicle-reviews-empty">{totalCount === 0 ? 'No reviews yet.' : 'Review details are currently unavailable.'}</p>
       ) : (
         <>
           <div className="vehicle-review-list">
@@ -31,7 +31,7 @@ export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { 
           </div>
           {visibleCount < reviews.length && (
             <button type="button" className="vehicle-reviews-more" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>
-              Xem thêm {Math.min(PAGE_SIZE, reviews.length - visibleCount)} đánh giá
+              Show {Math.min(PAGE_SIZE, reviews.length - visibleCount)} more reviews
             </button>
           )}
         </>

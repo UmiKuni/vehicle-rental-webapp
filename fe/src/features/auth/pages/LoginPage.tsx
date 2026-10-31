@@ -115,33 +115,33 @@ export default function LoginPage() {
           {/* Segmented Control Switcher (Login / Register) */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
             <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Đăng nhập
+              Sign In
             </div>
             <Link
               to={`${ROUTES.PROFILE_AUTH}?mode=register`}
               state={location.state}
               className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
             >
-              Đăng ký
+              Sign Up
             </Link>
           </div>
 
           {/* Greeting */}
           <div className="mb-5">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Đăng nhập</h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Sign In</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Đăng nhập để tiếp tục thuê xe và quản lý chuyến đi.
+              Sign in to continue booking and manage your trips.
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
-            <FormField label="Email / Số điện thoại" error={errors.username?.message}>
+            <FormField label="Email / Phone number" error={errors.username?.message}>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                 <Input
                   id="username"
-                  placeholder="Email hoặc số điện thoại"
+                  placeholder="Email or phone number"
                   autoComplete="username"
                   autoFocus
                   className="h-11 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs font-medium focus-visible:border-[#1a8a9d]"
@@ -151,7 +151,7 @@ export default function LoginPage() {
             </FormField>
 
             <FormField
-              label="Mật khẩu"
+              label="Password"
               rightAction={
                 <a
                   href="#forgot"
@@ -190,7 +190,7 @@ export default function LoginPage() {
               loading={isPending}
               className="mt-5 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
             >
-              Đăng nhập
+              Sign In
             </Button>
           </form>
 
@@ -198,7 +198,7 @@ export default function LoginPage() {
           <div className="mt-5 pt-4 border-t border-border/60">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
               <KeyRound className="size-3.5 text-zinc-400" />
-              <span>Tài khoản demo (nhấn để điền nhanh):</span>
+              <span>Demo accounts (click to fill):</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[
