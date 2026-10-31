@@ -62,8 +62,8 @@ The system is one ASP.NET Core application behind a thin API host. The host hand
 
 - **Contracts only.** Modules reference each other's contracts project and nothing else.
 - **No cross-schema joins or foreign keys.** Modules store only the other module's IDs.
-- **Synchronous calls** for answers needed immediately: Booking to Pricing (quote), Availability (hold) and Users (profile verified).
-- **Events through an outbox** for everything else, such as `BookingConfirmed` or `PaymentSucceeded`. These feed Notifications, Search, Reporting, Audit and Reviews.
+- **Synchronous in-process calls (`IApi`)** for immediate domain operations and state transitions: Booking to Pricing (quote), Availability (hold/confirm), Users (profile verified), Payments to Booking (mark paid), Handover to Booking (start/complete trip), and Support to Payments (settle deposit).
+- **Events through an outbox** for decoupled side-effects and background projections: Notifications (Email/SMS alerts), Search (catalog index updates), Reporting (daily aggregates), and Audit (immutable security log).
 - **Admin is not a module.** Admin use cases are endpoints inside the owning module, protected by an `Admin` policy.
 
 ### Inside each module
