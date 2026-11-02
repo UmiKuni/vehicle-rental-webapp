@@ -212,7 +212,7 @@ Result AddOverKmFee(Money amount);                                // [ASSUMPTION
 
 ### 4.2 Pricing — schema `pricing`
 
-**Aggregate root `PricingPlan`** (table `PricingPlans`): `Id`, `VehicleId` (unique, indexed), `WeekdayRate`, `WeekendRate`, `DepositAmount`, `KmLimit` (per day).
+**Aggregate root `PricingPlan`** (table `PricingPlans`): `Id`, `VehicleId` (unique, indexed), optional `HourlyRate`, `WeekdayRate`, `WeekendRate`, `DepositAmount`, `KmLimit` (per day).
 **Child entities:**
 - `FeeRule` (`Id`, `Type`: `OverKm`/`Cleaning`, `Amount`) — at most one per `Type`.
 - `PricingPlanVersion` (`Id`, `VehicleId`, `Config` JSONB, `CreatedAt`) — one row appended on **every** change for audit (NFR-13); never loaded with the aggregate.
@@ -225,7 +225,7 @@ Result SetFeeRule(FeeType type, Money amount, now);                     // upser
 Result RemoveFeeRule(FeeType type, now);
 Result<Quote> CalculateQuote(TimeRange period);                         // pure, no side effects, nothing persisted
 ```
-`Quote` (value object, **not stored**; the booking stores the snapshot as `BookingLineItems`): `Lines` = `Rent` (sum per day: weekend days use `WeekendRate`, other days `WeekdayRate`, **[ASSUMPTION]** Saturday/Sunday, UTC+7, partial day counts as a full day), `Deposit` (`DepositAmount`), `CleaningFee` (if a `Cleaning` rule exists); `Total`; `KmLimitPerDay`, `OverKmFeePerKm` (information for the snapshot, charged later); **[ASSUMPTION]** `CancellationPolicy` taken from platform configuration (the source does not say where the policy comes from).
+`Quote` (value object, **not stored**; the booking stores the snapshot as `BookingLineItems`): hourly plans charge each started rental hour; daily plans sum per day (weekend days use `WeekendRate`, other days `WeekdayRate`, **[ASSUMPTION]** Saturday/Sunday, UTC+7, partial day counts as a full day). Both include `Deposit` (`DepositAmount`) and `CleaningFee` (if configured); `Total`; `KmLimitPerDay`, `OverKmFeePerKm` (information for the snapshot, charged later); **[ASSUMPTION]** `CancellationPolicy` taken from platform configuration (the source does not say where the policy comes from).
 
 **Invariants:** rates > 0, `DepositAmount ≥ 0`, `KmLimit > 0`, fee amounts ≥ 0; exactly one plan per vehicle; only the vehicle's owner may change the plan (checked via `IFleetApi`).
 **API:** `POST /api/pricing/quotes` (body: `vehicleId`, `startTime`, `endTime`; the server computes the final price), `PUT /api/pricing/vehicles/{id}` (weekend rate, over-km fee, cleaning fee, ...).
@@ -381,7 +381,7 @@ Result Hide();   Result Show();                  // owner
 **Read model `VehicleSearchDocument`** (table `VehicleSearchDocuments`): `VehicleId` (PK), `Location` (PostGIS `Geometry`), `Brand`, `Model`, `Seats`, `Transmission`, `PriceFrom`, `AverageRating`. **[ASSUMPTION]** `IsPublished`, `LastFleetEventAt`, `LastPricingEventAt`, `LastRatingEventAt` so out-of-order events converge (price/rating events may arrive before the publish event; stale events are ignored).
 **Behavior:** `ApplyPublished(VehiclePublished)`, `ApplyUnpublished(...)`, `ApplyPrice(PricingUpdated)`, `ApplyRating(RatingSummaryUpdated)` — all idempotent, no public setters.
 **Visibility rule [ASSUMPTION]:** returned by queries only if `IsPublished` and `PriceFrom` is not null.
-**API:** `GET /api/search/vehicles` — pagination, radius filter via PostGIS (`ST_DWithin`), specs (brand, model, seats, transmission) and price filter. Target < 2s (NFR-01).
+**API:** `GET /api/search/vehicles` — pagination, radius filter, specs (brand, model, seats, transmission), and price filter. The current schema stores latitude/longitude columns; Search applies a database bounding-box prefilter followed by an exact great-circle distance check. Target < 2s (NFR-01).
 **Consumes:** `VehiclePublished`, `VehicleUnpublished`, `PricingUpdated`, `RatingSummaryUpdated`.
 
 ---

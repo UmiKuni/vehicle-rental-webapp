@@ -117,6 +117,30 @@ public class PricingModuleTests
     }
 
     [Fact]
+    public void CalculateQuote_WithHourlyRate_ShouldChargeStartedHours()
+    {
+        var plan = PricingPlan.Create(
+            Guid.NewGuid(),
+            new Money(500_000, "VND"),
+            new Money(700_000, "VND"),
+            new Money(2_000_000, "VND"),
+            100,
+            Now,
+            new Money(100_000, "VND")).Value;
+        plan.SetFeeRule(FeeType.Cleaning, new Money(50_000, "VND"), Now);
+
+        var period = DateTimeRange.Create(
+            new DateTimeOffset(2026, 10, 26, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 10, 27, 10, 30, 0, TimeSpan.Zero)).Value;
+
+        var quote = plan.CalculateQuote(period).Value;
+
+        quote.Total.Amount.Should().Be(2_650_000);
+        quote.Lines.Should().Contain(l => l.Type == QuoteLineType.BaseRate && l.Amount.Amount == 2_600_000);
+        quote.Lines.Should().Contain(l => l.Type == QuoteLineType.CleaningFee);
+    }
+
+    [Fact]
     public void CreateVersionSnapshot_ShouldProduceValidAuditRecord()
     {
         var plan = PricingPlan.Create(

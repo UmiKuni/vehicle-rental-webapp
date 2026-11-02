@@ -1,3 +1,4 @@
+using CarRental.Modules.Payments.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
@@ -42,16 +43,16 @@ public class Payment : AggregateRoot<PaymentId>
         DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure<Payment>(new Error("payment.invalid_booking", "Booking ID is required."));
+            return Result.Failure<Payment>(PaymentsErrors.InvalidBooking);
 
         if (amount == null || amount.Amount <= 0)
-            return Result.Failure<Payment>(new Error("payment.invalid_amount", "Payment amount must be greater than zero."));
+            return Result.Failure<Payment>(PaymentsErrors.InvalidAmount);
 
         if (depositPortion == null || depositPortion.Amount < 0)
-            return Result.Failure<Payment>(new Error("payment.invalid_deposit_portion", "Deposit portion cannot be negative."));
+            return Result.Failure<Payment>(PaymentsErrors.InvalidDepositPortion);
 
         if (depositPortion.Amount > amount.Amount)
-            return Result.Failure<Payment>(new Error("payment.deposit_exceeds_amount", "Deposit portion cannot exceed total payment amount."));
+            return Result.Failure<Payment>(PaymentsErrors.DepositExceedsAmount);
 
         return Result.Success(new Payment(PaymentId.New(), bookingId, amount, depositPortion, now));
     }
@@ -59,7 +60,7 @@ public class Payment : AggregateRoot<PaymentId>
     public Result SetPaymentMethod(PaymentMethod method)
     {
         if (Status != PaymentStatus.Pending)
-            return Result.Failure(new Error("payment.invalid_state", "Payment method can only be updated for pending payments."));
+            return Result.Failure(PaymentsErrors.InvalidState);
 
         Method = method;
         return Result.Success();
@@ -68,10 +69,10 @@ public class Payment : AggregateRoot<PaymentId>
     public Result MarkSuccess(string gatewayTransactionId, DateTimeOffset now)
     {
         if (Status != PaymentStatus.Pending)
-            return Result.Failure(new Error("payment.invalid_state", $"Only pending payments can be marked success. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("payment.invalid_state", $"Only pending payments can be marked success. Current status: {Status}."));
 
         if (string.IsNullOrWhiteSpace(gatewayTransactionId))
-            return Result.Failure(new Error("payment.invalid_transaction_id", "Gateway transaction ID is required."));
+            return Result.Failure(PaymentsErrors.InvalidTransactionId);
 
         Status = PaymentStatus.Success;
         GatewayTransactionId = gatewayTransactionId.Trim();
@@ -83,7 +84,7 @@ public class Payment : AggregateRoot<PaymentId>
     public Result MarkFailed(string gatewayTransactionId, string reason, DateTimeOffset now)
     {
         if (Status != PaymentStatus.Pending)
-            return Result.Failure(new Error("payment.invalid_state", $"Only pending payments can be marked failed. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("payment.invalid_state", $"Only pending payments can be marked failed. Current status: {Status}."));
 
         Status = PaymentStatus.Failed;
         GatewayTransactionId = string.IsNullOrWhiteSpace(gatewayTransactionId) ? null : gatewayTransactionId.Trim();
@@ -96,7 +97,7 @@ public class Payment : AggregateRoot<PaymentId>
     public Result Cancel(string reason, DateTimeOffset now)
     {
         if (Status != PaymentStatus.Pending)
-            return Result.Failure(new Error("payment.invalid_state", $"Only pending payments can be cancelled. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("payment.invalid_state", $"Only pending payments can be cancelled. Current status: {Status}."));
 
         Status = PaymentStatus.Failed;
         FailureReason = string.IsNullOrWhiteSpace(reason) ? "Payment cancelled" : reason.Trim();

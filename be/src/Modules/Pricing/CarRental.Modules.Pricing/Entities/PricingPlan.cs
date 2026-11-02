@@ -1,3 +1,4 @@
+using CarRental.Modules.Pricing.Errors;
 using System.Text.Json;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
@@ -12,6 +13,7 @@ public class PricingPlan : AggregateRoot<Guid>
     private readonly List<FeeRule> _feeRules = new();
 
     public Guid VehicleId { get; private set; }
+    public Money? HourlyRate { get; private set; }
     public Money WeekdayRate { get; private set; } = Money.Zero();
     public Money WeekendRate { get; private set; } = Money.Zero();
     public Money DepositAmount { get; private set; } = Money.Zero();
@@ -24,6 +26,7 @@ public class PricingPlan : AggregateRoot<Guid>
     private PricingPlan(
         Guid id,
         Guid vehicleId,
+        Money? hourlyRate,
         Money weekdayRate,
         Money weekendRate,
         Money depositAmount,
@@ -31,6 +34,7 @@ public class PricingPlan : AggregateRoot<Guid>
     {
         Id = id;
         VehicleId = vehicleId;
+        HourlyRate = hourlyRate;
         WeekdayRate = weekdayRate;
         WeekendRate = weekendRate;
         DepositAmount = depositAmount;
@@ -43,24 +47,28 @@ public class PricingPlan : AggregateRoot<Guid>
         Money weekendRate,
         Money depositAmount,
         int kmLimit,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        Money? hourlyRate = null)
     {
         if (vehicleId == Guid.Empty)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_vehicle", "Vehicle ID is required."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidVehicle);
 
         if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_weekday_rate", "Weekday rate must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekdayRate);
 
         if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_weekend_rate", "Weekend rate must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekendRate);
+
+        if (hourlyRate is not null && hourlyRate.Amount <= 0)
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidHourlyRate);
 
         if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_deposit", "Deposit amount cannot be negative."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidDeposit);
 
         if (kmLimit <= 0)
-            return Result.Failure<PricingPlan>(new Error("pricing.invalid_km_limit", "Daily KM limit must be greater than zero."));
+            return Result.Failure<PricingPlan>(PricingErrors.InvalidKmLimit);
 
-        var plan = new PricingPlan(Guid.CreateVersion7(), vehicleId, weekdayRate, weekendRate, depositAmount, kmLimit);
+        var plan = new PricingPlan(Guid.CreateVersion7(), vehicleId, hourlyRate, weekdayRate, weekendRate, depositAmount, kmLimit);
 
         var minPrice = Math.Min(weekdayRate.Amount, weekendRate.Amount);
         plan.Raise(new PricingUpdated(Guid.CreateVersion7(), now, vehicleId, minPrice));
@@ -73,20 +81,25 @@ public class PricingPlan : AggregateRoot<Guid>
         Money weekendRate,
         Money depositAmount,
         int kmLimit,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        Money? hourlyRate = null)
     {
         if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure(new Error("pricing.invalid_weekday_rate", "Weekday rate must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidWeekdayRate);
 
         if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure(new Error("pricing.invalid_weekend_rate", "Weekend rate must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidWeekendRate);
+
+        if (hourlyRate is not null && hourlyRate.Amount <= 0)
+            return Result.Failure(PricingErrors.InvalidHourlyRate);
 
         if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure(new Error("pricing.invalid_deposit", "Deposit amount cannot be negative."));
+            return Result.Failure(PricingErrors.InvalidDeposit);
 
         if (kmLimit <= 0)
-            return Result.Failure(new Error("pricing.invalid_km_limit", "Daily KM limit must be greater than zero."));
+            return Result.Failure(PricingErrors.InvalidKmLimit);
 
+        HourlyRate = hourlyRate;
         WeekdayRate = weekdayRate;
         WeekendRate = weekendRate;
         DepositAmount = depositAmount;
@@ -101,7 +114,7 @@ public class PricingPlan : AggregateRoot<Guid>
     public Result SetFeeRule(FeeType type, Money amount, DateTimeOffset now)
     {
         if (amount == null || amount.Amount < 0)
-            return Result.Failure(new Error("pricing.invalid_fee_amount", "Fee amount cannot be negative."));
+            return Result.Failure(PricingErrors.InvalidFeeAmount);
 
         var existing = _feeRules.FirstOrDefault(f => f.Type == type);
         if (existing == null)
@@ -127,6 +140,7 @@ public class PricingPlan : AggregateRoot<Guid>
         var configObj = new
         {
             VehicleId,
+            HourlyRate = HourlyRate?.Amount,
             WeekdayRate = WeekdayRate.Amount,
             WeekendRate = WeekendRate.Amount,
             DepositAmount = DepositAmount.Amount,
@@ -140,10 +154,37 @@ public class PricingPlan : AggregateRoot<Guid>
     public Result<Quote> CalculateQuote(DateTimeRange period)
     {
         if (period == null)
-            return Result.Failure<Quote>(new Error("pricing.invalid_period", "Rental period is required."));
+            return Result.Failure<Quote>(PricingErrors.InvalidPeriod);
 
         var lines = new List<QuoteLine>();
         var currency = WeekdayRate.Currency;
+
+        if (HourlyRate is not null)
+        {
+            var totalHours = Math.Max(1, (int)Math.Ceiling(period.Duration.TotalHours));
+            var hourlyTotal = checked(HourlyRate.Amount * totalHours);
+            lines.Add(new QuoteLine(
+                QuoteLineType.BaseRate,
+                $"Rent ({totalHours} hours)",
+                new Money(hourlyTotal, HourlyRate.Currency)));
+            var hourlyCleaningRule = _feeRules.FirstOrDefault(f => f.Type == FeeType.Cleaning);
+            if (hourlyCleaningRule is not null && hourlyCleaningRule.Amount.Amount > 0)
+            {
+                lines.Add(new QuoteLine(QuoteLineType.CleaningFee, "Cleaning fee", hourlyCleaningRule.Amount));
+                hourlyTotal = checked(hourlyTotal + hourlyCleaningRule.Amount.Amount);
+            }
+            lines.Add(new QuoteLine(QuoteLineType.Deposit, "Security deposit", DepositAmount));
+
+            Money? hourlyOverKmFee = _feeRules.FirstOrDefault(f => f.Type == FeeType.OverKm)?.Amount;
+            return Result.Success(new Quote(
+                VehicleId,
+                new Money(hourlyTotal, HourlyRate.Currency),
+                DepositAmount,
+                KmLimit,
+                hourlyOverKmFee,
+                lines,
+                CancellationPolicy.Standard));
+        }
 
         // Calculate days in UTC+7 (Vietnam Time)
         var vnOffset = TimeSpan.FromHours(7);

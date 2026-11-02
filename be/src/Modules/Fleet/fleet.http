@@ -1,0 +1,118 @@
+@baseUrl = http://localhost:8080
+@seedOwnerEmail = owner.seed@example.com
+@seedPassword = Password123!
+@brandId = 00000000-0000-0000-0000-000000000101
+@modelId = 00000000-0000-0000-0000-000000000201
+
+### Login as the seeded owner
+# @name loginOwner
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedOwnerEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@ownerId = {{loginOwner.response.body.$.userId}}
+@accessToken = {{loginOwner.response.body.$.accessToken}}
+
+### List the seeded owner's vehicles
+# @name ownerVehicles
+GET {{baseUrl}}/api/fleet/owners/{{ownerId}}/vehicles
+Accept: application/json
+Authorization: Bearer {{accessToken}}
+
+###
+
+@vehicleId = {{ownerVehicles.response.body.$[0].vehicleId}}
+
+### List seeded brands
+GET {{baseUrl}}/api/fleet/brands
+Accept: application/json
+
+###
+
+### Get the seeded Toyota brand
+GET {{baseUrl}}/api/fleet/brands/{{brandId}}
+Accept: application/json
+
+###
+
+### List seeded models for Toyota
+GET {{baseUrl}}/api/fleet/models?brandId={{brandId}}
+Accept: application/json
+
+###
+
+### Get the seeded Toyota Vios model
+GET {{baseUrl}}/api/fleet/models/{{modelId}}
+Accept: application/json
+
+###
+
+### List published seeded vehicles
+GET {{baseUrl}}/api/fleet/vehicles
+Accept: application/json
+
+###
+
+### Get the first seeded vehicle
+GET {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Accept: application/json
+
+###
+
+### Create a vehicle for the seeded owner
+POST {{baseUrl}}/api/fleet/vehicles
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "ownerId": "{{ownerId}}",
+    "plateNumber": "51K-999.23",
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Update the first seeded vehicle
+PUT {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "1 Nguyen Hue, District 1, Ho Chi Minh City"
+}
+
+###
+
+### Submit the first seeded vehicle for approval
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/submit
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Hide the first seeded vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/hide
+Authorization: Bearer {{accessToken}}
+
+###
+
+### Show the first seeded vehicle
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/show
+Authorization: Bearer {{accessToken}}

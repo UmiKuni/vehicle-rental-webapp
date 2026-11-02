@@ -1,0 +1,2 @@
+# No HTTP endpoints are currently mapped for the Payments module.
+# Add checkout and webhook requests here when the module endpoint surface is exposed.

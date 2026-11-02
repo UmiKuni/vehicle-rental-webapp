@@ -1,4 +1,6 @@
 using CarRental.Modules.Search.Data;
+using CarRental.Modules.Search.Contracts;
+using CarRental.Modules.Search.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +22,8 @@ public static class SearchModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", SearchDbContext.Schema);
                 o.UseNetTopologySuite();
             }));
+
+        services.AddScoped<ISearchApi, SearchApiService>();
 
         return services;
     }

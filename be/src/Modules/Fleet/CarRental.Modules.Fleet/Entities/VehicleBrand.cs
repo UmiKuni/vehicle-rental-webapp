@@ -13,4 +13,9 @@ public class VehicleBrand : Entity<Guid>
         Id = id;
         Name = name;
     }
+
+    public void UpdateName(string name)
+    {
+        Name = name.Trim();
+    }
 }

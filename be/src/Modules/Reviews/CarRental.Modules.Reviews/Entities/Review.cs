@@ -1,3 +1,4 @@
+using CarRental.Modules.Reviews.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Reviews.Contracts.Enums;
@@ -45,19 +46,19 @@ public class Review : AggregateRoot<ReviewId>
         DateTimeOffset now)
     {
         if (booking == null)
-            return Result.Failure<Review>(new Error("review.invalid_booking", "Reviewable booking context is required."));
+            return Result.Failure<Review>(ReviewsErrors.InvalidBooking);
 
         if (customerId == Guid.Empty || customerId != booking.CustomerId)
-            return Result.Failure<Review>(new Error("review.unauthorized", "Only the renter who completed the trip can review this vehicle."));
+            return Result.Failure<Review>(ReviewsErrors.Unauthorized);
 
         if (booking.HasReviewed)
-            return Result.Failure<Review>(new Error("review.already_reviewed", "This booking has already been reviewed."));
+            return Result.Failure<Review>(ReviewsErrors.AlreadyReviewed);
 
         if (rating < 1 || rating > 5)
-            return Result.Failure<Review>(new Error("review.invalid_rating", "Rating must be between 1 and 5 stars."));
+            return Result.Failure<Review>(ReviewsErrors.InvalidRating);
 
         if (string.IsNullOrWhiteSpace(content))
-            return Result.Failure<Review>(new Error("review.empty_content", "Review content cannot be empty."));
+            return Result.Failure<Review>(ReviewsErrors.EmptyContent);
 
         booking.MarkReviewed();
         return Result.Success(new Review(
@@ -73,10 +74,10 @@ public class Review : AggregateRoot<ReviewId>
     public Result Hide(Guid adminId, string reason)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(new Error("review.invalid_admin", "Admin ID is required to hide a review."));
+            return Result.Failure(ReviewsErrors.InvalidAdmin4CF5BB);
 
         if (string.IsNullOrWhiteSpace(reason))
-            return Result.Failure(new Error("review.missing_reason", "A moderation reason is required to hide a review."));
+            return Result.Failure(ReviewsErrors.MissingReason);
 
         Status = ReviewStatus.Hidden;
         ModeratedBy = adminId;
@@ -88,7 +89,7 @@ public class Review : AggregateRoot<ReviewId>
     public Result Restore(Guid adminId)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(new Error("review.invalid_admin", "Admin ID is required to restore a review."));
+            return Result.Failure(ReviewsErrors.InvalidAdmin21FF89);
 
         Status = ReviewStatus.Published;
         ModeratedBy = adminId;

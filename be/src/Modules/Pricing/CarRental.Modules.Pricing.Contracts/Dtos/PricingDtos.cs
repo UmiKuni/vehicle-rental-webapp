@@ -22,3 +22,31 @@ public sealed record QuoteDto(
     Money? OverKmFeePerKm,
     IReadOnlyList<QuoteLineDto> Lines,
     CancellationPolicyDto? Policy);
+
+public sealed record PricingPlanDto(
+    Guid VehicleId,
+    Money? HourlyRate,
+    Money WeekdayRate,
+    Money WeekendRate,
+    Money DepositAmount,
+    int KmLimit,
+    IReadOnlyList<FeeRuleDto> FeeRules);
+
+public sealed record FeeRuleDto(
+    string Type,
+    Money Amount);
+
+public sealed record ConfigurePricingDto(
+    Money? HourlyRate,
+    Money WeekdayRate,
+    Money WeekendRate,
+    Money DepositAmount,
+    int KmLimit,
+    Money? OverKmFee,
+    Money? CleaningFee,
+    Guid OwnerId);
+
+public sealed record PricingQuoteRequest(
+    Guid VehicleId,
+    DateTimeOffset StartTime,
+    DateTimeOffset EndTime);

@@ -1,3 +1,4 @@
+using CarRental.Modules.Bookings.Errors;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
@@ -66,40 +67,40 @@ public class Booking : AggregateRoot<BookingId>
         DateTimeOffset now)
     {
         if (customerId == Guid.Empty)
-            return Result.Failure<Booking>(new Error("booking.invalid_customer", "Customer ID is required."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidCustomer);
 
         if (ownerId == Guid.Empty)
-            return Result.Failure<Booking>(new Error("booking.invalid_owner", "Owner ID is required."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidOwner);
 
         if (vehicleId == Guid.Empty)
-            return Result.Failure<Booking>(new Error("booking.invalid_vehicle", "Vehicle ID is required."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidVehicle);
 
         if (customerId == ownerId)
-            return Result.Failure<Booking>(new Error("booking.customer_is_owner", "Customer cannot rent their own vehicle."));
+            return Result.Failure<Booking>(BookingsErrors.CustomerIsOwner);
 
         if (period == null)
-            return Result.Failure<Booking>(new Error("booking.invalid_period", "Rental period is required."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidPeriod);
 
         if (period.Start <= now)
-            return Result.Failure<Booking>(new Error("booking.start_in_past", "Rental start time must be in the future."));
+            return Result.Failure<Booking>(BookingsErrors.StartInPast);
 
         if (period.End <= period.Start)
-            return Result.Failure<Booking>(new Error("booking.invalid_duration", "End time must be after start time."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidDuration);
 
         if (string.IsNullOrWhiteSpace(pickupLocation))
-            return Result.Failure<Booking>(new Error("booking.invalid_location", "Pickup location is required."));
+            return Result.Failure<Booking>(BookingsErrors.InvalidLocation);
 
         if (lineItems == null || lineItems.Count == 0)
-            return Result.Failure<Booking>(new Error("booking.missing_line_items", "Line items are required."));
+            return Result.Failure<Booking>(BookingsErrors.MissingLineItems);
 
         if (!lineItems.Any(l => l.Type == BookingLineItemType.Rent))
-            return Result.Failure<Booking>(new Error("booking.missing_rent_item", "At least one Rent line item is required."));
+            return Result.Failure<Booking>(BookingsErrors.MissingRentItem);
 
         if (!lineItems.Any(l => l.Type == BookingLineItemType.Deposit))
-            return Result.Failure<Booking>(new Error("booking.missing_deposit_item", "At least one Deposit line item is required."));
+            return Result.Failure<Booking>(BookingsErrors.MissingDepositItem);
 
         if (policy == null)
-            return Result.Failure<Booking>(new Error("booking.missing_policy", "Cancellation policy snapshot is required."));
+            return Result.Failure<Booking>(BookingsErrors.MissingPolicy);
 
         var bookingId = BookingId.New();
         return Result.Success(new Booking(
@@ -117,10 +118,10 @@ public class Booking : AggregateRoot<BookingId>
     public Result Approve(Guid ownerId, DateTimeOffset now)
     {
         if (ownerId != OwnerId)
-            return Result.Failure(new Error("booking.unauthorized", "Only the vehicle owner can approve this booking."));
+            return Result.Failure(BookingsErrors.Unauthorized5E2B0A);
 
         if (Status != BookingStatus.Pending)
-            return Result.Failure(new Error("booking.invalid_state", $"Only pending bookings can be approved. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending bookings can be approved. Current status: {Status}."));
 
         Status = BookingStatus.Confirmed;
         PaymentDeadline = now.AddHours(2);
@@ -133,10 +134,10 @@ public class Booking : AggregateRoot<BookingId>
     public Result Reject(Guid ownerId, string reason, DateTimeOffset now)
     {
         if (ownerId != OwnerId)
-            return Result.Failure(new Error("booking.unauthorized", "Only the vehicle owner can reject this booking."));
+            return Result.Failure(BookingsErrors.UnauthorizedBDDFB3);
 
         if (Status != BookingStatus.Pending)
-            return Result.Failure(new Error("booking.invalid_state", $"Only pending bookings can be rejected. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending bookings can be rejected. Current status: {Status}."));
 
         Status = BookingStatus.Rejected;
         UpdatedAt = now;
@@ -148,7 +149,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result MarkPaid(Guid paymentId, DateTimeOffset now)
     {
         if (Status != BookingStatus.Confirmed)
-            return Result.Failure(new Error("booking.invalid_state", $"Only confirmed bookings can be marked paid. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only confirmed bookings can be marked paid. Current status: {Status}."));
 
         Status = BookingStatus.Paid;
         UpdatedAt = now;
@@ -160,13 +161,13 @@ public class Booking : AggregateRoot<BookingId>
     public Result<CancellationOutcome> Cancel(Guid actorId, string reason, DateTimeOffset now)
     {
         if (actorId != CustomerId)
-            return Result.Failure<CancellationOutcome>(new Error("booking.unauthorized", "Only the booking customer can cancel this booking."));
+            return Result.Failure<CancellationOutcome>(BookingsErrors.Unauthorized6779FC);
 
         if (IsTerminalState(Status))
-            return Result.Failure<CancellationOutcome>(new Error("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
+            return Result.Failure<CancellationOutcome>(Error.Conflict("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
 
         if (Status == BookingStatus.InProgress)
-            return Result.Failure<CancellationOutcome>(new Error("booking.trip_in_progress", "Cannot cancel a trip that is currently in progress."));
+            return Result.Failure<CancellationOutcome>(BookingsErrors.TripInProgress);
 
         Money penalty = Money.Zero();
         Money refundable = Money.Zero();
@@ -205,10 +206,10 @@ public class Booking : AggregateRoot<BookingId>
     public Result AdminCancel(Guid adminId, string reason, DateTimeOffset now)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(new Error("booking.invalid_admin", "Admin ID is required."));
+            return Result.Failure(BookingsErrors.InvalidAdmin);
 
         if (IsTerminalState(Status))
-            return Result.Failure(new Error("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
+            return Result.Failure(Error.Conflict("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
 
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
@@ -220,7 +221,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result Expire(string reason, DateTimeOffset now)
     {
         if (Status != BookingStatus.Pending && Status != BookingStatus.Confirmed)
-            return Result.Failure(new Error("booking.invalid_state", $"Only pending or confirmed bookings can expire. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending or confirmed bookings can expire. Current status: {Status}."));
 
         Status = BookingStatus.Expired;
         UpdatedAt = now;
@@ -232,7 +233,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result StartTrip(DateTimeOffset now)
     {
         if (Status != BookingStatus.Paid)
-            return Result.Failure(new Error("booking.invalid_state", $"Trip can only be started from Paid status. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Trip can only be started from Paid status. Current status: {Status}."));
 
         Status = BookingStatus.InProgress;
         UpdatedAt = now;
@@ -244,7 +245,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result CompleteTrip(DateTimeOffset now)
     {
         if (Status != BookingStatus.InProgress)
-            return Result.Failure(new Error("booking.invalid_state", $"Trip can only be completed from InProgress status. Current status: {Status}."));
+            return Result.Failure(Error.Conflict("booking.invalid_state", $"Trip can only be completed from InProgress status. Current status: {Status}."));
 
         Status = BookingStatus.Completed;
         UpdatedAt = now;
@@ -256,10 +257,10 @@ public class Booking : AggregateRoot<BookingId>
     public Result AddOverKmFee(Money amount)
     {
         if (Status != BookingStatus.Completed)
-            return Result.Failure(new Error("booking.invalid_state", "Over-km fee can only be added to completed bookings."));
+            return Result.Failure(BookingsErrors.InvalidState);
 
         if (amount == null || amount.Amount <= 0)
-            return Result.Failure(new Error("booking.invalid_fee", "Over-km fee amount must be greater than zero."));
+            return Result.Failure(BookingsErrors.InvalidFee);
 
         _lineItems.Add(new BookingLineItem(Guid.CreateVersion7(), Id, BookingLineItemType.OverKmFee, amount));
         return Result.Success();
