@@ -78,8 +78,8 @@ main (Production / Stable)
 | **1** | **Fleet** | `feat/module-fleet` | [Fleet Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Fleet/IMPLEMENTATION_PLAN.md) | **2** (`VehiclePublished`, `VehicleUnpublished`) | `IFleetApi.GetVehicleSummaryAsync` | ✅ **Completed** |
 | **1** | **Pricing** | `feat/module-pricing` | [Pricing Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Pricing/IMPLEMENTATION_PLAN.md) | **1** (`PricingUpdated`) | `IPricingApi.GetQuoteAsync` | ✅ **Completed** |
 | **1** | **Availability** | `feat/module-availability` | [Availability Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Availability/IMPLEMENTATION_PLAN.md) | **0** | `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `CheckAvailabilityAsync` | ✅ **Completed** |
-| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync` | ✅ **Completed** |
-| **2** | **Payments** | `feat/module-payments` | [Payments Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | None | ✅ **Completed** |
+| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync`, `MarkPaidAsync`, `GetRentalDetailsAsync`, `StartTripAsync`, `CompleteTripAsync` | ✅ **Completed** |
+| **2** | **Payments** | `feat/module-payments` | [Payments Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | `IPaymentsApi.CreateCheckoutAsync`, `FreezeDepositAsync`, `SettleDepositAsync`, `ReleaseDepositAsync` | ✅ **Completed** |
 | **3** | **Handover** | `feat/module-handover` | [Handover Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Handover/IMPLEMENTATION_PLAN.md) | **1** (`HandoverConfirmed`) | None | ✅ **Completed** |
 | **3** | **Reviews** | `feat/module-reviews` | [Reviews Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reviews/IMPLEMENTATION_PLAN.md) | **1** (`RatingSummaryUpdated`) | None | ✅ **Completed** |
 | **3** | **Support** | `feat/module-support` | [Support Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Support/IMPLEMENTATION_PLAN.md) | **2** (`TicketOpened`, `TicketResolved`) | None | ✅ **Completed** |
@@ -107,79 +107,68 @@ Renter -> POST /api/bookings
   -> Reporting receives BookingRequested -> Increments TotalBookings.
 ```
 
-### Flow 2: Owner Approval & Payment
+### Flow 2: Owner Approval & Payment (Synchronous Payment & Instant Update)
 ```
 Owner -> PUT /api/bookings/{id}/approve
   -> Availability.ConfirmHold (Hold -> Booked, clears ExpiresAt)
   -> Booking.Approve -> Status = Confirmed
-  -> Emits BookingConfirmed (carries payable amount and deposit portion)
-  -> Payments receives BookingConfirmed -> Creates Payment(Status: Pending, PaymentDeadline)
-  -> Notifications receives BookingConfirmed -> Alerts Renter with payment checkout.
+  -> Emits BookingConfirmed to Wolverine Outbox -> Alerts Renter with checkout link.
 
-Renter pays via Gateway Webhook (VNPay/Momo):
+Renter pays via POST /api/payments/checkout or Gateway Webhook:
   -> Payments marks Payment(Success) + Creates Deposit(Held)
-  -> Emits PaymentSucceeded
-  -> Booking receives PaymentSucceeded -> Booking.MarkPaid -> Status = Paid
-  -> Emits BookingPaid
-  -> Handover receives BookingPaid -> Creates HandoverContext (BookingId, CustomerId, OwnerId)
-  -> Notifications & Reporting receive PaymentSucceeded.
+  -> Synchronously calls IBookingApi.MarkPaidAsync(bookingId, paymentId) -> Booking Status = Paid immediately
+  -> Emits PaymentSucceeded to Wolverine Outbox -> Notifications (Receipt) & Reporting (Daily Revenue).
 ```
 
-### Flow 3: Pickup & Return Handover
+### Flow 3: Pickup & Return Handover (Synchronous Verification & Status Progression)
 ```
 Pickup:
-  -> POST /api/handovers (Type = Pickup) -> Upload photos (4 corners + dash with hash) -> Condition
+  -> POST /api/handovers (Type = Pickup) -> Synchronously checks IBookingApi.GetRentalDetailsAsync -> Status must be Paid
+  -> Upload photos (4 corners + dash with hash) -> Condition
   -> Both parties PUT /confirm -> Status = Confirmed
-  -> Emits HandoverConfirmed(Pickup)
-  -> Booking receives HandoverConfirmed -> Booking.StartTrip -> Status = InProgress
+  -> Synchronously calls IBookingApi.StartTripAsync(bookingId) -> Booking Status = InProgress
 
 Return:
   -> POST /api/handovers (Type = Return, Return Odo >= Pickup Odo) -> Upload photos -> Condition
   -> Both parties PUT /confirm -> Status = Confirmed
-  -> Emits HandoverConfirmed(Return, DistanceKm)
-  -> Booking receives HandoverConfirmed -> Booking.CompleteTrip -> Status = Completed
-  -> Emits BookingCompleted
-  -> Reviews receives BookingCompleted -> Enables review creation
-  -> Payments receives BookingCompleted -> Sets deposit ReleaseAfter (default 48h)
+  -> Synchronously calls IBookingApi.CompleteTripAsync(bookingId, overKmFee) -> Booking Status = Completed
+  -> Synchronously calls IPaymentsApi.ReleaseDepositAsync(bookingId) -> Schedules deposit release after inspection
+  -> Emits BookingCompleted to Wolverine Outbox -> Reviews (Enables feedback) & Notifications.
 ```
 
-### Flow 4: Deposit Settlement & Disputes
+### Flow 4: Deposit Settlement & Disputes (Synchronous Support -> Payments)
 ```
 Normal flow:
-  -> ReleaseDueDepositsJob releases Deposit(Held -> Released) after ReleaseAfter passes.
+  -> Scheduled job releases Deposit(Held -> Released) after inspection window passes.
 
 Dispute opened:
-  -> Support opens ticket -> Emits TicketOpened
-  -> Payments receives TicketOpened -> Freezes deposit (IsFrozen = true)
-  -> Admin resolves dispute -> Emits TicketResolved(BookingId, DepositToCustomerPercent)
-  -> Payments receives TicketResolved -> Deposit.SettleByRuling (Released / Deducted / Forfeited)
-  -> Notifications alerts customer and owner.
+  -> Support opens ticket -> Synchronously calls IPaymentsApi.FreezeDepositAsync(bookingId) -> IsFrozen = true
+  -> Admin resolves dispute -> Support synchronously calls IPaymentsApi.SettleDepositAsync(bookingId, percent)
+  -> Payments settles Deposit by ruling (Released / Deducted / Forfeited)
+  -> Emits TicketResolved to Wolverine Outbox -> Alerts customer and owner via Notifications.
 ```
 
 ---
 
-## 5. Master Integration Event Catalog (16 Published Events)
+## 5. Master Integration Event Catalog (Decoupled Side-Effects & Read Projections)
 
-Every integration event is an immutable `record` with `EventId`, `OccurredAt`, and primitive IDs.
+Every integration event is an immutable `record` with `EventId`, `OccurredAt`, and primitive IDs. Core business transactions use synchronous in-process `IApi` calls, while messaging is reserved strictly for non-blocking side effects and read projections.
 
-| Published Event | Origin Module | Main Consumers |
+| Published Event | Origin Module | Main Consumers (Asynchronous Side-Effects Only) |
 |---|---|---|
 | `VehiclePublished` | `Fleet` | Search, Notifications |
 | `VehicleUnpublished` | `Fleet` | Search, Notifications |
 | `PricingUpdated` | `Pricing` | Search |
 | `BookingRequested` | `Booking` | Notifications, Reporting |
-| `BookingConfirmed` | `Booking` | Payments, Notifications |
-| `BookingPaid` | `Booking` | Handover |
-| `BookingRejected` | `Booking` | Payments, Notifications |
-| `BookingCancelled` | `Booking` | Payments, Handover, Notifications, Reporting |
-| `BookingExpired` | `Booking` | Payments, Notifications |
-| `BookingCompleted` | `Booking` | Reviews, Payments |
-| `PaymentSucceeded` | `Payments` | Booking, Notifications, Reporting |
+| `BookingConfirmed` | `Booking` | Notifications |
+| `BookingRejected` | `Booking` | Notifications |
+| `BookingCancelled` | `Booking` | Notifications, Reporting |
+| `BookingExpired` | `Booking` | Notifications |
+| `BookingCompleted` | `Booking` | Reviews, Notifications |
+| `PaymentSucceeded` | `Payments` | Notifications, Reporting |
 | `PaymentFailed` | `Payments` | Notifications |
-| `HandoverConfirmed` | `Handover` | Booking |
 | `RatingSummaryUpdated` | `Reviews` | Search |
-| `TicketOpened` | `Support` | Payments |
-| `TicketResolved` | `Support` | Payments, Notifications |
+| `TicketResolved` | `Support` | Notifications |
 
 ---
 

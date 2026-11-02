@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\CarRental.Modules.Notifications.Contracts\CarRental.Modules.Notifications.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
+    <ProjectReference Include="..\..\Payments\CarRental.Modules.Payments.Contracts\CarRental.Modules.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\Fleet\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
+    <ProjectReference Include="..\..\Support\CarRental.Modules.Support.Contracts\CarRental.Modules.Support.Contracts.csproj" />
+    <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

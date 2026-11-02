@@ -181,7 +181,7 @@ Pending ──Approve──► Confirmed ──MarkPaid──► Paid ──Star
    └─Cancel──► Cancelled
 ```
 
-`Pending` is created with a calendar `Hold` of at most 12h (BR-07). Approval turns the hold into `Booked`. `Paid` is set by the `PaymentSucceeded` event. **[ASSUMPTION]** `InProgress`/`Completed` are driven by `HandoverConfirmed` (Pickup / Return). **[ASSUMPTION]** `Confirmed → Expired` after `PaymentDeadline` (default 2h after approval), because a `Booked` calendar entry never expires on its own.
+`Pending` is created with a calendar `Hold` of at most 12h (BR-07). Approval turns the hold into `Booked`. `Paid` is set synchronously by `IBookingApi.MarkPaid` upon payment confirmation. `InProgress`/`Completed` are driven synchronously by `IBookingApi.StartTrip` and `IBookingApi.CompleteTrip` called from Handover (Pickup / Return). **[ASSUMPTION]** `Confirmed → Expired` after `PaymentDeadline` (default 2h after approval), because a `Booked` calendar entry never expires on its own.
 
 **Behavior**
 ```csharp
@@ -189,12 +189,12 @@ static Result<Booking> Request(customerId, ownerId, vehicleId, TimeRange period,
                                IReadOnlyList<LineItemDraft> quoteLines, CancellationPolicySnapshot policy, DateTimeOffset now);
 Result Approve(Guid ownerId, DateTimeOffset now);                 // Pending -> Confirmed (owner only)
 Result Reject(Guid ownerId, string reason, DateTimeOffset now);   // Pending -> Rejected
-Result MarkPaid(Guid paymentId, DateTimeOffset now);              // Confirmed -> Paid (from PaymentSucceeded)
+Result MarkPaid(Guid paymentId, DateTimeOffset now);              // Confirmed -> Paid (called via IBookingApi.MarkPaidAsync)
 Result<CancellationOutcome> Cancel(Guid actorId, string reason, DateTimeOffset now); // customer cancel; computes penalty from snapshot
 Result AdminCancel(Guid adminId, string reason, DateTimeOffset now);
 Result Expire(DateTimeOffset now);                                // Pending (hold expired) or Confirmed (payment deadline)
-Result StartTrip(DateTimeOffset now);                             // Paid -> InProgress (HandoverConfirmed/Pickup)
-Result CompleteTrip(DateTimeOffset now);                          // InProgress -> Completed (HandoverConfirmed/Return)
+Result StartTrip(DateTimeOffset now);                             // Paid -> InProgress (called via IBookingApi.StartTripAsync)
+Result CompleteTrip(DateTimeOffset now);                          // InProgress -> Completed (called via IBookingApi.CompleteTripAsync)
 Result AddOverKmFee(Money amount);                                // [ASSUMPTION] adds an OverKmFee line on completion
 ```
 `CancellationOutcome` = `PenaltyAmount`, `RefundableAmount` **[ASSUMPTION]**: `PolicyDetails` is a list of tiers `(hoursBeforeStart, penaltyPercent)` applied to the `Rent` line.
@@ -205,8 +205,8 @@ Result AddOverKmFee(Money amount);                                // [ASSUMPTION
 **Background job:** `ExpireOverdueBookingsJob`.
 
 **API:** `POST /api/bookings`, `GET /api/bookings/me`, `PUT /api/bookings/{id}/cancel`, `GET /api/bookings/owner`, `PUT /api/bookings/{id}/approve`, `PUT /api/bookings/{id}/reject`, `PUT /api/bookings/{id}/admin-cancel` (Admin).
-**Published events:** `BookingRequested`, `BookingConfirmed` (carries payable amount and deposit part), `BookingPaid` (carries participants and period), `BookingRejected`, `BookingCancelled` (carries `PenaltyAmount`), `BookingExpired`, `BookingCompleted`.
-**Consumes:** `PaymentSucceeded` → `MarkPaid`; `HandoverConfirmed` → `StartTrip` / `CompleteTrip`.
+**Published events:** `BookingRequested`, `BookingConfirmed` (carries payable amount and deposit part), `BookingRejected`, `BookingCancelled` (carries `PenaltyAmount`), `BookingExpired`, `BookingCompleted`.
+**Synchronous Contracts:** `IBookingApi` (`IsParticipantAsync`, `MarkPaidAsync`, `GetRentalDetailsAsync`, `StartTripAsync`, `CompleteTripAsync`).
 
 ---
 
@@ -284,8 +284,8 @@ Result SettleByRuling(int depositToCustomerPercent, now);              // 100 =>
 **Gateway:** `IPaymentGateway` abstraction (VNPay, Momo sandbox adapters in Infrastructure); the domain never references a gateway SDK.
 **Background job:** `ReleaseDueDepositsJob` **[ASSUMPTION]** releases deposits of completed bookings after `ReleaseAfter` (default 48h after completion) unless `IsFrozen`.
 **API:** `POST /api/payments/checkout`, `POST /api/payments/webhook` (system).
-**Published events:** `PaymentSucceeded` (carries `BookingId`, `PaymentId`, `Amount`), `PaymentFailed`.
-**Consumes:** `BookingConfirmed` → `Payment.CreatePending`; `BookingExpired`/`BookingRejected` → `Cancel` pending payment; `BookingCancelled` → cancel pending payment, or if paid `Deposit.Deduct(PenaltyAmount)` (refund mechanics are a gap, Section 9); `BookingCompleted` → set `ReleaseAfter`; `TicketOpened` → `Freeze`; `TicketResolved` → `SettleByRuling`.
+**Published events:** `PaymentSucceeded` (carries `BookingId`, `PaymentId`, `Amount` for Notifications & Reporting), `PaymentFailed`.
+**Synchronous Contracts:** `IPaymentsApi` (`CreateCheckoutAsync`, `FreezeDepositAsync`, `SettleDepositAsync`, `ReleaseDepositAsync`, `GetDepositAsync`).
 
 ---
 
@@ -295,7 +295,7 @@ Result SettleByRuling(int depositToCustomerPercent, now);              // 100 =>
 **Child entities:**
 - `VehicleCondition` (1:1, PK `HandoverId`): `Odo`, `FuelLevel` (0–100), `DamageNote`.
 - `HandoverPhoto` (`Id`, `Corner`: `FrontLeft`/`FrontRight`/`BackLeft`/`BackRight`/`Dash`..., `StorageKey`, `FileHash`, `ClientCapturedAt`).
-**Local read model [ASSUMPTION]** `HandoverContext` (`BookingId`, `VehicleId`, `CustomerId`, `OwnerId`, `StartTime`, `EndTime`) created from `BookingPaid`, so Handover never calls Booking.
+**Rental validation:** Handover verifies rental details directly via `IBookingApi.GetRentalDetailsAsync(bookingId)`. On confirmation, Handover synchronously triggers `IBookingApi.StartTripAsync` (Pickup) or `IBookingApi.CompleteTripAsync` and `IPaymentsApi.ReleaseDepositAsync` (Return).
 
 **Behavior**
 ```csharp
@@ -307,7 +307,7 @@ Result Confirm(Guid actorId, DateTimeOffset now);   // each party confirms once;
 **Invariants:** only the booking's customer and owner act; data is editable only in `Draft` and **immutable after `Confirmed`**; confirmation requires a photo for each of the 4 corners plus `Dash` **[ASSUMPTION]** and a `VehicleCondition`; `FuelLevel` 0–100; `FileHash` mandatory (tamper evidence, BR-13); `ClientCapturedAt` may be earlier than `ServerReceivedAt` (offline capture, BR-14); `Return` can start only after `Pickup` is `Confirmed`, and its `Odo` ≥ the pickup `Odo`.
 **API:** `POST /api/handovers` (start Pickup or Return), `POST /api/handovers/{id}/photos`, `PUT /api/handovers/{id}/confirm`.
 **Published events:** `HandoverConfirmed` (carries `BookingId`, `Type`, `Odo`, `FuelLevel`, `ConfirmedAt`; for `Return` also `DistanceKm`).
-**Consumes:** `BookingPaid` → create `HandoverContext`; `BookingCancelled` → close context.
+**Synchronous Interactions:** Calls `IBookingApi.StartTripAsync` (Pickup) or `IBookingApi.CompleteTripAsync` (Return).
 
 ---
 
@@ -458,20 +458,20 @@ Naming follows the source: `XxxIntegrationEvent`, immutable records with `EventI
 | Event (`…IntegrationEvent`) | Published by | Consumers |
 |---|---|---|
 | `BookingRequested` | Booking | Notifications, Reporting |
-| `BookingConfirmed` | Booking | Payments, Notifications |
-| `BookingPaid` | Booking | Handover |
-| `BookingRejected` | Booking | Payments, Notifications |
-| `BookingCancelled` | Booking | Payments, Handover, Notifications, Reporting |
-| `BookingExpired` | Booking | Payments, Notifications |
-| `BookingCompleted` | Booking | Reviews, Payments |
-| **`PaymentSucceeded`** | Payments | Booking, Notifications, Reporting |
+| `BookingConfirmed` | Booking | Notifications |
+| `BookingPaid` | Booking | (Synchronous In-Process) |
+| `BookingRejected` | Booking | Notifications |
+| `BookingCancelled` | Booking | Notifications, Reporting |
+| `BookingExpired` | Booking | Notifications |
+| `BookingCompleted` | Booking | Reviews, Notifications |
+| **`PaymentSucceeded`** | Payments | Notifications, Reporting |
 | `PaymentFailed` | Payments | Notifications |
-| `HandoverConfirmed` | Handover | Booking |
+| `HandoverConfirmed` | Handover | (Synchronous In-Process) |
 | **`VehiclePublished`** | Fleet | Search, Notifications |
 | `VehicleUnpublished` | Fleet | Search, Notifications |
 | **`PricingUpdated`** | Pricing | Search |
 | `RatingSummaryUpdated` | Reviews | Search |
-| `TicketOpened` | Support | Payments |
+| `TicketOpened` | Support | (Synchronous In-Process) |
 | `TicketResolved` | Support | Payments, Notifications |
 
 Not events: Availability changes (synchronous calls), Audit entries (`RecordAuditEntry` message, see 4.12).
@@ -481,10 +481,10 @@ Not events: Availability changes (synchronous calls), Audit entries (`RecordAudi
 ## 6. Key Flows (for integration checks)
 
 1. **Create booking:** `POST /api/bookings` → Users eligibility → Fleet summary → Pricing quote → Availability `PlaceHold` (≤ 12h) → `Booking(Pending)` + `BookingRequested`.
-2. **Owner approves:** `PUT approve` → `ConfirmHold` (Hold → Booked) → `Booking(Confirmed)` → `BookingConfirmed` → Payments creates `Payment(Pending)`, Notifications informs the customer. Reject/expire/cancel → `ReleaseHold`.
-3. **Payment:** `POST /api/payments/checkout` → gateway → webhook (`WebhookInbox` dedupe) → `Payment(Success)` + `Deposit(Held)` → `PaymentSucceeded` → Booking `Paid` + `BookingPaid` → Handover context; Notifications emails/SMS both parties; Reporting adds revenue.
-4. **Pickup / Return:** `POST handovers` → photos (hashed) → condition → both parties `confirm` → `HandoverConfirmed` → Booking `InProgress` (Pickup) / `Completed` (Return) → `BookingCompleted` → Reviews opens eligibility, Payments sets `ReleaseAfter`.
-5. **Deposit settlement:** no ticket → `ReleaseDueDepositsJob` releases; ticket opened → `Freeze`; admin `resolve` → `TicketResolved` → `SettleByRuling` (Released / Deducted / Forfeited).
+2. **Owner approves:** `PUT approve` → `ConfirmHold` (Hold → Booked) → `Booking(Confirmed)` → `BookingConfirmed` (Notifications sends checkout link to renter). Reject/expire/cancel → `ReleaseHold`.
+3. **Payment:** `POST /api/payments/checkout` → gateway → webhook (`WebhookInbox` dedupe) → `Payment(Success)` + `Deposit(Held)` → Synchronously calls `IBookingApi.MarkPaidAsync` → Booking is `Paid` immediately. Emits `PaymentSucceeded` for receipt Email/SMS & Reporting revenue stats.
+4. **Pickup / Return:** `POST handovers` → verifies booking via `IBookingApi` → photos (hashed) → condition → both parties `confirm` → Synchronously calls `IBookingApi.StartTripAsync` (Pickup -> `InProgress`) or `IBookingApi.CompleteTripAsync` and `IPaymentsApi.ReleaseDepositAsync` (Return -> `Completed`). Emits `BookingCompleted` for Reviews & Notifications.
+5. **Deposit settlement:** no ticket → `ReleaseDueDepositsJob` releases; ticket opened → Support calls `IPaymentsApi.FreezeDepositAsync`; admin `resolve` → Support calls `IPaymentsApi.SettleDepositAsync` (Released / Deducted / Forfeited) and emits `TicketResolved` (Notifications).
 6. **Search sync:** `VehiclePublished` / `PricingUpdated` / `RatingSummaryUpdated` → `VehicleSearchDocuments` (eventually consistent).
 7. **Cancel:** customer `cancel` → penalty from `CancellationPolicySnapshot` → release calendar → `BookingCancelled` (with `PenaltyAmount`) → Payments cancels pending payment or deducts the penalty from the deposit.
 

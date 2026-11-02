@@ -301,10 +301,10 @@
    * Client gọi `POST /api/bookings`.  
    * Module `Booking` gọi module `Pricing` (Interface Đồng bộ) để chốt bản báo giá snapshot không đổi.  
    * Module `Booking` gọi module `Availability` (Interface Đồng bộ) để áp dụng khóa chống trùng lặp `tstzrange` trong cơ sở dữ liệu Postgres.  
-2. **Thanh toán Thành công (Giao tiếp Bất đồng bộ / Outbox Pattern):**  
-   * Webhook gọi vào module `Payment` \-\> Đổi trạng thái `Payment` thành Success \-\> Đẩy sự kiện `PaymentSucceededIntegrationEvent` vào EventBus.  
-   * Module `Booking` bắt sự kiện \-\> Đổi trạng thái Booking sang `Paid`.  
-   * Module `Notification` bắt sự kiện \-\> Gửi Email/SMS cho Khách và Chủ xe.  
+2. **Thanh toán Thành công (Xử lý Đồng bộ kết hợp Outbox cho Notification & Reporting):**  
+   * Khách thanh toán hoặc Webhook gọi vào module `Payment` -> Đổi trạng thái `Payment` thành Success, giữ tiền cọc `Deposit`.  
+   * Module `Payment` gọi trực tiếp `IBookingApi.MarkPaidAsync` (Giao tiếp Đồng bộ) -> Đổi trạng thái Booking sang `Paid` tức thì.  
+   * Đẩy sự kiện `PaymentSucceededIntegrationEvent` vào Outbox -> Module `Notification` gửi Email/SMS và Module `Reporting` cộng dồn doanh thu hàng ngày.  
 3. **Đồng bộ dữ liệu Tìm kiếm (Giao tiếp Bất đồng bộ / Outbox Pattern):**  
    * Khi module `Fleet` duyệt xe \-\> Đẩy sự kiện `VehiclePublishedIntegrationEvent`.  
    * Khi cấu hình giá trong `Pricing` thay đổi \-\> Đẩy sự kiện `PricingUpdatedIntegrationEvent`.  

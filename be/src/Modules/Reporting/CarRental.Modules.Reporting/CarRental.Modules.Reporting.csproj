@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\CarRental.Modules.Reporting.Contracts\CarRental.Modules.Reporting.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
+    <ProjectReference Include="..\..\Payments\CarRental.Modules.Payments.Contracts\CarRental.Modules.Payments.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
