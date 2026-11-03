@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, ShieldAlert, LogIn } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Vehicle } from '@/types/vehicle.types'
-import type { DeliveryType } from '@/types/booking.types'
+import type { Booking, DeliveryType } from '@/types/booking.types'
 import { useCreateBooking } from '@/features/bookings/hooks/useBookings'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
@@ -14,24 +14,32 @@ import { BookingDatesDelivery } from './BookingDatesDelivery'
 interface BookingModalProps {
   vehicle: Vehicle | null
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (booking: Booking) => void
+  initialStartDate?: string
+  initialEndDate?: string
 }
 
-export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps) {
+export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, initialEndDate }: BookingModalProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: kyc } = useKycStatus(!!user)
   const { mutate: createBooking, isPending } = useCreateBooking()
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
   const dayAfter = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]
 
-  const [startDate, setStartDate] = useState(tomorrow)
-  const [endDate, setEndDate] = useState(dayAfter)
+  const [startDate, setStartDate] = useState(initialStartDate?.slice(0, 10) || tomorrow)
+  const [endDate, setEndDate] = useState(initialEndDate?.slice(0, 10) || dayAfter)
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('STATION')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [customerName, setCustomerName] = useState(user?.fullName ?? '')
   const [customerPhone, setCustomerPhone] = useState('0912345678')
+
+  useEffect(() => {
+    setStartDate(initialStartDate?.slice(0, 10) || tomorrow)
+    setEndDate(initialEndDate?.slice(0, 10) || dayAfter)
+  }, [vehicle?.id, initialStartDate, initialEndDate, tomorrow, dayAfter])
 
   if (!vehicle) return null
 
@@ -44,10 +52,24 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
   const rentalAmount = totalDays * vehicle.pricePerDay
   const totalAmount = rentalAmount + deliveryFee
 
+  const requestLogin = () => {
+    const previousState = location.state && typeof location.state === 'object' ? location.state : {}
+    navigate(ROUTES.PROFILE_AUTH, {
+      state: {
+        from: {
+          pathname: location.pathname,
+          search: location.search,
+          state: { ...previousState, pickupAt: startDate, returnAt: endDate, resumeBookingVehicleId: vehicle.id, resumeBookingVehicle: vehicle },
+        },
+      },
+      replace: true,
+    })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      navigate(ROUTES.LOGIN, { state: { from: ROUTES.SEARCH } })
+      requestLogin()
       return
     }
 
@@ -62,8 +84,8 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
         customerPhone: customerPhone.trim(),
       },
       {
-        onSuccess: () => {
-          onSuccess()
+        onSuccess: (booking) => {
+          onSuccess(booking)
           onClose()
         },
       }
@@ -71,10 +93,10 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4">
+    <div className="booking-modal-overlay fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4">
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col rounded-t-[28px] sm:rounded-3xl bg-background border border-border shadow-2xl overflow-hidden animate-in fade-in-0 slide-in-from-bottom-6">
+      <div className="booking-modal-panel relative w-full max-w-lg max-h-[85vh] flex flex-col rounded-t-[28px] sm:rounded-3xl bg-background border border-border shadow-2xl overflow-hidden animate-in fade-in-0 slide-in-from-bottom-6">
         {/* Sticky Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border bg-background/95 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -100,7 +122,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
         </div>
 
         {/* Scrollable Form Body */}
-        <form id="booking-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-5 py-4 space-y-4 text-xs">
+        <form id="booking-form" onSubmit={handleSubmit} className="booking-modal-form overflow-y-auto flex-1 px-5 py-4 space-y-4 text-xs">
           {/* Guest notice */}
           {!user && (
             <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs flex items-start gap-2.5">
@@ -194,7 +216,7 @@ export function BookingModal({ vehicle, onClose, onSuccess }: BookingModalProps)
           ) : (
             <Button
               type="button"
-              onClick={() => navigate(ROUTES.LOGIN, { state: { from: ROUTES.SEARCH } })}
+              onClick={requestLogin}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press flex items-center justify-center gap-2"
             >
               <LogIn className="size-4" />

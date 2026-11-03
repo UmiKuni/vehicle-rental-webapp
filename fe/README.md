@@ -121,6 +121,10 @@ cp .env.example .env
 npm install
 ```
 
+#### Google Maps location labels (optional)
+
+Enable the Maps JavaScript API in Google Cloud, create a browser key restricted to your app's HTTP referrers and the Maps JavaScript API, then set `VITE_GOOGLE_MAPS_API_KEY` in `fe/.env`. The app uses it to show a city/district for the current GPS location. Without a key, it shows “Near your current location” and never displays coordinates.
+
 ### 2. Run Development Server
 
 ```bash

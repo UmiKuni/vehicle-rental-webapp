@@ -30,3 +30,8 @@ export function getErrorMessage(error: unknown): string {
     'An error occurred. Please try again.'
   )
 }
+
+export function getFieldErrors(error: unknown): Record<string, string[]> {
+  const axiosError = error as AxiosError<ApiError>
+  return axiosError.response?.data?.errors ?? {}
+}

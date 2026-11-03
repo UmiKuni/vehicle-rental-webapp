@@ -4,6 +4,7 @@ import type { Vehicle } from '@/types/vehicle.types'
 interface VehicleCardProps {
   vehicle: Vehicle
   onBook: (vehicle: Vehicle) => void
+  onViewDetails?: (vehicle: Vehicle) => void
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -14,7 +15,7 @@ const CATEGORY_NAMES: Record<string, string> = {
   MOTORBIKE: 'Motorbike',
 }
 
-export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
+export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps) {
   const formattedPrice = new Intl.NumberFormat('en-US').format(vehicle.pricePerDay)
 
   return (
@@ -60,9 +61,7 @@ export function VehicleCard({ vehicle, onBook }: VehicleCardProps) {
         {/* Name & Location */}
         <div>
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-foreground text-sm sm:text-base leading-snug line-clamp-1">
-              {vehicle.name}
-            </h3>
+            <button type="button" onClick={() => onViewDetails?.(vehicle)} className="font-bold text-foreground text-sm sm:text-base leading-snug line-clamp-1 text-left hover:text-teal-700">{vehicle.name}</button>
             <span className="text-[11px] font-semibold text-muted-foreground shrink-0 mt-0.5">
               {vehicle.modelYear}
             </span>
