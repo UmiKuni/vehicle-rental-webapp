@@ -78,7 +78,7 @@ export function MobileLayout() {
   const isAdmin = user && ADMIN_ROLES.includes(user.role)
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
+    <div className="min-h-dvh w-full overflow-x-clip bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
       {/* Admin Preview Header */}
       {isAdmin && (
         <header className="bg-zinc-900 border-b border-zinc-800 text-white px-4 py-2 sticky top-0 z-40 text-xs">
@@ -99,7 +99,7 @@ export function MobileLayout() {
       )}
 
       {/* Main mobile viewport */}
-      <main className="w-full max-w-md mx-auto bg-background min-h-screen sm:border-x sm:border-border sm:shadow-sm pb-24 flex-1">
+      <main className="w-full max-w-md mx-auto bg-background min-h-dvh sm:border-x sm:border-border sm:shadow-sm pb-24 flex-1">
         <Outlet />
       </main>
 
