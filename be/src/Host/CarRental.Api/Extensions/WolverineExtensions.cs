@@ -40,8 +40,12 @@ public static class WolverineExtensions
             opts.PublishMessage<VehiclePublished>().ToLocalQueue("search-events");
             opts.PublishMessage<PricingUpdated>().ToLocalQueue("search-events");
 
-            // Local queues are durable and use the outbox
-            opts.Policies.UseDurableLocalQueues();
+            // Integration tests should not leave durable local queue work to drain after the
+            // test database is torn down. Production retains durable local queues.
+            if (!builder.Environment.IsEnvironment("Testing"))
+            {
+                opts.Policies.UseDurableLocalQueues();
+            }
             opts.Policies.AutoApplyTransactions();
 
             // Retry policy for transient failures
