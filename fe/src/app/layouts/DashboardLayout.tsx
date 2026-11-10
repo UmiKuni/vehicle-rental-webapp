@@ -1,253 +1,92 @@
-import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Users,
-  Car,
-  CalendarCheck,
-  BarChart3,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Moon,
-  Sun,
-  Bell,
-  Search,
-  Command,
-} from 'lucide-react'
+import { ArrowLeft, CarFront, ChevronRight, Layers3, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/shared/contexts/AuthContext'
-import { useTheme } from '@/shared/contexts/ThemeContext'
-import { cn } from '@/shared/utils'
 import { getInitials } from '@/shared/utils'
-import { ROUTES, APP_NAME } from '@/shared/constants'
+import { APP_NAME, ROUTES } from '@/shared/constants'
+import { cn } from '@/shared/utils'
 
-interface NavSection {
-  title: string
-  items: {
-    to: string
-    icon: typeof LayoutDashboard
-    label: string
-    badge?: string
-    disabled?: boolean
-  }[]
-}
-
-const navSections: NavSection[] = [
+const navigation = [
   {
-    title: 'Operations',
+    label: 'WORKSPACE',
+    items: [{ to: ROUTES.DASHBOARD, label: 'Overview', icon: LayoutDashboard, end: true }],
+  },
+  {
+    label: 'FLEET OPERATIONS',
     items: [
-      { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Overview' },
-      { to: '/vehicles', icon: Car, label: 'Vehicles', badge: '64 vehicles', disabled: true },
-      { to: '/rentals', icon: CalendarCheck, label: 'Rentals', badge: '18 active', disabled: true },
+      { to: ROUTES.ADMIN_VEHICLES, label: 'Fleet vehicles', icon: CarFront, end: false },
+      { to: ROUTES.ADMIN_CATALOG, label: 'Vehicle catalog', icon: Layers3, end: false },
     ],
   },
   {
-    title: 'System',
-    items: [
-      { to: ROUTES.USERS, icon: Users, label: 'Users' },
-      { to: '/analytics', icon: BarChart3, label: 'Reports', disabled: true },
-      { to: '/settings', icon: Settings, label: 'Settings', disabled: true },
-    ],
+    label: 'ACCESS MANAGEMENT',
+    items: [{ to: ROUTES.USERS, label: 'User access', icon: Users, end: false }],
   },
 ]
 
-export function DashboardLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuth()
-  const { resolvedTheme, setTheme } = useTheme()
-  const location = useLocation()
+const pageNames: Record<string, string> = {
+  [ROUTES.DASHBOARD]: 'Overview',
+  [ROUTES.ADMIN_VEHICLES]: 'Fleet vehicles',
+  [ROUTES.ADMIN_CATALOG]: 'Vehicle catalog',
+  [ROUTES.USERS]: 'User access',
+}
 
-  const toggleTheme = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+export function DashboardLayout() {
+  const { user, logout } = useAuth()
+  const location = useLocation()
+  const pageName = pageNames[location.pathname] ?? 'Admin workspace'
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile Backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-xs lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="admin-workspace min-h-dvh bg-[#f4f6f7] text-[#172321] lg:flex">
+      <aside className="flex shrink-0 flex-col bg-[#101719] text-white lg:fixed lg:inset-y-0 lg:w-[264px]">
+        <Link to={ROUTES.DASHBOARD} className="flex h-[68px] items-center gap-3 border-b border-white/[.08] px-4 lg:h-[82px] lg:px-6">
+          <span className="grid size-10 place-items-center rounded-md bg-[#287f7e] text-white"><CarFront size={20} strokeWidth={2} /></span>
+          <span className="min-w-0 text-[15px] font-extrabold tracking-[-.035em] text-white">{APP_NAME}<small className="mt-1 block text-[9px] font-bold tracking-[.2em] text-[#6f8584]">ADMIN CONSOLE</small></span>
+        </Link>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar border-r border-border',
-          'transition-transform duration-250 ease-out lg:relative lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        {/* Workspace Brand Header */}
-        <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-            <Car className="size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <Link to={ROUTES.DASHBOARD} className="flex items-center gap-1.5 font-bold tracking-tight text-foreground text-sm">
-              {APP_NAME}
-            </Link>
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Central Hub • Online</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent lg:hidden"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        {/* Categorized Nav Links */}
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
-          {navSections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                {section.title}
-              </p>
-              {section.items.map(({ to, icon: Icon, label, badge, disabled }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === ROUTES.DASHBOARD}
-                  onClick={() => setSidebarOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      'group flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-all active-press',
-                      disabled && 'opacity-40 cursor-not-allowed',
-                      isActive && !disabled
-                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    )
-                  }
-                >
-                  <Icon className="size-4 shrink-0 transition-transform group-hover:scale-105" />
-                  <span className="truncate">{label}</span>
-                  {badge && (
-                    <span
-                      className={cn(
-                        'ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-mono tracking-tight',
-                        disabled ? 'bg-muted text-muted-foreground' : 'bg-primary/20 text-primary-foreground'
-                      )}
-                    >
-                      {badge}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+        <nav aria-label="Admin navigation" className="flex gap-2 overflow-x-auto px-3 py-2 lg:grid lg:gap-7 lg:overflow-visible lg:px-4 lg:py-7">
+          {navigation.map(group => (
+            <section key={group.label} className="shrink-0 lg:shrink">
+              <p className="mb-2.5 hidden px-3 text-[10px] font-extrabold tracking-[.14em] text-[#1db0ba] lg:block">{group.label}</p>
+              <div className="flex gap-1 lg:grid">
+                {group.items.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink key={to} to={to} end={end} className={({ isActive }) => cn(
+                    'group relative flex min-h-[40px] shrink-0 items-center gap-2 rounded-lg px-2.5 text-[12px] font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38c4c7] lg:min-h-[46px] lg:shrink lg:gap-3 lg:px-3 lg:text-[14px]',
+                    isActive ? 'bg-[#1b2c2e] text-white shadow-[inset_3px_0_0_#20b2ba]' : 'text-[#9eafaf] hover:bg-white/[.055] hover:text-white'
+                  )}>
+                    <Icon size={19} strokeWidth={2} className="shrink-0" />
+                    <span>{label}</span>
+                    <ChevronRight className="ml-auto opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-60" size={15} />
+                  </NavLink>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
 
-        {/* Fleet Readiness Mini Progress */}
-        <div className="border-t border-border p-3.5 mx-2 mb-2 rounded-lg bg-muted/40">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 font-medium">
-            <span>Readiness Rate</span>
-            <span className="font-mono text-foreground font-semibold">84.5%</span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500 w-[84.5%]" />
-          </div>
-        </div>
-
-        {/* User Footer */}
-        <div className="border-t border-border p-3.5">
-          <div className="flex items-center gap-3">
-            <Link
-              to={ROUTES.PROFILE}
-              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-white font-mono hover:ring-2 hover:ring-primary/50 transition-all"
-              title="View Profile"
-            >
-              {getInitials(user?.fullName ?? 'U')}
-              <span className="absolute bottom-0 right-0 size-2 rounded-full border-2 border-sidebar bg-emerald-500" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-foreground">{user?.fullName}</p>
-              <p className="truncate text-[11px] text-muted-foreground font-mono">@{user?.username} • {user?.role}</p>
-            </div>
-            <button
-              onClick={logout}
-              title="Log out"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <LogOut className="size-4" />
-            </button>
+        <div className="mt-auto border-t border-white/[.08] p-2 lg:p-4">
+          <p className="mb-3 hidden items-center gap-2 border-b border-white/[.08] pb-4 text-[11px] text-[#91a4a2] lg:flex"><ShieldCheck size={15} className="text-[#8fb8b4]" /> Changes apply to the live platform</p>
+          <div className="flex items-center gap-3 border-t border-white/[.08] px-1 pt-4">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-[#31504d] text-sm font-bold text-white">{getInitials(user?.fullName ?? 'Admin')}</span>
+            <div className="min-w-0 flex-1"><p className="m-0 truncate text-[13px] font-bold text-white">{user?.fullName ?? 'Administrator'}</p><p className="mb-0 mt-0.5 text-[11px] font-medium text-[#839494]">{user?.role ?? 'ADMIN'}</p></div>
+            <button onClick={logout} title="Sign out" aria-label="Sign out" className="grid size-9 shrink-0 place-items-center rounded-lg text-[#91a2a2] transition hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38c4c7]"><LogOut size={17} /></button>
           </div>
         </div>
       </aside>
 
-      {/* Main Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top Navbar */}
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-md p-2 text-muted-foreground hover:bg-accent lg:hidden"
-              aria-label="Open menu"
-            >
-              <Menu className="size-5" />
-            </button>
-
-            {/* Breadcrumb / Page Title */}
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <span>System</span>
-              <span>/</span>
-              <span className="font-semibold text-foreground text-sm">
-                {getPageTitle(location.pathname)}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Quick search shortcut trigger */}
-            <div className="hidden items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground md:flex">
-              <Search className="size-3.5 text-muted-foreground" />
-              <span>Quick search...</span>
-              <kbd className="flex items-center gap-0.5 rounded border border-border bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
-                <Command className="size-2.5" /> K
-              </kbd>
-            </div>
-
-            {/* Notifications */}
-            <button
-              className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Notifications"
-            >
-              <Bell className="size-4" />
-              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 ring-2 ring-background" />
-            </button>
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Toggle theme"
-              title="Toggle light/dark mode"
-            >
-              {resolvedTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </button>
+      <section className="min-w-0 flex-1 lg:ml-[264px]">
+        <header className="sticky top-0 z-20 flex min-h-[74px] items-center justify-between gap-3 border-b border-[#e3e9e9] bg-white/95 px-4 backdrop-blur md:px-8">
+          <div className="min-w-0"><p className="m-0 text-[10px] font-bold uppercase tracking-[.15em] text-[#82908f]">Administration <span className="px-1.5 text-[#bbc4c3]">/</span><span className="font-extrabold text-[#4b5c5a]">{pageName}</span></p><p className="mb-0 mt-1 text-[15px] font-extrabold tracking-[-.02em] text-[#1c2b29]">{pageName}</p></div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            <Link to={ROUTES.SEARCH} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#dce5e4] bg-white px-3.5 text-xs font-bold text-[#405553] transition hover:border-[#9dc9c8] hover:bg-[#f4fafa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1ca5ad]">
+              <ArrowLeft size={15} /><span className="hidden sm:inline">User portal</span><span className="sm:hidden">User</span>
+            </Link>
+            <span className="hidden h-8 w-px bg-[#e6ebea] sm:block" />
+            <div className="hidden min-w-0 sm:block"><p className="m-0 max-w-44 truncate text-xs font-bold text-[#273633]">{user?.fullName}</p><p className="mb-0 mt-0.5 text-[10px] font-semibold text-[#82908f]">Administrator</p></div>
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#e3f2f1] text-xs font-extrabold text-[#167b7d] sm:hidden">{getInitials(user?.fullName ?? 'Admin')}</span>
           </div>
         </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-4 lg:p-6 max-w-7xl mx-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+        <main className="mx-auto w-full max-w-[1560px] px-4 pb-8 pt-4 md:px-8 md:pb-9 md:pt-5 xl:px-10"><Outlet /></main>
+      </section>
     </div>
   )
-}
-
-function getPageTitle(pathname: string): string {
-  const map: Record<string, string> = {
-    '/': 'Operations Overview',
-    '/users': 'Account Management',
-    '/vehicles': 'Vehicle Management',
-  }
-  return map[pathname] ?? 'System'
 }

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants'
-import { ProtectedRoute, AdminRoute } from './ProtectedRoute'
+import { ProtectedRoute, AdminEntryRoute, AdminLoginRoute, AdminRoute } from './ProtectedRoute'
 import { DashboardLayout } from '@/app/layouts/DashboardLayout'
 import { MobileLayout } from '@/app/layouts/MobileLayout'
 
@@ -10,7 +10,6 @@ const LoginPage        = lazy(() => import('@/features/auth/pages/LoginPage'))
 const RegisterPage     = lazy(() => import('@/features/auth/pages/RegisterPage'))
 const AuthPage = lazy(() => import('@/features/auth/pages/AuthPage'))
 const DashboardPage    = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
-const UsersPage        = lazy(() => import('@/features/users/pages/UsersPage'))
 const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
 const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
@@ -19,6 +18,9 @@ const HomePage = lazy(() => import('@/features/home/pages/HomePage'))
 const VehicleDetailPage = lazy(() => import('@/features/vehicles/pages/VehicleDetailPage'))
 const MyBookingsPage   = lazy(() => import('@/features/bookings/pages/MyBookingsPage'))
 const BookingDetailPage = lazy(() => import('@/features/bookings/pages/BookingDetailPage'))
+const AdminVehiclesPage = lazy(() => import('@/features/admin/pages/AdminVehiclesPage'))
+const AdminCatalogPage = lazy(() => import('@/features/admin/pages/AdminCatalogPage'))
+const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'))
 
 function PageLoader() {
   return (
@@ -37,6 +39,21 @@ function wrap(Page: React.ComponentType) {
 }
 
 const router = createBrowserRouter([
+  {
+    path: ROUTES.ADMIN_LOGIN,
+    element: <AdminLoginRoute />,
+    children: [{ index: true, element: wrap(LoginPage) }],
+  },
+  { path: ROUTES.LOGIN, element: wrap(LoginPage) },
+  { path: ROUTES.REGISTER, element: wrap(RegisterPage) },
+  { path: ROUTES.ADMIN, element: <AdminEntryRoute /> },
+
+  // Keep existing bookmarks working as the admin URLs move under /admin.
+  { path: '/dashboard', element: <Navigate to={ROUTES.DASHBOARD} replace /> },
+  { path: '/dashboard/vehicles', element: <Navigate to={ROUTES.ADMIN_VEHICLES} replace /> },
+  { path: '/dashboard/catalog', element: <Navigate to={ROUTES.ADMIN_CATALOG} replace /> },
+  { path: '/users', element: <Navigate to={ROUTES.USERS} replace /> },
+
   // ── Public Auth Pages ───────────────────────────────────────────────────────
   // ── Root & Admin Desktop Dashboard ──────────────────────────────────────────
   {
@@ -46,7 +63,9 @@ const router = createBrowserRouter([
         element: <DashboardLayout />,
         children: [
           { path: ROUTES.DASHBOARD, element: wrap(DashboardPage) },
-          { path: ROUTES.USERS,     element: wrap(UsersPage) },
+          { path: ROUTES.ADMIN_VEHICLES, element: wrap(AdminVehiclesPage) },
+          { path: ROUTES.ADMIN_CATALOG, element: wrap(AdminCatalogPage) },
+          { path: ROUTES.USERS, element: wrap(AdminUsersPage) },
         ],
       },
     ],
@@ -58,8 +77,6 @@ const router = createBrowserRouter([
     children: [
       { path: ROUTES.HOME, element: wrap(HomePage) },
       { path: ROUTES.PROFILE_AUTH, element: wrap(AuthPage) },
-      { path: ROUTES.LOGIN, element: wrap(LoginPage) },
-      { path: ROUTES.REGISTER, element: wrap(RegisterPage) },
       // 1. PUBLIC: Guests & customers can browse and search vehicles
       {
         path: ROUTES.SEARCH,

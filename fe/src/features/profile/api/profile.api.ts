@@ -1,53 +1,70 @@
 import apiClient from '@/shared/lib/axios'
-import type { ApiResponse } from '@/types/api.types'
 import type { KycProfile, KycSubmitPayload } from '@/types/kyc.types'
 import type { AuthUser } from '@/types/auth.types'
 
+interface BackendIdentity { userId: string; email: string; role: string }
+interface BackendProfile { userId: string; email: string; phone: string; fullName: string; address: string }
+interface BookingEligibility { isEligible: boolean; ineligibilityReason?: string | null }
+
+async function currentProfile() {
+  const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
+  const { data: profile } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
+  return { identity, profile }
+}
+
+function mapProfile(identity: BackendIdentity, profile: BackendProfile): AuthUser {
+  return {
+    id: identity.userId,
+    username: identity.email,
+    email: identity.email,
+    fullName: profile.fullName || identity.email,
+    role: identity.role.toUpperCase() as AuthUser['role'],
+  }
+}
+
 export const profileApi = {
-  /** Get current user's full profile including KYC status */
   getProfile: async (): Promise<AuthUser & { kyc?: KycProfile }> => {
-    const res = await apiClient.get<ApiResponse<AuthUser & { kyc?: KycProfile }>>('/profile/me')
-    return res.data.data
+    const { identity, profile } = await currentProfile()
+    return mapProfile(identity, profile)
   },
 
-  /** Update basic profile info */
   updateProfile: async (data: Partial<Pick<AuthUser, 'fullName' | 'avatar'>>): Promise<AuthUser> => {
-    const res = await apiClient.put<ApiResponse<AuthUser>>('/profile/me', data)
-    return res.data.data
-  },
-
-  /** Get KYC status for current user */
-  getKycStatus: async (): Promise<KycProfile> => {
-    const res = await apiClient.get<ApiResponse<KycProfile>>('/profile/kyc')
-    return res.data.data
-  },
-
-  /** Submit KYC application (Step 1 + 2 + 3 combined) */
-  submitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
-    const res = await apiClient.post<ApiResponse<KycProfile>>('/profile/kyc/submit', payload)
-    return res.data.data
-  },
-
-  /** Upload CCCD image (returns signed URL or stored path) */
-  uploadCccdImage: async (file: File, side: 'front' | 'back'): Promise<{ url: string }> => {
-    const form = new FormData()
-    form.append('file', file)
-    form.append('side', side)
-    const res = await apiClient.post<ApiResponse<{ url: string }>>('/profile/kyc/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const { identity, profile } = await currentProfile()
+    await apiClient.put(`/users/${identity.userId}/profile`, {
+      fullName: data.fullName ?? profile.fullName,
+      address: profile.address,
     })
-    return res.data.data
+    const { data: updated } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
+    return mapProfile(identity, updated)
   },
 
-  /** Re-submit after rejection */
-  resubmitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
-    const res = await apiClient.put<ApiResponse<KycProfile>>('/profile/kyc/resubmit', payload)
-    return res.data.data
+  getKycStatus: async (): Promise<KycProfile> => {
+    const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
+    const { data: eligibility } = await apiClient.get<BookingEligibility>(`/users/eligibility/${identity.userId}`)
+    return {
+      id: identity.userId,
+      userId: identity.userId,
+      status: eligibility.isEligible ? 'VERIFIED' : 'UNVERIFIED',
+      vehicleInterests: [],
+      licenseClass: 'B2',
+      hasLicense: eligibility.isEligible,
+      rejectionReason: eligibility.ineligibilityReason ?? undefined,
+    }
   },
 
-  /** Dev mock tool: set KYC status directly */
-  setMockKycStatus: async (status: KycProfile['status']): Promise<KycProfile> => {
-    const res = await apiClient.post<ApiResponse<KycProfile>>('/profile/kyc/mock-status', { status })
-    return res.data.data
+  submitKyc: async (_payload: KycSubmitPayload): Promise<KycProfile> => {
+    throw new Error('KYC submission is not implemented by the backend yet.')
+  },
+
+  uploadCccdImage: async (_file: File, _side: 'front' | 'back'): Promise<{ url: string }> => {
+    throw new Error('KYC document upload is not implemented by the backend yet.')
+  },
+
+  resubmitKyc: async (_payload: KycSubmitPayload): Promise<KycProfile> => {
+    throw new Error('KYC resubmission is not implemented by the backend yet.')
+  },
+
+  setMockKycStatus: async (_status: KycProfile['status']): Promise<KycProfile> => {
+    throw new Error('Mock KYC status changes are disabled when using the real API.')
   },
 }

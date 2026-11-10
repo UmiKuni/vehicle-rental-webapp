@@ -1,3 +1,7 @@
+## Frontend deployment
+
+Deploy the single React app in [`fe/`](fe/). It contains both the customer portal and the Admin workspace, so CI/CD only needs one frontend build. Admin routes live under `/admin`; signed-in Admins can switch to the customer portal without changing sessions.
+
 ## Development database seed
 
 When the API runs with `ASPNETCORE_ENVIRONMENT=Development`, it automatically applies

@@ -16,13 +16,34 @@ function parseUserFromToken(): AuthUser | null {
   const token = localStorage.getItem(TOKEN_KEY)
   if (!token) return null
   try {
-    const jsonStr = safeBase64Decode(token.split('.')[1])
+    const encodedPayload = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/')
+    if (!encodedPayload) return null
+    const paddedPayload = encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')
+    const jsonStr = safeBase64Decode(paddedPayload)
     const payload = JSON.parse(jsonStr)
     // Verify the token hasn't expired
     if (payload.exp && payload.exp * 1000 < Date.now()) {
       return null
     }
-    return payload.user ?? null
+    // Clear sessions created by the old frontend mock adapter.
+    if (payload.user) {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      return null
+    }
+
+    const email = payload.email ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ?? ''
+    const role = payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'Customer'
+    const id = payload.sub ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
+    if (!id) return null
+
+    return {
+      id,
+      username: email,
+      email,
+      fullName: email.split('@')[0] || 'Customer',
+      role: String(role).toUpperCase() as AuthUser['role'],
+    }
   } catch {
     return null
   }

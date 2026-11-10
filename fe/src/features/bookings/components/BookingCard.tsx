@@ -7,11 +7,16 @@ interface BookingCardProps {
   booking: Booking
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
+  PENDING:   { label: 'Pending',   class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   CONFIRMED: { label: 'Confirmed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  PAID:      { label: 'Paid',      class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   ACTIVE:    { label: 'Active',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
+  IN_PROGRESS: { label: 'In progress', class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
   COMPLETED: { label: 'Completed', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
   CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  REJECTED:  { label: 'Rejected',  class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  EXPIRED:   { label: 'Expired',   class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
 }
 
 export function BookingCard({ booking }: BookingCardProps) {

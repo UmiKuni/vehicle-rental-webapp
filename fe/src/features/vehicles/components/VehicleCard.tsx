@@ -62,9 +62,9 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
         <div>
           <div className="flex items-start justify-between gap-2">
             <button type="button" onClick={() => onViewDetails?.(vehicle)} className="font-bold text-foreground text-sm sm:text-base leading-snug line-clamp-1 text-left hover:text-teal-700">{vehicle.name}</button>
-            <span className="text-[11px] font-semibold text-muted-foreground shrink-0 mt-0.5">
+            {vehicle.modelYear && vehicle.modelYear > 0 && <span className="text-[11px] font-semibold text-muted-foreground shrink-0 mt-0.5">
               {vehicle.modelYear}
-            </span>
+            </span>}
           </div>
           <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground truncate">
             <MapPin className="size-3 text-[#1a8a9d] shrink-0" />

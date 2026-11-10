@@ -27,7 +27,7 @@ function loadGoogleMaps(): Promise<void> {
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!key) return Promise.reject(new Error('Google Maps API key is not configured.'))
 
-  mapsScriptPromise = new Promise((resolve, reject) => {
+  const promise: Promise<void> = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=vi&region=VN`
     script.async = true
@@ -50,7 +50,8 @@ function loadGoogleMaps(): Promise<void> {
     throw error
   })
 
-  return mapsScriptPromise
+  mapsScriptPromise = promise
+  return promise
 }
 
 function componentName(components: GoogleAddressComponent[], type: string) {

@@ -1,6 +1,6 @@
 import type { Vehicle } from './vehicle.types'
 
-export type BookingStatus = 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'PAID' | 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED'
 export type DeliveryType = 'STATION' | 'DOORSTEP'
 
 export interface Booking {
@@ -8,7 +8,7 @@ export interface Booking {
   bookingCode: string
   vehicleId: string
   vehicle: Vehicle
-  userId: number
+  userId: number | string
   customerName: string
   customerPhone: string
   startDate: string

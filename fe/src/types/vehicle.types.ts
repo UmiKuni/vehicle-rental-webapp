@@ -29,7 +29,7 @@ export interface Vehicle {
   id: string
   name: string
   brand: string
-  modelYear: number
+  modelYear?: number
   category: VehicleInterest
   transmission: TransmissionType
   fuelType: FuelType

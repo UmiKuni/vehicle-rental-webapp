@@ -7,7 +7,6 @@ import {
 import { useProfile, useKycStatus } from '../hooks/useProfile'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { VerificationBadge } from '../components/VerificationBadge'
-import { KycDevTester } from '../components/KycDevTester'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { getInitials, formatDate } from '@/shared/utils'
@@ -159,7 +158,6 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Quick Dev/Demo State Switcher ── */}
-      <KycDevTester currentStatus={kycStatus} />
 
       {/* ── KYC Status Banner ── */}
       {kycStatus === 'UNVERIFIED' && <KycUnverifiedCta />}

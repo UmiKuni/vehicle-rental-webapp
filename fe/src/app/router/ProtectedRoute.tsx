@@ -59,8 +59,7 @@ export function CustomerRoute() {
 }
 
 /**
- * Guard allowing only ADMIN/MANAGER/STAFF (used for DashboardLayout routes).
- * CUSTOMER is redirected to vehicle search.
+ * Guard for the administrator workspace. API permissions remain enforced by the backend.
  */
 export function AdminRoute() {
   const { isAuthenticated, isLoading, user } = useAuth()
@@ -76,13 +75,49 @@ export function AdminRoute() {
 
   // Unauthenticated visitors can browse public routes; admin pages require sign in.
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
+    return <Navigate to={ROUTES.ADMIN_LOGIN} state={{ from: location }} replace />
   }
 
-  // CUSTOMER entering admin routes -> redirect to vehicle search page
-  if (user && CUSTOMER_ROLES.includes(user.role)) {
-    return <Navigate to={ROUTES.SEARCH} replace />
+  // The admin workspace actions are protected by the backend's AdminOnly policy.
+  if (user && user.role !== 'ADMIN') {
+    return <Navigate to={ROUTES.ADMIN_LOGIN} state={{ from: location }} replace />
   }
 
+  return <Outlet />
+}
+
+/** Entry route for admins who already have an active session. */
+export function AdminEntryRoute() {
+  const { isAuthenticated, isLoading, user } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated && user?.role === 'ADMIN') {
+    return <Navigate to={ROUTES.DASHBOARD} replace />
+  }
+
+  if (isAuthenticated) return <Navigate to={ROUTES.ADMIN_LOGIN} state={{ from: { pathname: ROUTES.DASHBOARD } }} replace />
+  return <Navigate to={ROUTES.ADMIN_LOGIN} replace />
+}
+
+/** Keeps the admin sign-in page outside the mobile customer PWA shell. */
+export function AdminLoginRoute() {
+  const { isAuthenticated, isLoading, user } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated && user?.role === 'ADMIN') return <Navigate to={ROUTES.DASHBOARD} replace />
   return <Outlet />
 }

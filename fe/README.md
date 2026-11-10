@@ -1,6 +1,6 @@
 # 🚗 Vehicle Rental — Frontend
 
-Admin Dashboard & Mobile PWA for vehicle rental management, built according to **Production-Ready React** standards.
+Single frontend app for the vehicle rental customer experience and the Admin workspace. Both use the same router, API client, and signed-in session, so deployment and switching between modes stay in one FE build.
 
 ---
 
@@ -132,22 +132,24 @@ npm run dev
 # → http://localhost:3000
 ```
 
-> **Demo login:** username `admin` / password `admin123`
->
-> Mock API runs automatically in development mode — no backend required.
+The API must be running, and an Admin account must exist in the backend. Customer and owner seed accounts do not have admin permissions; `admin / admin123` is not a real API account.
 
-### 3. Connect to Real Backend
+### 3. Customer and Admin workspaces
 
-When the backend (e.g. Spring Boot) is ready:
+- Customer portal: `/` and `/search`
+- Admin entry: `/admin` (opens the workspace or the admin sign-in page)
+- Admin sign-in: `/admin/login`
+- Admin overview: `/admin/dashboard`
+- Admin fleet review: `/admin/vehicles`
+- Admin brand/model catalog: `/admin/catalog`
+- Admin user access: `/admin/users`
 
-1. Update `.env`:
-   ```env
-   VITE_API_BASE_URL=http://localhost:8080/api
-   ```
-2. Disable the mock API in `src/main.tsx`:
-   ```ts
-   // import './shared/lib/mock-api'
-   ```
+The admin workspace and customer PWA share this FE deployment and authentication API, but use separate routes and layouts. Existing `/dashboard` links redirect to the matching `/admin` route.
+- Admin user access: `/users`
+
+Sign in once. Admin accounts can move between the Admin workspace and customer portal using the links in each workspace. The backend still checks authorization for every protected change.
+
+The `.env.example` defaults to the real API (`VITE_USE_MOCK_API=false`). Set `VITE_API_BASE_URL` to the deployed API URL when building for another environment.
 
 ### 4. Build for Production
 

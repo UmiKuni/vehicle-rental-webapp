@@ -67,7 +67,7 @@ export default function VehicleDetailPage() {
 
       <main className="detail-main">
         <section className="vehicle-overview">
-          <div className="detail-eyebrow">{vehicle.brand} · {vehicle.modelYear} · {vehicle.category.replaceAll('_', ' ')}</div>
+          <div className="detail-eyebrow">{vehicle.brand}{vehicle.modelYear ? ` · ${vehicle.modelYear}` : ''} · {vehicle.category.replaceAll('_', ' ')}</div>
           <div className="detail-title-row">
             <h2>{vehicle.name}</h2>
             <button type="button" className="detail-rating" onClick={() => reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} aria-label={`View ${reviewCount} reviews`}>

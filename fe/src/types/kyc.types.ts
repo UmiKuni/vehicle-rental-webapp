@@ -73,8 +73,8 @@ export interface KycSubmitPayload {
 
 // KYC profile response from backend
 export interface KycProfile {
-  id: number
-  userId: number
+  id: number | string
+  userId: number | string
   status: KycStatus
   rejectionReason?: string
   vehicleInterests: VehicleInterest[]
