@@ -64,7 +64,7 @@ public static class WolverineExtensions
         return builder;
     }
 }
-
+//
 /// <summary>
 /// <see cref="IEventOutbox"/> implementation backed by Wolverine's message bus.
 /// </summary>
