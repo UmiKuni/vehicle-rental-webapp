@@ -1,0 +1,86 @@
+# ==============================================================================
+# GitHub Actions: Backend Continuous Integration (Build & Test)
+# ==============================================================================
+# Runs on pushes and pull requests affecting the backend (`be/`) or this workflow.
+# Steps: Checkout -> Setup .NET 9 (with NuGet cache) -> Restore -> Build -> Test
+# ==============================================================================
+
+name: "Backend CI (Build & Test)"
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - BE
+    paths:
+      - "be/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches:
+      - main
+      - dev
+      - BE
+    paths:
+      - "be/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SOLUTION_FILE: "CarRental.slnx"
+  BUILD_CONFIGURATION: "Release"
+
+jobs:
+  build-and-test:
+    name: "Build & Test (.NET 9)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./be
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: be/Directory.Packages.props
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+
+      - name: Build solution (${{ env.BUILD_CONFIGURATION }})
+        run: dotnet build ${{ env.SOLUTION_FILE }} --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+
+      - name: Run Architecture & Unit Tests
+        run: >
+          dotnet test ${{ env.SOLUTION_FILE }}
+          --configuration ${{ env.BUILD_CONFIGURATION }}
+          --no-build
+          --verbosity normal
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload Test Results & Coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: be/TestResults/**
+          retention-days: 7
+          if-no-files-found: ignore
