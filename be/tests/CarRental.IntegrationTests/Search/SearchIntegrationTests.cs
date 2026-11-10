@@ -170,8 +170,8 @@ public class SearchIntegrationTests : IntegrationTestBase
                 850_000m));
         }
 
-        // Allow Wolverine transactional outbox / local queue a brief window to commit
-        await Task.Delay(500);
+        // Allow Wolverine transactional outbox / local queue time to commit and process both events.
+        await Task.Delay(2000);
 
         // 2. Query search endpoint to verify the event projection is live in search catalog
         var response = await Client.GetAsync("/api/search/vehicles?brand=Subaru");

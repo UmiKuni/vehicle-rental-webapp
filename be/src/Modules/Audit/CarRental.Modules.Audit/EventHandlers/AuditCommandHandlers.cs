@@ -9,7 +9,7 @@ namespace CarRental.Modules.Audit.EventHandlers;
 
 public sealed class AuditCommandHandlers
 {
-    public static async Task Handle(
+    public async Task Handle(
         RecordAuditEntry command,
         AuditDbContext dbContext,
         IAuditLogRepository repository,

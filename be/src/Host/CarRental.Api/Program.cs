@@ -26,9 +26,6 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Messaging: Wolverine with PostgreSQL transactional outbox
-builder.AddMessaging();
-
 // Register modular monolith modules
 builder.Services
     .AddUsersModule(builder.Configuration)
@@ -44,6 +41,11 @@ builder.Services
     .AddNotificationsModule(builder.Configuration)
     .AddAuditModule(builder.Configuration)
     .AddReportingModule(builder.Configuration);
+
+// Messaging: Wolverine with PostgreSQL transactional outbox.
+// Register modules first so their handler assemblies are loaded for discovery.
+builder.AddMessaging();
+
 builder.Services.AddUsersAuthentication(builder.Configuration);
 
 // Add services to the container.

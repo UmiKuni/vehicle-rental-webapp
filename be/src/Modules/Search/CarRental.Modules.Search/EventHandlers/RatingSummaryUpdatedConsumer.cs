@@ -19,9 +19,4 @@ public sealed class RatingSummaryUpdatedConsumer
      *    - Guarantees eventual consistency with LWW timestamp check (LastRatingEventAt).
      * 3. Persist changes to SearchDbContext.
      */
-    public Task Consume(RatingSummaryUpdated @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-

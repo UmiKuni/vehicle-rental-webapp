@@ -1,4 +1,8 @@
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.Modules.Audit.EventHandlers;
+using CarRental.Modules.Fleet.Contracts.Events;
+using CarRental.Modules.Pricing.Contracts.Events;
+using CarRental.Modules.Search.EventHandlers;
 using Wolverine;
 using Wolverine.ErrorHandling;
 using Wolverine.Postgresql;
@@ -30,6 +34,11 @@ public static class WolverineExtensions
             {
                 opts.Discovery.IncludeAssembly(assembly);
             }
+            opts.Discovery.IncludeType<AuditCommandHandlers>();
+            opts.Discovery.IncludeType<SearchEventHandlers>();
+            opts.LocalQueue("search-events");
+            opts.PublishMessage<VehiclePublished>().ToLocalQueue("search-events");
+            opts.PublishMessage<PricingUpdated>().ToLocalQueue("search-events");
 
             // Local queues are durable and use the outbox
             opts.Policies.UseDurableLocalQueues();

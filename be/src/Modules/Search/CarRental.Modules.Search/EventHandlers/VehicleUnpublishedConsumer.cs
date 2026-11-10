@@ -19,9 +19,4 @@ public sealed class VehicleUnpublishedConsumer
      *    - Effectively removes the vehicle from active public search results (IsVisible == false).
      * 3. Persist updates in SearchDbContext.
      */
-    public Task Consume(VehicleUnpublished @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-

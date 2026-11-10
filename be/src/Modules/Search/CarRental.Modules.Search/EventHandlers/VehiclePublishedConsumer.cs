@@ -26,9 +26,4 @@ public sealed class VehiclePublishedConsumer
      *    - Marks IsPublished = true and updates PostGIS spatial location.
      * 3. Save or update the search document in SearchDbContext.
      */
-    public Task Consume(VehiclePublished @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-

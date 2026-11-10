@@ -19,9 +19,4 @@ public sealed class PricingUpdatedConsumer
      *    - Uses LWW timestamp check (LastPricingEventAt) to ensure eventual consistency.
      * 3. Persist changes to SearchDbContext.
      */
-    public Task Consume(PricingUpdated @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-
