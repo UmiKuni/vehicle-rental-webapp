@@ -1,0 +1,2 @@
+# No HTTP endpoints are currently mapped for the Notifications module.
+# Notifications are currently consumed through module services/events.
