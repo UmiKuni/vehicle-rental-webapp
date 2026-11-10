@@ -217,7 +217,7 @@ public class NotificationsModuleTests
         var customerId = Guid.NewGuid();
         var ownerId = Guid.NewGuid();
         var vehicleId = Guid.NewGuid();
-        var money = Money.FromDecimal(500_000m, "VND").Value;
+        var money = new Money(500_000, "VND");
         var period = DateTimeRange.Create(Now.AddDays(1), Now.AddDays(3)).Value;
 
         // 1. BookingRequestedConsumer
@@ -254,7 +254,7 @@ public class NotificationsModuleTests
         var eventId = Guid.NewGuid();
         var bookingId = Guid.NewGuid();
         var paymentId = Guid.NewGuid();
-        var amount = Money.FromDecimal(1_200_000m, "VND").Value;
+        var amount = new Money(1_200_000, "VND");
 
         // 6. PaymentSucceededConsumer
         var successConsumer = new PaymentSucceededConsumer();
@@ -275,6 +275,7 @@ public class NotificationsModuleTests
         var bookingId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
         var vehicleId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
         var location = GeoPoint.Create(10.7769, 106.7009).Value;
 
         // 8. TicketResolvedConsumer
@@ -285,11 +286,12 @@ public class NotificationsModuleTests
         // 9. VehiclePublishedConsumer
         var pubConsumer = new VehiclePublishedConsumer();
         await pubConsumer.Consume(new VehiclePublished(
-            vehicleId, "Toyota", "Corolla", 5, "Auto", location, "District 1, HCMC", Now));
+            eventId, Now, vehicleId, ownerId, "Toyota", "Corolla", 5, "Auto", location, "District 1, HCMC"));
 
         // 10. VehicleUnpublishedConsumer
         var unpubConsumer = new VehicleUnpublishedConsumer();
-        await unpubConsumer.Consume(new VehicleUnpublished(vehicleId, Now));
+        await unpubConsumer.Consume(new VehicleUnpublished(
+            eventId, Now, vehicleId, ownerId, "Admin unpublish"));
 
         Assert.True(true);
     }

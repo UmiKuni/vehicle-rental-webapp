@@ -248,7 +248,7 @@ public class SearchModuleTests
         var result = await service.SearchVehiclesAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("geo.invalid_latitude");
+        result.Error.Code.Should().Be("geopoint.invalid_latitude");
     }
 
     // =========================================================================
@@ -263,10 +263,19 @@ public class SearchModuleTests
         var priceConsumer = new PricingUpdatedConsumer();
         var ratingConsumer = new RatingSummaryUpdatedConsumer();
 
-        await pubConsumer.Consume(new VehiclePublished(Guid.NewGuid(), "Honda", "City", 5, "Auto", HanoiLocation, "Hanoi", DateTimeOffset.UtcNow));
-        await unpubConsumer.Consume(new VehicleUnpublished(Guid.NewGuid(), DateTimeOffset.UtcNow));
-        await priceConsumer.Consume(new PricingUpdated(Guid.NewGuid(), 500_000m, DateTimeOffset.UtcNow));
-        await ratingConsumer.Consume(new RatingSummaryUpdated(Guid.NewGuid(), 4.9m, 12, DateTimeOffset.UtcNow));
+        var eventId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        await pubConsumer.Consume(new VehiclePublished(
+            eventId, now, vehicleId, ownerId, "Honda", "City", 5, "Auto", HanoiLocation, "Hanoi"));
+        await unpubConsumer.Consume(new VehicleUnpublished(
+            eventId, now, vehicleId, ownerId, "Unpublished for maintenance"));
+        await priceConsumer.Consume(new PricingUpdated(
+            eventId, now, vehicleId, 500_000m));
+        await ratingConsumer.Consume(new RatingSummaryUpdated(
+            eventId, now, vehicleId, 4.9m, 12));
 
         // If no unhandled exception occurred, consumers completed successfully
         Assert.True(true);
