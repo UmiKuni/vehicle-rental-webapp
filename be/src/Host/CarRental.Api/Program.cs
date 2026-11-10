@@ -104,3 +104,7 @@ app.MapHandoverEndpoints();
 app.MapReportingEndpoints();
 
 app.Run();
+
+public partial class Program
+{
+}
