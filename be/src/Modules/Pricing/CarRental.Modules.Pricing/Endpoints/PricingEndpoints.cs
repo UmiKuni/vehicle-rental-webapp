@@ -1,4 +1,5 @@
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -18,11 +19,11 @@ public static class PricingEndpoints
             Guid vehicleId,
             IPricingApi api,
             CancellationToken ct) =>
-            EntityResult(await api.GetPricingAsync(vehicleId, ct)))
+            (await api.GetPricingAsync(vehicleId, ct)).ToHttpResult())
             .WithName("GetVehiclePricing")
             .WithSummary("Get the active pricing configuration for a vehicle")
             .Produces<PricingPlanDto>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/quotes", async (
             PricingQuoteRequest request,
@@ -31,36 +32,29 @@ public static class PricingEndpoints
         {
             var periodResult = DateTimeRange.Create(request.StartTime, request.EndTime);
             if (periodResult.IsFailure)
-                return Results.BadRequest(periodResult.Error.Message);
+                return periodResult.ToHttpResult();
 
-            return EntityResult(await api.GetQuoteAsync(request.VehicleId, periodResult.Value, ct));
+            return (await api.GetQuoteAsync(request.VehicleId, periodResult.Value, ct)).ToHttpResult();
         })
         .WithName("GetPricingQuote")
         .WithSummary("Calculate a rental quote for a vehicle and period")
         .Produces<QuoteDto>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status404NotFound);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPut("/vehicles/{vehicleId:guid}", async (
             Guid vehicleId,
             ConfigurePricingDto request,
             IPricingApi api,
             CancellationToken ct) =>
-            EntityResult(await api.ConfigurePricingAsync(vehicleId, request, ct)))
+            (await api.ConfigurePricingAsync(vehicleId, request, ct)).ToHttpResult())
             .WithName("ConfigureVehiclePricing")
             .WithSummary("Configure hourly/daily rental pricing, deposit, fees, kilometre limit, and conditions")
             .Produces<PricingPlanDto>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireAuthorization("OwnerOnly");
 
         return app;
     }
-
-    private static IResult EntityResult<T>(CarRental.BuildingBlocks.Results.Result<T> result) =>
-        result.IsSuccess
-            ? Results.Ok(result.Value)
-            : result.Error.Code == "pricing.not_found"
-                ? Results.NotFound(result.Error.Message)
-                : Results.BadRequest(result.Error.Message);
 }

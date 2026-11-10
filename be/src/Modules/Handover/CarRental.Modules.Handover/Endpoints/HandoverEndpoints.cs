@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -18,7 +19,7 @@ public static class HandoverEndpoints
                 (!string.Equals(request.Type, "Pickup", StringComparison.OrdinalIgnoreCase) &&
                  !string.Equals(request.Type, "Return", StringComparison.OrdinalIgnoreCase)))
             {
-                return Results.BadRequest(new { error = "Type must be either 'Pickup' or 'Return'." });
+                return Error.Validation("handover.invalid_type", "Type must be either 'Pickup' or 'Return'.").ToProblemResult();
             }
 
             var handoverId = Guid.NewGuid();
@@ -116,7 +117,7 @@ public static class HandoverEndpoints
         {
             if (request.Odo < 0 || request.FuelLevel < 0 || request.FuelLevel > 100)
             {
-                return Results.BadRequest(new { error = "Odo must be non-negative and FuelLevel must be between 0 and 100." });
+                return Error.Validation("handover.invalid_condition", "Odo must be non-negative and FuelLevel must be between 0 and 100.").ToProblemResult();
             }
 
             var condition = new VehicleConditionDto(
@@ -138,7 +139,7 @@ public static class HandoverEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Corner) || string.IsNullOrWhiteSpace(request.StorageKey))
             {
-                return Results.BadRequest(new { error = "Corner and StorageKey are required." });
+                return Error.Validation("handover.photo_required", "Corner and StorageKey are required.").ToProblemResult();
             }
 
             var photo = new HandoverPhotoDto(
@@ -166,10 +167,8 @@ public static class HandoverEndpoints
                 (!string.Equals(request.ConfirmedByRole, "Customer", StringComparison.OrdinalIgnoreCase) &&
                  !string.Equals(request.ConfirmedByRole, "Owner", StringComparison.OrdinalIgnoreCase)))
             {
-                return Results.BadRequest(new { error = "ConfirmedByRole must be either 'Customer' or 'Owner'." });
+                return Error.Validation("handover.invalid_role", "ConfirmedByRole must be either 'Customer' or 'Owner'.").ToProblemResult();
             }
-
-            bool isCustomer = string.Equals(request.ConfirmedByRole, "Customer", StringComparison.OrdinalIgnoreCase);
 
             var finalizedDetail = new HandoverDetailDto(
                 Id: id,
