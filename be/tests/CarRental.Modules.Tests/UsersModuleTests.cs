@@ -1,6 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using CarRental.Modules.Users.Contracts.Enums;
 using CarRental.Modules.Users.Entities;
+using CarRental.Modules.Users.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace CarRental.Modules.Tests;
@@ -19,6 +23,17 @@ public class UsersModuleTests
         user.Role.Should().Be(UserRole.Customer);
         user.Status.Should().Be(UserStatus.Active);
         user.IdentityDocuments.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Register_ShouldTrimAndLowercaseEmail()
+    {
+        var result = User.Register("  Renter.ABC@EXAMPLE.COM  ", "  0901234567  ", "pwd");
+
+        result.IsSuccess.Should().BeTrue();
+        var user = result.Value;
+        user.Email.Should().Be("renter.abc@example.com");
+        user.Phone.Should().Be("0901234567");
     }
 
     [Fact]
@@ -53,6 +68,94 @@ public class UsersModuleTests
     }
 
     [Fact]
+    public void UpdateProfile_WhenBanned_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.Ban(Guid.NewGuid(), "Policy violation");
+
+        var result = user.UpdateProfile("Nguyen Van A", "123 Nguyen Hue");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.banned");
+    }
+
+    [Fact]
+    public void UpdateProfile_WithEmptyFullName_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+
+        var result = user.UpdateProfile("   ", "123 Nguyen Hue");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.invalid_fullname");
+    }
+
+    [Fact]
+    public void AddIdentityDocument_SameType_ShouldReplacePreviousDocument()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+
+        var result1 = user.AddIdentityDocument(DocumentType.CCCD, "keys/old_cccd.jpg");
+        result1.IsSuccess.Should().BeTrue();
+        user.IdentityDocuments.Should().HaveCount(1);
+        user.IdentityDocuments.First().StorageKey.Should().Be("keys/old_cccd.jpg");
+
+        var result2 = user.AddIdentityDocument(DocumentType.CCCD, "keys/new_cccd.jpg");
+        result2.IsSuccess.Should().BeTrue();
+        user.IdentityDocuments.Should().HaveCount(1);
+        user.IdentityDocuments.First().StorageKey.Should().Be("keys/new_cccd.jpg");
+    }
+
+    [Fact]
+    public void AddIdentityDocument_WhenBanned_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.Ban(Guid.NewGuid(), "Violation");
+
+        var result = user.AddIdentityDocument(DocumentType.CCCD, "keys/doc.jpg");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.banned");
+    }
+
+    [Fact]
+    public void AddIdentityDocument_WithEmptyKey_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+
+        var result = user.AddIdentityDocument(DocumentType.CCCD, "   ");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.invalid_document");
+    }
+
+    [Fact]
+    public void VerifyDocument_WhenNotFound_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+
+        var result = user.VerifyDocument(Guid.NewGuid(), Guid.NewGuid(), true);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.document_not_found");
+    }
+
+    [Fact]
+    public void VerifyDocument_WhenRejected_ShouldSetStatusAndReason()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.AddIdentityDocument(DocumentType.CCCD, "keys/blurry.jpg");
+        var docId = user.IdentityDocuments.First().Id;
+
+        var result = user.VerifyDocument(docId, Guid.NewGuid(), false, "Image is blurry");
+
+        result.IsSuccess.Should().BeTrue();
+        var doc = user.IdentityDocuments.First();
+        doc.VerificationStatus.Should().Be(DocumentVerificationStatus.Rejected);
+        doc.RejectReason.Should().Be("Image is blurry");
+    }
+
+    [Fact]
     public void SubmitOwnerOnboarding_And_Approve_ShouldUpgradeRoleToOwner()
     {
         var user = User.Register("owner@test.com", "0901234567", "pwd").Value;
@@ -71,6 +174,55 @@ public class UsersModuleTests
     }
 
     [Fact]
+    public void SubmitOwnerOnboarding_Resubmit_ShouldUpdateTaxCodeAndResetPending()
+    {
+        var user = User.Register("owner@test.com", "0901234567", "pwd").Value;
+        user.SubmitOwnerOnboarding("0102030405");
+        user.RejectOwner(Guid.NewGuid(), "Invalid tax code");
+
+        var resubmitResult = user.SubmitOwnerOnboarding("0999999999");
+
+        resubmitResult.IsSuccess.Should().BeTrue();
+        user.OwnerProfile!.TaxCode.Should().Be("0999999999");
+        user.OwnerProfile.ApprovalStatus.Should().Be(OwnerApprovalStatus.Pending);
+        user.OwnerProfile.RejectReason.Should().BeNull();
+    }
+
+    [Fact]
+    public void SubmitOwnerOnboarding_WhenBanned_ShouldFail()
+    {
+        var user = User.Register("owner@test.com", "0901234567", "pwd").Value;
+        user.Ban(Guid.NewGuid(), "Banned");
+
+        var result = user.SubmitOwnerOnboarding("0102030405");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.banned");
+    }
+
+    [Fact]
+    public void SubmitOwnerOnboarding_WithEmptyTaxCode_ShouldFail()
+    {
+        var user = User.Register("owner@test.com", "0901234567", "pwd").Value;
+
+        var result = user.SubmitOwnerOnboarding("   ");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.invalid_tax_code");
+    }
+
+    [Fact]
+    public void ApproveOwner_WithoutPendingRequest_ShouldFail()
+    {
+        var user = User.Register("customer@test.com", "0901234567", "pwd").Value;
+
+        var result = user.ApproveOwner(Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.no_pending_owner_request");
+    }
+
+    [Fact]
     public void RejectOwner_ShouldSetApprovalStatusToRejected()
     {
         var user = User.Register("owner@test.com", "0901234567", "pwd").Value;
@@ -85,6 +237,17 @@ public class UsersModuleTests
     }
 
     [Fact]
+    public void RejectOwner_WithoutPendingRequest_ShouldFail()
+    {
+        var user = User.Register("customer@test.com", "0901234567", "pwd").Value;
+
+        var result = user.RejectOwner(Guid.NewGuid(), "Reason");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.no_pending_owner_request");
+    }
+
+    [Fact]
     public void GetBookingEligibility_WithoutProfileAndDocs_ShouldBeIneligible()
     {
         var user = User.Register("user@test.com", "0901234567", "pwd").Value;
@@ -92,6 +255,34 @@ public class UsersModuleTests
         var eligibility = user.GetBookingEligibility();
         eligibility.IsEligible.Should().BeFalse();
         eligibility.IneligibilityReason.Should().Contain("Customer profile");
+    }
+
+    [Fact]
+    public void GetBookingEligibility_MissingCccd_ShouldBeIneligible()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.UpdateProfile("Nguyen Van A", "123 Nguyen Hue");
+        user.AddIdentityDocument(DocumentType.GPLX, "keys/gplx.jpg");
+        user.VerifyDocument(user.IdentityDocuments.First().Id, Guid.NewGuid(), true);
+
+        var eligibility = user.GetBookingEligibility();
+
+        eligibility.IsEligible.Should().BeFalse();
+        eligibility.IneligibilityReason.Should().Contain("CCCD");
+    }
+
+    [Fact]
+    public void GetBookingEligibility_MissingGplx_ShouldBeIneligible()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.UpdateProfile("Nguyen Van A", "123 Nguyen Hue");
+        user.AddIdentityDocument(DocumentType.CCCD, "keys/cccd.jpg");
+        user.VerifyDocument(user.IdentityDocuments.First().Id, Guid.NewGuid(), true);
+
+        var eligibility = user.GetBookingEligibility();
+
+        eligibility.IsEligible.Should().BeFalse();
+        eligibility.IneligibilityReason.Should().Contain("GPLX");
     }
 
     [Fact]
@@ -130,5 +321,143 @@ public class UsersModuleTests
 
         user.Unban(adminId);
         user.Status.Should().Be(UserStatus.Active);
+    }
+
+    // =========================================================================
+    // RefreshToken Tests
+    // =========================================================================
+
+    [Fact]
+    public void RefreshToken_WhenNotRevokedAndNotExpired_ShouldBeActive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var token = new RefreshToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hashed_token_value",
+            now.AddDays(7),
+            "Firefox / macOS",
+            now);
+
+        token.IsActive.Should().BeTrue();
+        token.RevokedAt.Should().BeNull();
+        token.ReplacedByTokenId.Should().BeNull();
+        token.DeviceInfo.Should().Be("Firefox / macOS");
+    }
+
+    [Fact]
+    public void RefreshToken_WhenExpired_ShouldNotBeActive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var token = new RefreshToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hashed_token_value",
+            now.AddMinutes(-5),
+            "Chrome / Windows",
+            now.AddDays(-7));
+
+        token.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RefreshToken_Revoke_ShouldSetRevokedAtAndReplacedByTokenId_AndBecomeInactive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var token = new RefreshToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hashed_token_value",
+            now.AddDays(7),
+            "Mobile App",
+            now);
+
+        var replacedById = Guid.NewGuid();
+        var revokeTime = now.AddHours(2);
+        token.Revoke(replacedById, revokeTime);
+
+        token.IsActive.Should().BeFalse();
+        token.RevokedAt.Should().Be(revokeTime);
+        token.ReplacedByTokenId.Should().Be(replacedById);
+    }
+
+    // =========================================================================
+    // TokenService Tests
+    // =========================================================================
+
+    [Fact]
+    public void TokenService_CreateAccessToken_ShouldIncludeExpectedClaims()
+    {
+        var options = Options.Create(new JwtOptions
+        {
+            Issuer = "CarRental.TestIssuer",
+            Audience = "CarRental.TestAudience",
+            SigningKey = "test-secret-key-that-is-at-least-32-bytes-long!",
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 7
+        });
+
+        var tokenService = new TokenService(options);
+        var user = User.Register("testjwt@example.com", "0901112222", "pwd").Value;
+
+        var (tokenString, expiresAt) = tokenService.CreateAccessToken(user);
+
+        tokenString.Should().NotBeNullOrWhiteSpace();
+        expiresAt.Should().BeAfter(DateTimeOffset.UtcNow);
+
+        var handler = new JwtSecurityTokenHandler();
+        var parsed = handler.ReadJwtToken(tokenString);
+
+        parsed.Issuer.Should().Be("CarRental.TestIssuer");
+        parsed.Audiences.Should().Contain("CarRental.TestAudience");
+        parsed.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == user.Id.Value.ToString());
+        parsed.Claims.Should().Contain(c => c.Type == ClaimTypes.Role && c.Value == UserRole.Customer.ToString());
+        parsed.Claims.Should().Contain(c => c.Type == ClaimTypes.Email && c.Value == "testjwt@example.com");
+    }
+
+    [Fact]
+    public void TokenService_CreateRefreshToken_ShouldGenerateTokenAndMatchingHash()
+    {
+        var options = Options.Create(new JwtOptions
+        {
+            Issuer = "CarRental.TestIssuer",
+            Audience = "CarRental.TestAudience",
+            SigningKey = "test-secret-key-that-is-at-least-32-bytes-long!",
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 14
+        });
+
+        var tokenService = new TokenService(options);
+
+        var (rawToken, hash, expiresAt) = tokenService.CreateRefreshToken();
+
+        rawToken.Should().NotBeNullOrWhiteSpace();
+        hash.Should().NotBeNullOrWhiteSpace();
+        expiresAt.Should().BeAfter(DateTimeOffset.UtcNow.AddDays(13));
+
+        // Verifying hash matches the raw token
+        var computedHash = tokenService.HashRefreshToken(rawToken);
+        computedHash.Should().Be(hash);
+    }
+
+    [Fact]
+    public void TokenService_HashRefreshToken_ShouldBeDeterministic()
+    {
+        var options = Options.Create(new JwtOptions
+        {
+            Issuer = "CarRental.TestIssuer",
+            Audience = "CarRental.TestAudience",
+            SigningKey = "test-secret-key-that-is-at-least-32-bytes-long!",
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 7
+        });
+
+        var tokenService = new TokenService(options);
+
+        var hash1 = tokenService.HashRefreshToken("sample-refresh-token");
+        var hash2 = tokenService.HashRefreshToken("sample-refresh-token");
+
+        hash1.Should().Be(hash2);
+        hash1.Should().MatchRegex("^[A-F0-9]{64}$"); // SHA256 hex uppercase string
     }
 }
