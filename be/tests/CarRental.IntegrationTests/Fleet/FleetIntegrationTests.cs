@@ -141,6 +141,10 @@ public class FleetIntegrationTests : IntegrationTestBase
             vehicle.AddImage("vehicles/img1.jpg");
             vehicle.AddImage("vehicles/img2.jpg");
             vehicle.AddImage("vehicles/img3.jpg");
+            await db.SaveChangesAsync();
+
+            db.ChangeTracker.Clear();
+            vehicle = await db.Vehicles.FirstAsync(v => v.Id == VehicleId.From(vehicleId));
             vehicle.SubmitForApproval();
             await db.SaveChangesAsync();
         }

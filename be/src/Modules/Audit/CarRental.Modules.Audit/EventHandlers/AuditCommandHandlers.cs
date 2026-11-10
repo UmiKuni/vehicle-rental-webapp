@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Audit.EventHandlers;
 
-public static class AuditCommandHandlers
+public sealed class AuditCommandHandlers
 {
     public static async Task Handle(
         RecordAuditEntry command,
