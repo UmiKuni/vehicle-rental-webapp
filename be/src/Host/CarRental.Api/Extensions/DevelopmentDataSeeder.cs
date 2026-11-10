@@ -222,7 +222,7 @@ public static class DevelopmentDataSeeder
     {
         var calendar = await db.VehicleCalendars
             .Include(item => item.Entries)
-            .FirstOrDefaultAsync(item => item.VehicleId == vehicleId);
+            .FirstOrDefaultAsync(item => item.Id == vehicleId);
         if (calendar is not null)
             return;
 
@@ -253,7 +253,7 @@ public static class DevelopmentDataSeeder
 
         var now = DateTimeOffset.UtcNow;
         var paymentResult = Payment.CreatePending(
-            booking.Id.Value, Money.Of(1_950_000), Money.Of(2_000_000), now);
+            booking.Id.Value, Money.Of(3_950_000), Money.Of(2_000_000), now);
         if (paymentResult.IsFailure)
             throw new InvalidOperationException($"Could not create seed payment: {paymentResult.Error.Message}");
 
@@ -346,7 +346,7 @@ public static class DevelopmentDataSeeder
         var result = Notification.Create(
             customerId,
             NotificationType.Email,
-            "Your seed booking has been confirmed.",
+            """{"message":"Your seed booking has been confirmed."}""",
             "seed.booking.confirmed",
             DateTimeOffset.UtcNow);
         if (result.IsFailure)
