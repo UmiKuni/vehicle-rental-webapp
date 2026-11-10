@@ -66,6 +66,11 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         builder.UseEnvironment("Testing");
         var connectionString = _dbContainer.GetConnectionString();
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+        builder.UseSetting("Authentication:Jwt:SigningKey", TestJwtSigningKey);
+        builder.UseSetting("Authentication:Jwt:Issuer", "CarRental.Api");
+        builder.UseSetting("Authentication:Jwt:Audience", "CarRental.Client");
+        builder.UseSetting("Authentication:Jwt:AccessTokenMinutes", "60");
+        builder.UseSetting("Authentication:Jwt:RefreshTokenDays", "30");
 
         builder.ConfigureAppConfiguration((context, config) =>
         {
