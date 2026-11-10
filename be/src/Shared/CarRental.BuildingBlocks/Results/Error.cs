@@ -1,17 +1,28 @@
 namespace CarRental.BuildingBlocks.Results;
 
-/// <summary>
-/// Represents an application or domain error with a machine-readable code and human-readable message.
-/// </summary>
-public sealed record Error(string Code, string Message)
+public enum ErrorType
 {
-    public static readonly Error None = new(string.Empty, string.Empty);
-    public static readonly Error NullValue = new("Error.NullValue", "The specified result value is null.");
+    None = 0,
+    Failure = 1,
+    Validation = 2,
+    NotFound = 3,
+    Conflict = 4,
+    Unauthorized = 5,
+    Forbidden = 6
+}
 
-    public static Error NotFound(string code, string message) => new(code, message);
-    public static Error Validation(string code, string message) => new(code, message);
-    public static Error Conflict(string code, string message) => new(code, message);
-    public static Error Failure(string code, string message) => new(code, message);
-    public static Error Unauthorized(string code, string message) => new(code, message);
-    public static Error Forbidden(string code, string message) => new(code, message);
+/// <summary>
+/// Represents an application or domain error with a machine-readable code, human-readable message, and error category.
+/// </summary>
+public sealed record Error(string Code, string Message, ErrorType Type = ErrorType.Failure)
+{
+    public static readonly Error None = new(string.Empty, string.Empty, ErrorType.None);
+    public static readonly Error NullValue = new("Error.NullValue", "The specified result value is null.", ErrorType.Validation);
+
+    public static Error NotFound(string code, string message) => new(code, message, ErrorType.NotFound);
+    public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
+    public static Error Conflict(string code, string message) => new(code, message, ErrorType.Conflict);
+    public static Error Failure(string code, string message) => new(code, message, ErrorType.Failure);
+    public static Error Unauthorized(string code, string message) => new(code, message, ErrorType.Unauthorized);
+    public static Error Forbidden(string code, string message) => new(code, message, ErrorType.Forbidden);
 }
