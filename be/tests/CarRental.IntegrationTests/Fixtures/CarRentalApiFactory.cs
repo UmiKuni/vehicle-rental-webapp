@@ -63,7 +63,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment("Testing");
         var connectionString = _dbContainer.GetConnectionString();
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
 

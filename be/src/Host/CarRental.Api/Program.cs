@@ -82,14 +82,17 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
-    // Auto-migrate all 13 module schemas on development startup
     await app.ApplyMigrationsAsync();
-    await app.SeedAsync();
 
-    app.MapOpenApi();
-    app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+    if (app.Environment.IsDevelopment())
+    {
+        await app.SeedAsync();
+
+        app.MapOpenApi();
+        app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+    }
 }
 
 // Map Module Endpoints (Mock Implementation)
