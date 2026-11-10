@@ -66,6 +66,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         builder.UseEnvironment("Testing");
         var connectionString = _dbContainer.GetConnectionString();
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+        builder.UseSetting("Wolverine:UseDurableLocalQueues", "false");
         builder.UseSetting("Authentication:Jwt:SigningKey", TestJwtSigningKey);
         builder.UseSetting("Authentication:Jwt:Issuer", "CarRental.Api");
         builder.UseSetting("Authentication:Jwt:Audience", "CarRental.Client");
@@ -77,6 +78,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connectionString,
+                ["Wolverine:UseDurableLocalQueues"] = "false",
                 ["Authentication:Jwt:SigningKey"] = TestJwtSigningKey,
                 ["Authentication:Jwt:Issuer"] = "CarRental.Api",
                 ["Authentication:Jwt:Audience"] = "CarRental.Client",

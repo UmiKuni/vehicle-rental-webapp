@@ -42,7 +42,9 @@ public static class WolverineExtensions
 
             // Integration tests should not leave durable local queue work to drain after the
             // test database is torn down. Production retains durable local queues.
-            if (!builder.Environment.IsEnvironment("Testing"))
+            var useDurableLocalQueues = builder.Configuration
+                .GetValue("Wolverine:UseDurableLocalQueues", !builder.Environment.IsEnvironment("Testing"));
+            if (useDurableLocalQueues)
             {
                 opts.Policies.UseDurableLocalQueues();
             }
