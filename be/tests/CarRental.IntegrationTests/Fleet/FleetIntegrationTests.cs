@@ -7,6 +7,7 @@ using CarRental.Modules.Fleet.Data;
 using CarRental.Modules.Fleet.Entities;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace CarRental.IntegrationTests.Fleet;
@@ -25,8 +26,8 @@ public class FleetIntegrationTests : IntegrationTestBase
         var brand = new VehicleBrand(Guid.NewGuid(), "Toyota");
         var model = new VehicleModel(Guid.NewGuid(), brand.Id, "Camry");
 
-        db.Brands.Add(brand);
-        db.Models.Add(model);
+        db.VehicleBrands.Add(brand);
+        db.VehicleModels.Add(model);
         await db.SaveChangesAsync();
 
         return (brand.Id, model.Id);
@@ -75,7 +76,7 @@ public class FleetIntegrationTests : IntegrationTestBase
         var summary = await response.Content.ReadFromJsonAsync<VehicleSummaryDto>();
         summary.Should().NotBeNull();
         summary!.PlateNumber.Should().Be("51K-888.99");
-        summary.Status.Should().Be(VehicleStatus.Draft);
+        summary.Status.Should().Be(nameof(VehicleStatus.Draft));
 
         // Verify in PostgreSQL database
         using var scope = CreateScope();

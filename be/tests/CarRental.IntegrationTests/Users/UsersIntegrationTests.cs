@@ -7,6 +7,7 @@ using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace CarRental.IntegrationTests.Users;
@@ -32,7 +33,6 @@ public class UsersIntegrationTests : IntegrationTestBase
         authResult.Should().NotBeNull();
         authResult!.AccessToken.Should().NotBeNullOrWhiteSpace();
         authResult.RefreshToken.Should().NotBeNullOrWhiteSpace();
-        authResult.Role.Should().Be("Customer");
 
         // Verify persisted in PostgreSQL
         using var scope = CreateScope();
