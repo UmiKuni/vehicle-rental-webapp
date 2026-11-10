@@ -64,12 +64,14 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        var connectionString = _dbContainer.GetConnectionString();
+        builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
 
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = _dbContainer.GetConnectionString(),
+                ["ConnectionStrings:DefaultConnection"] = connectionString,
                 ["Authentication:Jwt:SigningKey"] = TestJwtSigningKey,
                 ["Authentication:Jwt:Issuer"] = "CarRental.Api",
                 ["Authentication:Jwt:Audience"] = "CarRental.Client",
