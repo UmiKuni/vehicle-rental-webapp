@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -16,7 +17,7 @@ public static class PaymentEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Method))
             {
-                return Results.BadRequest(new { error = "Payment method is required." });
+                return Error.Validation("payments.method_required", "Payment method is required.").ToProblemResult();
             }
 
             var paymentId = Guid.NewGuid();
@@ -130,7 +131,7 @@ public static class PaymentEndpoints
         {
             if (request.DeductAmount <= 0)
             {
-                return Results.BadRequest(new { error = "DeductAmount must be greater than zero." });
+                return Error.Validation("payments.invalid_deduct_amount", "DeductAmount must be greater than zero.").ToProblemResult();
             }
 
             decimal originalDeposit = 5_000_000m;

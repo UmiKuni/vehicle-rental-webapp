@@ -1,9 +1,10 @@
+using System.Security.Claims;
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using System.Security.Claims;
 
 namespace CarRental.Modules.Fleet.Endpoints;
 
@@ -14,113 +15,136 @@ public static class FleetEndpoints
         var group = app.MapGroup("/api/fleet").WithTags("Fleet");
 
         group.MapGet("/brands", async (IFleetApi api, CancellationToken ct) =>
-            Results.Ok((await api.GetBrandsAsync(ct)).Value));
+            (await api.GetBrandsAsync(ct)).ToHttpResult())
+            .Produces<IReadOnlyList<BrandDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/brands/{brandId:guid}", async (Guid brandId, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.GetBrandAsync(brandId, ct)));
+            (await api.GetBrandAsync(brandId, ct)).ToHttpResult())
+            .Produces<BrandDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/brands", async (CreateBrandDto dto, IFleetApi api, CancellationToken ct) =>
-            CreatedResult(await api.CreateBrandAsync(dto, ct), "brands"))
-            .RequireAuthorization("AdminOnly");
+            (await api.CreateBrandAsync(dto, ct)).ToCreatedHttpResult(b => $"/api/fleet/brands/{b.BrandId}"))
+            .RequireAuthorization("AdminOnly")
+            .Produces<BrandDto>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPut("/brands/{brandId:guid}", async (Guid brandId, UpdateBrandDto dto, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.UpdateBrandAsync(brandId, dto, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.UpdateBrandAsync(brandId, dto, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces<BrandDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapDelete("/brands/{brandId:guid}", async (Guid brandId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.DeleteBrandAsync(brandId, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.DeleteBrandAsync(brandId, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/models", async (Guid? brandId, IFleetApi api, CancellationToken ct) =>
-            Results.Ok((await api.GetModelsAsync(brandId, ct)).Value));
+            (await api.GetModelsAsync(brandId, ct)).ToHttpResult())
+            .Produces<IReadOnlyList<ModelDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/models/{modelId:guid}", async (Guid modelId, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.GetModelAsync(modelId, ct)));
+            (await api.GetModelAsync(modelId, ct)).ToHttpResult())
+            .Produces<ModelDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/models", async (CreateModelDto dto, IFleetApi api, CancellationToken ct) =>
-            CreatedResult(await api.CreateModelAsync(dto, ct), "models"))
-            .RequireAuthorization("AdminOnly");
+            (await api.CreateModelAsync(dto, ct)).ToCreatedHttpResult(m => $"/api/fleet/models/{m.ModelId}"))
+            .RequireAuthorization("AdminOnly")
+            .Produces<ModelDto>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPut("/models/{modelId:guid}", async (Guid modelId, UpdateModelDto dto, IFleetApi api, CancellationToken ct) =>
-            EntityResult(await api.UpdateModelAsync(modelId, dto, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.UpdateModelAsync(modelId, dto, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces<ModelDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapDelete("/models/{modelId:guid}", async (Guid modelId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.DeleteModelAsync(modelId, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.DeleteModelAsync(modelId, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/vehicles", async (IFleetApi api, CancellationToken ct) =>
-        {
-            var result = await api.GetPublishedVehiclesAsync(ct);
-            return Results.Ok(result.Value);
-        });
+            (await api.GetPublishedVehiclesAsync(ct)).ToHttpResult())
+            .Produces<IReadOnlyList<VehicleSummaryDto>>(StatusCodes.Status200OK);
 
         group.MapGet("/vehicles/{vehicleId:guid}", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-        {
-            var result = await api.GetVehicleSummaryAsync(vehicleId, ct);
-            return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Error.Message);
-        });
+            (await api.GetVehicleSummaryAsync(vehicleId, ct)).ToHttpResult())
+            .Produces<VehicleSummaryDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/owners/{ownerId:guid}/vehicles", async (Guid ownerId, IFleetApi api, CancellationToken ct) =>
-        {
-            var result = await api.GetOwnerVehiclesAsync(ownerId, ct);
-            return Results.Ok(result.Value);
-        });
+            (await api.GetOwnerVehiclesAsync(ownerId, ct)).ToHttpResult())
+            .Produces<IReadOnlyList<VehicleSummaryDto>>(StatusCodes.Status200OK);
 
         group.MapPost("/vehicles", async (CreateVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-        {
-            var result = await api.CreateVehicleAsync(dto, ct);
-            return result.IsSuccess
-                ? Results.Created($"/api/fleet/vehicles/{result.Value.VehicleId}", result.Value)
-                : Results.BadRequest(result.Error.Message);
-        }).RequireAuthorization("OwnerOnly");
+            (await api.CreateVehicleAsync(dto, ct)).ToCreatedHttpResult(v => $"/api/fleet/vehicles/{v.VehicleId}"))
+            .RequireAuthorization("OwnerOnly")
+            .Produces<VehicleSummaryDto>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapPut("/vehicles/{vehicleId:guid}", async (Guid vehicleId, UpdateVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-        {
-            var result = await api.UpdateVehicleAsync(vehicleId, dto, ct);
-            return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Error.Message);
-        }).RequireAuthorization("OwnerOnly");
+            (await api.UpdateVehicleAsync(vehicleId, dto, ct)).ToHttpResult())
+            .RequireAuthorization("OwnerOnly")
+            .Produces<VehicleSummaryDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/submit", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.SubmitForApprovalAsync(vehicleId, ct)))
-            .RequireAuthorization("OwnerOnly");
+            (await api.SubmitForApprovalAsync(vehicleId, ct)).ToHttpResult())
+            .RequireAuthorization("OwnerOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/approve", async (Guid vehicleId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.ApproveAsync(vehicleId, GetUserId(principal), ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.ApproveAsync(vehicleId, GetUserId(principal), ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/reject", async (Guid vehicleId, RejectVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.RejectAsync(vehicleId, GetUserId(principal), dto, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.RejectAsync(vehicleId, GetUserId(principal), dto, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/hide", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.HideAsync(vehicleId, ct)))
-            .RequireAuthorization("OwnerOnly");
+            (await api.HideAsync(vehicleId, ct)).ToHttpResult())
+            .RequireAuthorization("OwnerOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/show", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.ShowAsync(vehicleId, ct)))
-            .RequireAuthorization("OwnerOnly");
+            (await api.ShowAsync(vehicleId, ct)).ToHttpResult())
+            .RequireAuthorization("OwnerOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost("/vehicles/{vehicleId:guid}/unpublish", async (Guid vehicleId, UnpublishVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
-            ActionResult(await api.UnpublishAsync(vehicleId, GetUserId(principal), dto, ct)))
-            .RequireAuthorization("AdminOnly");
+            (await api.UnpublishAsync(vehicleId, GetUserId(principal), dto, ct)).ToHttpResult())
+            .RequireAuthorization("AdminOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
-    }
-
-    private static IResult ActionResult(CarRental.BuildingBlocks.Results.Result result) =>
-        result.IsSuccess ? Results.NoContent() : Results.BadRequest(result.Error.Message);
-
-    private static IResult EntityResult<T>(CarRental.BuildingBlocks.Results.Result<T> result) =>
-        result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Error.Message);
-
-    private static IResult CreatedResult<T>(
-        CarRental.BuildingBlocks.Results.Result<T> result,
-        string resource)
-    {
-        return result.IsSuccess
-            ? Results.Created($"/api/fleet/{resource}", result.Value)
-            : Results.BadRequest(result.Error.Message);
     }
 
     private static Guid GetUserId(ClaimsPrincipal principal)
