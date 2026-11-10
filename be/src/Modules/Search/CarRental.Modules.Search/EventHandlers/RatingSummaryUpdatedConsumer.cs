@@ -1,4 +1,5 @@
 using CarRental.Modules.Reviews.Contracts.Events;
+using Wolverine.Attributes;
 
 namespace CarRental.Modules.Search.EventHandlers;
 
@@ -7,6 +8,13 @@ namespace CarRental.Modules.Search.EventHandlers;
 /// </summary>
 public sealed class RatingSummaryUpdatedConsumer
 {
+    [WolverineIgnore]
+    public Task Consume(RatingSummaryUpdated message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Task.CompletedTask;
+    }
+
     /*
      * WHAT TO DO IN THIS FILE:
      * ------------------------

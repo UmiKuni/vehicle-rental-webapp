@@ -1,4 +1,5 @@
 using CarRental.Modules.Fleet.Contracts.Events;
+using Wolverine.Attributes;
 
 namespace CarRental.Modules.Search.EventHandlers;
 
@@ -7,6 +8,13 @@ namespace CarRental.Modules.Search.EventHandlers;
 /// </summary>
 public sealed class VehiclePublishedConsumer
 {
+    [WolverineIgnore]
+    public Task Consume(VehiclePublished message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Task.CompletedTask;
+    }
+
     /*
      * WHAT TO DO IN THIS FILE:
      * ------------------------
