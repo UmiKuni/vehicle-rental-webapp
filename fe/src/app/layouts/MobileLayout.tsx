@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
-import { User, ShieldCheck, Car, House } from 'lucide-react'
+import { User, ShieldCheck, Car, House, CalendarDays, Bell } from 'lucide-react'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
@@ -13,6 +13,8 @@ function BottomNav() {
   const navItems = [
     { to: ROUTES.HOME, icon: House, label: 'Home' },
     { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
+    { to: ROUTES.BOOKINGS, icon: CalendarDays, label: 'Trips' },
+    { to: ROUTES.NOTIFICATIONS, icon: Bell, label: 'Inbox' },
     { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
   ]
 
@@ -23,9 +25,9 @@ function BottomNav() {
           <NavLink
             key={to}
             to={to}
-              end={to === ROUTES.HOME || to === ROUTES.PROFILE}
+              end={to === ROUTES.HOME || to === ROUTES.PROFILE || to === ROUTES.BOOKINGS || to === ROUTES.NOTIFICATIONS}
             className={({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
                 itemIsActive
@@ -35,7 +37,7 @@ function BottomNav() {
             }}
           >
             {({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && location.pathname.startsWith(ROUTES.PROFILE_AUTH))
+              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return <>
                 <div className="relative">
                   <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />

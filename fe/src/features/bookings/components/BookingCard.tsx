@@ -1,4 +1,5 @@
 import { Calendar, MapPin, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Booking } from '@/types/booking.types'
 import { useCancelBooking } from '../hooks/useBookings'
 import { formatDate } from '@/shared/utils'
@@ -80,8 +81,22 @@ export function BookingCard({ booking }: BookingCardProps) {
       </div>
 
       {/* Actions */}
-      {booking.status === 'CONFIRMED' && (
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
+        <Link to={`/bookings/${booking.id}`} className="mr-auto rounded-lg px-3 py-1.5 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
+        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+          <Link to={`/bookings/${booking.id}/payment`} className="rounded-lg bg-[#1a8a9d] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Payment</Link>
+        )}
+        {(booking.status === 'PAID' || booking.status === 'CONFIRMED') && (
+          <Link to={`/bookings/${booking.id}/pickup`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
+        )}
+        {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && (
+          <Link to={`/bookings/${booking.id}/return`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
+        )}
+        {booking.status === 'COMPLETED' && (
+          <Link to={`/bookings/${booking.id}/settlement`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
+        )}
+        {booking.status === 'CONFIRMED' && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={isPending}
@@ -98,7 +113,8 @@ export function BookingCard({ booking }: BookingCardProps) {
             Help
           </a>
         </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

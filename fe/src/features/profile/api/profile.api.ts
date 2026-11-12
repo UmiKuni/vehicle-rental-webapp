@@ -12,27 +12,29 @@ async function currentProfile() {
   return { identity, profile }
 }
 
-function mapProfile(identity: BackendIdentity, profile: BackendProfile): AuthUser {
+function mapProfile(identity: BackendIdentity, profile: BackendProfile): AuthUser & { address: string; phone: string } {
   return {
     id: identity.userId,
     username: identity.email,
     email: identity.email,
     fullName: profile.fullName || identity.email,
     role: identity.role.toUpperCase() as AuthUser['role'],
+    address: profile.address ?? '',
+    phone: profile.phone ?? '',
   }
 }
 
 export const profileApi = {
-  getProfile: async (): Promise<AuthUser & { kyc?: KycProfile }> => {
+  getProfile: async (): Promise<AuthUser & { kyc?: KycProfile; address: string; phone: string }> => {
     const { identity, profile } = await currentProfile()
     return mapProfile(identity, profile)
   },
 
-  updateProfile: async (data: Partial<Pick<AuthUser, 'fullName' | 'avatar'>>): Promise<AuthUser> => {
+  updateProfile: async (data: Partial<Pick<AuthUser, 'fullName' | 'avatar'>> & { address?: string }): Promise<AuthUser & { address: string; phone: string }> => {
     const { identity, profile } = await currentProfile()
     await apiClient.put(`/users/${identity.userId}/profile`, {
       fullName: data.fullName ?? profile.fullName,
-      address: profile.address,
+      address: data.address ?? profile.address,
     })
     const { data: updated } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
     return mapProfile(identity, updated)
@@ -52,19 +54,24 @@ export const profileApi = {
     }
   },
 
-  submitKyc: async (_payload: KycSubmitPayload): Promise<KycProfile> => {
+  submitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
+    void payload
     throw new Error('KYC submission is not implemented by the backend yet.')
   },
 
-  uploadCccdImage: async (_file: File, _side: 'front' | 'back'): Promise<{ url: string }> => {
+  uploadCccdImage: async (file: File, side: 'front' | 'back'): Promise<{ url: string }> => {
+    void file
+    void side
     throw new Error('KYC document upload is not implemented by the backend yet.')
   },
 
-  resubmitKyc: async (_payload: KycSubmitPayload): Promise<KycProfile> => {
+  resubmitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
+    void payload
     throw new Error('KYC resubmission is not implemented by the backend yet.')
   },
 
-  setMockKycStatus: async (_status: KycProfile['status']): Promise<KycProfile> => {
+  setMockKycStatus: async (status: KycProfile['status']): Promise<KycProfile> => {
+    void status
     throw new Error('Mock KYC status changes are disabled when using the real API.')
   },
 }

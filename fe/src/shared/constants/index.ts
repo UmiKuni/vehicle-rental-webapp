@@ -13,8 +13,12 @@ export const ROUTES = {
   SEARCH: '/search',
   BOOKINGS: '/bookings',
   PROFILE: '/profile',
+  PROFILE_EDIT: '/profile/edit',
   PROFILE_AUTH: '/profile/auth',
-  PROFILE_VERIFY: '/profile/verify',
+  PROFILE_VERIFY: '/profile/verification/terms',
+  VERIFY_IDENTITY: '/profile/verification/identity',
+  VERIFY_LICENSE: '/profile/verification/license',
+  NOTIFICATIONS: '/notifications',
   NOT_FOUND: '/404',
 } as const
 

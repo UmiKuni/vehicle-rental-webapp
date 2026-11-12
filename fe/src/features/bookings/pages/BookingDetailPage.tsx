@@ -21,7 +21,15 @@ export default function BookingDetailPage() {
       </h1>
       {isLoading && <CardSkeleton />}
       {isError && <ErrorState message="Booking details could not be loaded." onRetry={() => void refetch()} />}
-      {!isLoading && !isError && booking && <BookingCard booking={booking} />}
+      {!isLoading && !isError && booking && <>
+        <BookingCard booking={booking} />
+        <div className="grid grid-cols-2 gap-2">
+          {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && <Link to={`/bookings/${booking.id}/payment`} className="flex h-11 items-center justify-center rounded-xl bg-[#1a8a9d] text-xs font-bold text-white">Thanh toán</Link>}
+          {(booking.status === 'PAID' || booking.status === 'CONFIRMED') && <Link to={`/bookings/${booking.id}/pickup`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Kiểm tra nhận xe</Link>}
+          {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && <Link to={`/bookings/${booking.id}/return`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Kiểm tra trả xe</Link>}
+          {booking.status === 'COMPLETED' && <Link to={`/bookings/${booking.id}/settlement`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Đối soát và hoàn cọc</Link>}
+        </div>
+      </>}
       {!isLoading && !isFetching && !isError && !booking && (
         <ErrorState message="This booking could not be found." onRetry={() => void refetch()} />
       )}

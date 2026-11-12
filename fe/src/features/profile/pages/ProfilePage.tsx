@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   ShieldAlert, ChevronRight, LogOut, User, Mail, Shield,
-  CalendarDays, MapPin, AlertTriangle, Clock, Settings, CreditCard,
+  CalendarDays, MapPin, AlertTriangle, Clock, Settings, CreditCard, Bell, Pencil,
   Globe2,
 } from 'lucide-react'
 import { useProfile, useKycStatus } from '../hooks/useProfile'
@@ -114,7 +114,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: strin
 // ─── Main Profile Page ────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { user, logout } = useAuth()
-  const { isLoading: profileLoading } = useProfile()
+  const { data: profile, isLoading: profileLoading } = useProfile()
   const { data: kyc, isLoading: kycLoading } = useKycStatus()
 
   if (profileLoading || kycLoading) return <ProfileSkeleton />
@@ -142,7 +142,7 @@ export default function ProfilePage() {
           {/* Name & role */}
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-foreground truncate">
-              {user?.fullName ?? 'User'}
+              {profile?.fullName ?? user?.fullName ?? 'User'}
             </h1>
             <p className="text-xs text-muted-foreground truncate">@{user?.username} · {user?.role}</p>
             <div className="mt-1.5">
@@ -151,9 +151,9 @@ export default function ProfilePage() {
           </div>
 
           {/* Settings icon */}
-          <button className="rounded-full p-2 hover:bg-accent transition-colors">
-            <Settings className="size-5 text-muted-foreground" />
-          </button>
+          <Link to={ROUTES.PROFILE_EDIT} aria-label="Edit profile" className="rounded-full p-2 hover:bg-accent transition-colors">
+            <Pencil className="size-5 text-muted-foreground" />
+          </Link>
         </div>
       </div>
 
@@ -169,8 +169,8 @@ export default function ProfilePage() {
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           Account Information
         </p>
-        <InfoRow icon={User} label="Full Name" value={user?.fullName} />
-        <InfoRow icon={Mail} label="Email" value={user?.email} />
+        <InfoRow icon={User} label="Full Name" value={profile?.fullName ?? user?.fullName} />
+        <InfoRow icon={Mail} label="Email" value={profile?.email ?? user?.email} />
         <InfoRow icon={Shield} label="Role" value={user?.role} />
       </div>
 
@@ -209,6 +209,14 @@ export default function ProfilePage() {
 
       {/* ── Actions ── */}
       <div className="mx-4 rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
+        <Link to={ROUTES.PROFILE_EDIT} className="flex w-full items-center gap-3 px-4 py-3.5 text-foreground hover:bg-muted/60 transition-colors">
+          <Settings className="size-4 shrink-0" />
+          <span className="text-sm font-semibold">Edit profile</span>
+        </Link>
+        <Link to={ROUTES.NOTIFICATIONS} className="flex w-full items-center gap-3 px-4 py-3.5 text-foreground hover:bg-muted/60 transition-colors">
+          <Bell className="size-4 shrink-0" />
+          <span className="text-sm font-semibold">Notifications</span>
+        </Link>
         <button
           onClick={logout}
           className="flex w-full items-center gap-3 px-4 py-3.5 text-destructive hover:bg-destructive/5 transition-colors"

@@ -13,11 +13,20 @@ const DashboardPage    = lazy(() => import('@/features/dashboard/pages/Dashboard
 const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
 const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
+const ProfileEditPage  = lazy(() => import('@/features/profile/pages/ProfileEditPage'))
+const VerificationTermsPage = lazy(() => import('@/features/profile/pages/VerificationTermsPage'))
+const IdentityVerificationPage = lazy(() => import('@/features/profile/pages/IdentityVerificationPage'))
+const LicenseVerificationPage = lazy(() => import('@/features/profile/pages/LicenseVerificationPage'))
 const SearchVehiclesPage = lazy(() => import('@/features/vehicles/pages/SearchVehiclesPage'))
 const HomePage = lazy(() => import('@/features/home/pages/HomePage'))
 const VehicleDetailPage = lazy(() => import('@/features/vehicles/pages/VehicleDetailPage'))
 const MyBookingsPage   = lazy(() => import('@/features/bookings/pages/MyBookingsPage'))
 const BookingDetailPage = lazy(() => import('@/features/bookings/pages/BookingDetailPage'))
+const HandoverPage = lazy(() => import('@/features/bookings/pages/HandoverPage'))
+const BookingPaymentPage = lazy(() => import('@/features/payments/pages/BookingPaymentPage'))
+const PaymentResultPage = lazy(() => import('@/features/payments/pages/PaymentResultPage'))
+const SettlementPage = lazy(() => import('@/features/payments/pages/SettlementPage'))
+const NotificationsPage = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
 const AdminVehiclesPage = lazy(() => import('@/features/admin/pages/AdminVehiclesPage'))
 const AdminCatalogPage = lazy(() => import('@/features/admin/pages/AdminCatalogPage'))
 const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'))
@@ -93,7 +102,15 @@ const router = createBrowserRouter([
         children: [
           { path: ROUTES.BOOKINGS, element: wrap(MyBookingsPage) },
           { path: '/booking/:bookingId', element: wrap(BookingDetailPage) },
+          { path: '/bookings/:bookingId', element: wrap(BookingDetailPage) },
+          { path: '/bookings/:bookingId/payment', element: wrap(BookingPaymentPage) },
+          { path: '/payments/result', element: wrap(PaymentResultPage) },
+          { path: '/bookings/:bookingId/pickup', element: wrap(HandoverPage) },
+          { path: '/bookings/:bookingId/return', element: wrap(HandoverPage) },
+          { path: '/bookings/:bookingId/settlement', element: wrap(SettlementPage) },
+          { path: ROUTES.NOTIFICATIONS, element: wrap(NotificationsPage) },
           { path: ROUTES.PROFILE,  element: wrap(ProfilePage) },
+          { path: ROUTES.PROFILE_EDIT, element: wrap(ProfileEditPage) },
         ],
       },
     ],
@@ -103,10 +120,10 @@ const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
-      {
-        path: ROUTES.PROFILE_VERIFY,
-        element: wrap(KycWizardPage),
-      },
+      { path: ROUTES.PROFILE_VERIFY, element: wrap(VerificationTermsPage) },
+      { path: ROUTES.VERIFY_IDENTITY, element: wrap(IdentityVerificationPage) },
+      { path: ROUTES.VERIFY_LICENSE, element: wrap(LicenseVerificationPage) },
+      { path: '/profile/verify', element: wrap(KycWizardPage) },
     ],
   },
 
