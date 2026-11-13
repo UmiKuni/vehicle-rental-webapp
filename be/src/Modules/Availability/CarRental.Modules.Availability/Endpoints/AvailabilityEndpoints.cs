@@ -117,6 +117,7 @@ public static class AvailabilityEndpoints
             return Results.Created($"/api/availability/vehicles/{vehicleId}/calendar", entry);
         })
         .WithName("BlockVehicleSchedule")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Block vehicle schedule manually")
         .WithDescription("Allows vehicle owners to manually block dates for personal use or scheduled maintenance.")
         .Produces<CalendarEntryDto>(StatusCodes.Status201Created)
@@ -128,6 +129,7 @@ public static class AvailabilityEndpoints
             return Results.NoContent();
         })
         .WithName("UnblockVehicleSchedule")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Unblock previously blocked schedule")
         .WithDescription("Removes an owner-created block, restoring vehicle availability for bookings.")
         .Produces(StatusCodes.Status204NoContent);
