@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Search.Contracts;
 using CarRental.Modules.Search.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -14,17 +15,12 @@ public static class SearchEndpoints
             [AsParameters] VehicleSearchRequest request,
             ISearchApi api,
             CancellationToken ct) =>
-        {
-            var result = await api.SearchVehiclesAsync(request, ct);
-            return result.IsSuccess
-                ? Results.Ok(result.Value)
-                : Results.BadRequest(result.Error.Message);
-        })
+            (await api.SearchVehiclesAsync(request, ct)).ToHttpResult())
         .WithTags("Search")
         .WithName("SearchVehicles")
         .WithSummary("Search published vehicles by specifications, price, and radius")
         .Produces<PagedVehicleSearchResultDto>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest);
 
         return app;
     }

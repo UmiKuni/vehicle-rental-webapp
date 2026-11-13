@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -16,7 +17,7 @@ public static class AvailabilityEndpoints
         {
             if (!start.HasValue || !end.HasValue || end.Value <= start.Value)
             {
-                return Results.BadRequest(new { error = "Valid start and end query parameters are required, and end must be greater than start." });
+                return Error.Validation("availability.invalid_date_range", "Valid start and end query parameters are required, and end must be greater than start.").ToProblemResult();
             }
 
             // Realistic mock busy periods (e.g. existing confirmed booking)
@@ -100,7 +101,7 @@ public static class AvailabilityEndpoints
         {
             if (request.EndTime <= request.StartTime || string.IsNullOrWhiteSpace(request.Reason))
             {
-                return Results.BadRequest(new { error = "EndTime must be greater than StartTime, and Reason is required." });
+                return Error.Validation("availability.invalid_schedule_block", "EndTime must be greater than StartTime, and Reason is required.").ToProblemResult();
             }
 
             var entry = new CalendarEntryDto(

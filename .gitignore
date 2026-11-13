@@ -108,3 +108,23 @@ CLAUDE.md
 # ==============================================================================
 be/localdocs/
 
+
+# ==============================================================================
+# Terraform / Infrastructure-as-Code (infra/)
+# ==============================================================================
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!environments/*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+tfplan

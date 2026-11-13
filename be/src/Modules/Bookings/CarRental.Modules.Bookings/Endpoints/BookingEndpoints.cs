@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -16,7 +17,7 @@ public static class BookingEndpoints
         {
             if (request.EndTime <= request.StartTime)
             {
-                return Results.BadRequest(new { error = "EndTime must be greater than StartTime." });
+                return Error.Validation("booking.invalid_date_range", "EndTime must be greater than StartTime.").ToProblemResult();
             }
 
             var days = Math.Max(1, (int)Math.Ceiling((request.EndTime - request.StartTime).TotalDays));
@@ -71,8 +72,8 @@ public static class BookingEndpoints
         .Produces<BookingDetailDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        // 2. Get customer's bookings (paginated)
-        group.MapGet("/me", (string? status, int page = 1, int pageSize = 10) =>
+        // 2. Get customer's bookings (paginated) - supports both /me and /
+        Func<string?, int, int, IResult> getMyBookingsHandler = (string? status, int page, int pageSize) =>
         {
             var allBookings = new List<BookingSummaryDto>
             {
@@ -123,14 +124,21 @@ public static class BookingEndpoints
                 : allBookings.Where(b => string.Equals(b.Status, status, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            var result = new PagedResultDto<BookingSummaryDto>(paged, filtered.Count, page, pageSize);
+            var result = new PagedResult<BookingSummaryDto>(paged, filtered.Count, page, pageSize);
 
             return Results.Ok(result);
-        })
-        .WithName("GetMyBookings")
-        .WithSummary("Khách thuê xem danh sách đơn đã đặt")
-        .WithDescription("Retrieves a paginated list of bookings created by the currently authenticated customer.")
-        .Produces<PagedResultDto<BookingSummaryDto>>(StatusCodes.Status200OK);
+        };
+
+        group.MapGet("/me", (string? status, int page = 1, int pageSize = 10) => getMyBookingsHandler(status, page, pageSize))
+            .WithName("GetMyBookings")
+            .WithSummary("Khách thuê xem danh sách đơn đã đặt")
+            .WithDescription("Retrieves a paginated list of bookings created by the currently authenticated customer.")
+            .Produces<PagedResult<BookingSummaryDto>>(StatusCodes.Status200OK);
+
+        group.MapGet("/", (string? status, int page = 1, int pageSize = 10) => getMyBookingsHandler(status, page, pageSize))
+            .WithName("GetAllMyBookings")
+            .WithSummary("Khách thuê xem danh sách đơn đã đặt (alias)")
+            .Produces<PagedResult<BookingSummaryDto>>(StatusCodes.Status200OK);
 
         // 3. Get owner's incoming booking requests (paginated)
         group.MapGet("/owner", (string? status, int page = 1, int pageSize = 10) =>
@@ -174,14 +182,14 @@ public static class BookingEndpoints
                 : ownerBookings.Where(b => string.Equals(b.Status, status, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            var result = new PagedResultDto<BookingSummaryDto>(paged, filtered.Count, page, pageSize);
+            var result = new PagedResult<BookingSummaryDto>(paged, filtered.Count, page, pageSize);
 
             return Results.Ok(result);
         })
         .WithName("GetOwnerBookings")
         .WithSummary("Chủ xe xem danh sách yêu cầu thuê xe")
         .WithDescription("Retrieves a paginated list of booking requests for vehicles owned by the authenticated owner.")
-        .Produces<PagedResultDto<BookingSummaryDto>>(StatusCodes.Status200OK);
+        .Produces<PagedResult<BookingSummaryDto>>(StatusCodes.Status200OK);
 
         // 4. Get booking detail by ID
         group.MapGet("/{id:guid}", (Guid id) =>
@@ -266,7 +274,7 @@ public static class BookingEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
-                return Results.BadRequest(new { error = "Reason is required to reject a booking." });
+                return Error.Validation("booking.reason_required", "Reason is required to reject a booking.").ToProblemResult();
             }
 
             var rejectedBooking = new BookingDetailDto(
@@ -306,7 +314,7 @@ public static class BookingEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
-                return Results.BadRequest(new { error = "Reason is required to cancel a booking." });
+                return Error.Validation("booking.reason_required", "Reason is required to cancel a booking.").ToProblemResult();
             }
 
             var cancellationResult = new BookingCancellationResultDto(
@@ -331,7 +339,7 @@ public static class BookingEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
-                return Results.BadRequest(new { error = "Reason is required for admin cancellation." });
+                return Error.Validation("booking.reason_required", "Reason is required for admin cancellation.").ToProblemResult();
             }
 
             var adminCancelledBooking = new BookingDetailDto(
@@ -432,9 +440,3 @@ public sealed record BookingCancellationResultDto(
     decimal RefundAmount,
     string CancellationReason,
     DateTimeOffset CancelledAt);
-
-public sealed record PagedResultDto<T>(
-    IReadOnlyList<T> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
