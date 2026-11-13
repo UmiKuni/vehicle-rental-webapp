@@ -16,6 +16,7 @@ namespace CarRental.Api.Extensions;
 
 public static class DevelopmentDataSeeder
 {
+    private const string AdminEmail = "admin.seed@example.com";
     private const string OwnerEmail = "owner.seed@example.com";
     private const string CustomerEmail = "customer.seed@example.com";
     private const string SeedPassword = "Password123!";
@@ -48,13 +49,15 @@ public static class DevelopmentDataSeeder
             var search = services.GetRequiredService<SearchDbContext>();
             var passwordHasher = services.GetRequiredService<PasswordHasher<object>>();
 
+            await SeedAdminAsync(users, passwordHasher);
             var owner = await SeedOwnerAsync(users, passwordHasher);
             await SeedCustomerAsync(users, passwordHasher);
             await SeedFleetAsync(fleet, pricing, owner.Id.Value);
             await RebuildSearchProjectionAsync(fleet, pricing, search);
 
             logger.LogInformation(
-                "Development data seed completed. Owner login: {OwnerEmail}; customer login: {CustomerEmail}",
+                "Development data seed completed. Admin login: {AdminEmail}; Owner login: {OwnerEmail}; customer login: {CustomerEmail}",
+                AdminEmail,
                 OwnerEmail,
                 CustomerEmail);
         }
@@ -63,6 +66,29 @@ public static class DevelopmentDataSeeder
             logger.LogError(ex, "Development data seed failed.");
             throw;
         }
+    }
+
+    private static async Task SeedAdminAsync(
+        UsersDbContext db,
+        PasswordHasher<object> passwordHasher)
+    {
+        if (await db.Users.AnyAsync(user => user.Email == AdminEmail))
+            return;
+
+        var result = User.RegisterAdmin(
+            AdminEmail,
+            "0900000100",
+            passwordHasher.HashPassword(new object(), SeedPassword));
+        if (result.IsFailure)
+            throw new InvalidOperationException($"Could not create seed admin: {result.Error.Message}");
+
+        var admin = result.Value;
+        var profileResult = admin.UpdateProfile("Platform Administrator", "District 1, Ho Chi Minh City");
+        if (profileResult.IsFailure)
+            throw new InvalidOperationException($"Could not create seed admin profile: {profileResult.Error.Message}");
+
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
     }
 
     private static async Task<User> SeedOwnerAsync(
@@ -94,7 +120,19 @@ public static class DevelopmentDataSeeder
             if (approvalResult.IsFailure)
                 throw new InvalidOperationException($"Could not approve seed owner: {approvalResult.Error.Message}");
 
+            owner.VerifyDocumentByTypeMock(DocumentType.CCCD, "mock/cccd/seed-owner.jpg");
+            owner.VerifyDocumentByTypeMock(DocumentType.GPLX, "mock/gplx/seed-owner.jpg");
+
             db.Users.Add(owner);
+            await db.SaveChangesAsync();
+        }
+        else if (!owner.IsIdVerified || !owner.IsDriverLicenseVerified)
+        {
+            if (!owner.IsIdVerified)
+                owner.VerifyDocumentByTypeMock(DocumentType.CCCD, "mock/cccd/seed-owner.jpg");
+            if (!owner.IsDriverLicenseVerified)
+                owner.VerifyDocumentByTypeMock(DocumentType.GPLX, "mock/gplx/seed-owner.jpg");
+
             await db.SaveChangesAsync();
         }
 
