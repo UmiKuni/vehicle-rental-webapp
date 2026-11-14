@@ -30,6 +30,9 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
             new Claim(ClaimTypes.NameIdentifier, user.Id.Value.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim("id_verified", user.IsIdVerified ? "true" : "false"),
+            new Claim("driver_license_verified", user.IsDriverLicenseVerified ? "true" : "false"),
+            new Claim("verified_user", user.IsVerified ? "true" : "false"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

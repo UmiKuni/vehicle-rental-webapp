@@ -25,7 +25,13 @@ public sealed record AuthResultDto(
 public sealed record RefreshTokenDto(string RefreshToken);
 
 /// <summary>The authenticated user identity.</summary>
-public sealed record CurrentUserDto(Guid UserId, string Email, string Role);
+public sealed record CurrentUserDto(
+    Guid UserId,
+    string Email,
+    string Role,
+    bool IsIdVerified = false,
+    bool IsDriverLicenseVerified = false,
+    bool IsVerified = false);
 
 /// <summary>Profile fields to update for a user.</summary>
 public sealed record UpdateProfileDto(
