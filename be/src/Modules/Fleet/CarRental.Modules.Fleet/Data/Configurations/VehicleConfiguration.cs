@@ -73,7 +73,9 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
             .HasColumnName("hidden_by_admin");
 
         builder.Property(v => v.Version)
-            .IsRowVersion()
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken(false)
+            .HasColumnType("xid")
             .HasColumnName("xmin");
 
         builder.HasMany(v => v.Images)
@@ -87,5 +89,6 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Navigation(v => v.Images).AutoInclude();
+        builder.Navigation(v => v.Approvals).AutoInclude();
     }
 }

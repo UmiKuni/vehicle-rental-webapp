@@ -1,4 +1,5 @@
 using CarRental.Modules.Fleet.Contracts.Events;
+using Wolverine.Attributes;
 
 namespace CarRental.Modules.Search.EventHandlers;
 
@@ -7,6 +8,13 @@ namespace CarRental.Modules.Search.EventHandlers;
 /// </summary>
 public sealed class VehicleUnpublishedConsumer
 {
+    [WolverineIgnore]
+    public Task Consume(VehicleUnpublished message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Task.CompletedTask;
+    }
+
     /*
      * WHAT TO DO IN THIS FILE:
      * ------------------------
@@ -19,9 +27,4 @@ public sealed class VehicleUnpublishedConsumer
      *    - Effectively removes the vehicle from active public search results (IsVisible == false).
      * 3. Persist updates in SearchDbContext.
      */
-    public Task Consume(VehicleUnpublished @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-

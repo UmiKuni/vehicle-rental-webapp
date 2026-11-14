@@ -55,7 +55,9 @@ public sealed class SupportTicketConfiguration : IEntityTypeConfiguration<Suppor
             .HasColumnName("updated_at");
 
         builder.Property(t => t.Version)
-            .IsRowVersion()
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken(false)
+            .HasColumnType("xid")
             .HasColumnName("xmin");
 
         builder.HasMany(t => t.Messages)

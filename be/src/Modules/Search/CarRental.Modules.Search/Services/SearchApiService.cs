@@ -69,6 +69,7 @@ public sealed class SearchApiService : ISearchApi
             var latitudeDelta = radius / 111.045;
             var longitudeDelta = radius / (111.045 * Math.Max(Math.Cos(center.Latitude * Math.PI / 180), 0.01));
             query = query.Where(d =>
+                d.Location != null &&
                 d.Location.Latitude >= center.Latitude - latitudeDelta &&
                 d.Location.Latitude <= center.Latitude + latitudeDelta &&
                 d.Location.Longitude >= center.Longitude - longitudeDelta &&
@@ -84,7 +85,7 @@ public sealed class SearchApiService : ISearchApi
             .Select(d => new
             {
                 Document = d,
-                DistanceKm = center is null ? 0 : d.Location.DistanceToInKilometers(center)
+                DistanceKm = center is null ? 0 : d.Location!.DistanceToInKilometers(center)
             })
             .Where(item => center is null || item.DistanceKm <= request.RadiusKm)
             .ToList();
@@ -113,7 +114,7 @@ public sealed class SearchApiService : ISearchApi
             document.Model,
             document.Seats,
             document.Transmission,
-            document.Location,
+            document.Location!,
             document.Address,
             document.PriceFrom!.Value,
             document.AverageRating ?? 0,
