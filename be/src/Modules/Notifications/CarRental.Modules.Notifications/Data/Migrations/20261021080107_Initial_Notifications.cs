@@ -22,7 +22,7 @@ namespace CarRental.Modules.Notifications.Data.Migrations
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
                     type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    content = table.Column<string>(type: "jsonb", nullable: false),
+                    content = table.Column<string>(type: "text", nullable: false),
                     status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     attempts = table.Column<int>(type: "integer", nullable: false),
                     last_error = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),

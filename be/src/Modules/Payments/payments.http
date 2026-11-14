@@ -1,2 +1,62 @@
-# No HTTP endpoints are currently mapped for the Payments module.
-# Add checkout and webhook requests here when the module endpoint surface is exposed.
+@baseUrl = http://localhost:8080
+@bookingId = 00000000-0000-0000-0000-000000000301
+@paymentId = 00000000-0000-0000-0000-000000000401
+@depositId = 00000000-0000-0000-0000-000000000402
+
+### Create payment checkout
+# @name checkout
+POST {{baseUrl}}/api/payments/checkout
+Content-Type: application/json
+
+{
+  "bookingId": "{{bookingId}}",
+  "method": "Transfer",
+  "returnUrl": "http://localhost:5173/payment/result"
+}
+
+###
+
+### Get payment details
+GET {{baseUrl}}/api/payments/{{paymentId}}
+Accept: application/json
+
+###
+
+### Get payment and deposit summary
+GET {{baseUrl}}/api/payments/booking/{{bookingId}}
+Accept: application/json
+
+###
+
+### Process payment webhook
+POST {{baseUrl}}/api/payments/webhook
+Content-Type: application/json
+
+{
+  "transactionId": "SEED-TXN-001",
+  "orderId": "{{bookingId}}",
+  "amount": 3950000,
+  "responseCode": "00",
+  "signature": "development-signature"
+}
+
+###
+
+### Release deposit
+POST {{baseUrl}}/api/payments/deposits/{{depositId}}/release
+Content-Type: application/json
+
+{
+  "note": "Vehicle returned without reported damage"
+}
+
+###
+
+### Deduct deposit
+POST {{baseUrl}}/api/payments/deposits/{{depositId}}/deduct
+Content-Type: application/json
+
+{
+  "deductAmount": 250000,
+  "reason": "Cleaning fee"
+}

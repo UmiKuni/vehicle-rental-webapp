@@ -26,9 +26,6 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Messaging: Wolverine with PostgreSQL transactional outbox
-builder.AddMessaging();
-
 // Register modular monolith modules
 builder.Services
     .AddUsersModule(builder.Configuration)
@@ -44,6 +41,11 @@ builder.Services
     .AddNotificationsModule(builder.Configuration)
     .AddAuditModule(builder.Configuration)
     .AddReportingModule(builder.Configuration);
+
+// Messaging: Wolverine with PostgreSQL transactional outbox.
+// Register modules first so their handler assemblies are loaded for discovery.
+builder.AddMessaging();
+
 builder.Services.AddUsersAuthentication(builder.Configuration);
 
 // Add services to the container.
@@ -82,14 +84,17 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
-    // Auto-migrate all 13 module schemas on development startup
     await app.ApplyMigrationsAsync();
-    await app.SeedAsync();
 
-    app.MapOpenApi();
-    app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+    if (app.Environment.IsDevelopment())
+    {
+        await app.SeedAsync();
+
+        app.MapOpenApi();
+        app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+    }
 }
 
 // Map Module Endpoints (Mock Implementation)
@@ -104,3 +109,7 @@ app.MapHandoverEndpoints();
 app.MapReportingEndpoints();
 
 app.Run();
+
+public partial class Program
+{
+}

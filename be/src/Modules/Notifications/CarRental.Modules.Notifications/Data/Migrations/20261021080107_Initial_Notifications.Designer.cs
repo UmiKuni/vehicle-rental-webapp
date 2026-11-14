@@ -38,7 +38,7 @@ namespace CarRental.Modules.Notifications.Data.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("jsonb")
+                        .HasColumnType("text")
                         .HasColumnName("content");
 
                     b.Property<DateTimeOffset>("CreatedAt")

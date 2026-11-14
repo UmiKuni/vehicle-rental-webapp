@@ -12,6 +12,7 @@ public class VehicleApprovalConfiguration : IEntityTypeConfiguration<VehicleAppr
 
         builder.HasKey(a => a.Id);
         builder.Property(a => a.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(a => a.VehicleId)

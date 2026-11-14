@@ -6,7 +6,7 @@ namespace CarRental.Modules.Search.Entities;
 public class VehicleSearchDocument : AggregateRoot<Guid>
 {
     public Guid VehicleId => Id;
-    public GeoPoint Location { get; private set; } = default!;
+    public GeoPoint? Location { get; private set; }
     public string Brand { get; private set; } = string.Empty;
     public string Model { get; private set; } = string.Empty;
     public int Seats { get; private set; }

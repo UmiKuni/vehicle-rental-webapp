@@ -1,5 +1,6 @@
 using CarRental.Modules.Audit.Data;
 using CarRental.Modules.Audit.Data.Repositories;
+using CarRental.Modules.Audit.EventHandlers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ public static class AuditModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", AuditDbContext.Schema)));
 
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<AuditCommandHandlers>();
 
         return services;
     }

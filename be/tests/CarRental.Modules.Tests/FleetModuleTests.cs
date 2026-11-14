@@ -51,6 +51,40 @@ public class FleetModuleTests
         var zeroSeats = Vehicle.Create(Guid.NewGuid(), "51K-12345", Guid.NewGuid(), Guid.NewGuid(), TransmissionType.Auto, 0, TestLocation, TestAddress);
         zeroSeats.IsSuccess.Should().BeFalse();
         zeroSeats.Error.Code.Should().Be("fleet.invalid_seats");
+
+        var emptyAddress = Vehicle.Create(Guid.NewGuid(), "51K-12345", Guid.NewGuid(), Guid.NewGuid(), TransmissionType.Auto, 5, TestLocation, "   ");
+        emptyAddress.IsSuccess.Should().BeFalse();
+        emptyAddress.Error.Code.Should().Be("fleet.invalid_address");
+    }
+
+    [Fact]
+    public void UpdateDetails_WithValidData_ShouldUpdateProperties()
+    {
+        var vehicle = CreateTestVehicle();
+        var newBrandId = Guid.NewGuid();
+        var newModelId = Guid.NewGuid();
+        var newLocation = new GeoPoint(10.8231, 106.6297);
+
+        var result = vehicle.UpdateDetails(newBrandId, newModelId, TransmissionType.Manual, 7, newLocation, "Tan Binh, HCMC");
+
+        result.IsSuccess.Should().BeTrue();
+        vehicle.BrandId.Should().Be(newBrandId);
+        vehicle.ModelId.Should().Be(newModelId);
+        vehicle.Transmission.Should().Be(TransmissionType.Manual);
+        vehicle.Seats.Should().Be(7);
+        vehicle.Location.Should().Be(newLocation);
+        vehicle.Address.Should().Be("Tan Binh, HCMC");
+    }
+
+    [Fact]
+    public void UpdateDetails_WithInvalidSeats_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.UpdateDetails(Guid.NewGuid(), Guid.NewGuid(), TransmissionType.Auto, 0, TestLocation, "Address");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_seats");
     }
 
     [Fact]
@@ -67,6 +101,71 @@ public class FleetModuleTests
         result2.IsSuccess.Should().BeTrue();
         vehicle.Images.Should().HaveCount(2);
         vehicle.Images.Last().IsPrimary.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddImage_WithEmptyKey_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.AddImage("   ");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_image");
+    }
+
+    [Fact]
+    public void SetPrimaryImage_ShouldDemotePreviousPrimary()
+    {
+        var vehicle = CreateTestVehicle();
+        vehicle.AddImage("vehicles/img1.jpg");
+        vehicle.AddImage("vehicles/img2.jpg");
+
+        var secondImageId = vehicle.Images.Last().Id;
+        var result = vehicle.SetPrimaryImage(secondImageId);
+
+        result.IsSuccess.Should().BeTrue();
+        vehicle.Images.First().IsPrimary.Should().BeFalse();
+        vehicle.Images.Last().IsPrimary.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SetPrimaryImage_NonExistent_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+        vehicle.AddImage("vehicles/img1.jpg");
+
+        var result = vehicle.SetPrimaryImage(Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.image_not_found");
+    }
+
+    [Fact]
+    public void RemoveImage_WhenPrimary_ShouldAssignNewPrimaryImage()
+    {
+        var vehicle = CreateTestVehicle();
+        vehicle.AddImage("vehicles/img1.jpg");
+        vehicle.AddImage("vehicles/img2.jpg");
+
+        var firstImageId = vehicle.Images.First().Id;
+        var result = vehicle.RemoveImage(firstImageId);
+
+        result.IsSuccess.Should().BeTrue();
+        vehicle.Images.Should().HaveCount(1);
+        vehicle.Images.First().IsPrimary.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RemoveImage_NonExistent_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+        vehicle.AddImage("vehicles/img1.jpg");
+
+        var result = vehicle.RemoveImage(Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.image_not_found");
     }
 
     [Fact]
@@ -97,6 +196,22 @@ public class FleetModuleTests
     }
 
     [Fact]
+    public void SubmitForApproval_WhenNotDraft_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+        vehicle.AddImage("vehicles/img1.jpg");
+        vehicle.AddImage("vehicles/img2.jpg");
+        vehicle.AddImage("vehicles/img3.jpg");
+        vehicle.SubmitForApproval();
+
+        // Trying to submit again while PendingApproval
+        var reSubmitResult = vehicle.SubmitForApproval();
+
+        reSubmitResult.IsSuccess.Should().BeFalse();
+        reSubmitResult.Error.Code.Should().Be("fleet.invalid_state");
+    }
+
+    [Fact]
     public void Approve_FromPendingApproval_ShouldTransitionToPublished()
     {
         var vehicle = CreateTestVehicle();
@@ -116,6 +231,17 @@ public class FleetModuleTests
     }
 
     [Fact]
+    public void Approve_WhenInDraftStatus_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.Approve(Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_state");
+    }
+
+    [Fact]
     public void Reject_FromPendingApproval_ShouldTransitionBackToDraft()
     {
         var vehicle = CreateTestVehicle();
@@ -132,6 +258,17 @@ public class FleetModuleTests
         vehicle.Approvals.Should().HaveCount(1);
         vehicle.Approvals.First().Decision.Should().Be(ApprovalDecision.Rejected);
         vehicle.Approvals.First().Reason.Should().Contain("interior");
+    }
+
+    [Fact]
+    public void Reject_WhenInDraftStatus_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.Reject(Guid.NewGuid(), "Cannot reject a draft");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_state");
     }
 
     [Fact]
@@ -158,6 +295,17 @@ public class FleetModuleTests
     }
 
     [Fact]
+    public void Unpublish_WhenNotPublished_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.Unpublish(Guid.NewGuid(), "Reason");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_state");
+    }
+
+    [Fact]
     public void Hide_And_Show_ByOwner_ShouldWorkWhenNotHiddenByAdmin()
     {
         var vehicle = CreateTestVehicle();
@@ -174,5 +322,53 @@ public class FleetModuleTests
         var showResult = vehicle.Show();
         showResult.IsSuccess.Should().BeTrue();
         vehicle.Status.Should().Be(VehicleStatus.Published);
+    }
+
+    [Fact]
+    public void Hide_WhenNotPublished_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.Hide();
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_state");
+    }
+
+    [Fact]
+    public void Show_WhenNotHidden_ShouldFail()
+    {
+        var vehicle = CreateTestVehicle();
+
+        var result = vehicle.Show();
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("fleet.invalid_state");
+    }
+
+    // =========================================================================
+    // VehicleBrand & VehicleModel Tests
+    // =========================================================================
+
+    [Fact]
+    public void VehicleBrand_UpdateName_ShouldTrim()
+    {
+        var brand = new VehicleBrand(Guid.NewGuid(), "Toyota");
+        brand.UpdateName("  Honda Motors  ");
+
+        brand.Name.Should().Be("Honda Motors");
+    }
+
+    [Fact]
+    public void VehicleModel_Update_ShouldUpdateBrandAndTrimName()
+    {
+        var initialBrandId = Guid.NewGuid();
+        var model = new VehicleModel(Guid.NewGuid(), initialBrandId, "Civic");
+
+        var newBrandId = Guid.NewGuid();
+        model.Update(newBrandId, "  Accord Sedan  ");
+
+        model.BrandId.Should().Be(newBrandId);
+        model.Name.Should().Be("Accord Sedan");
     }
 }
