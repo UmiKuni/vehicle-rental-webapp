@@ -105,6 +105,7 @@ public class FleetIntegrationTests : IntegrationTestBase
             10.7769,
             106.7009,
             "District 1, HCMC"));
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var summary = await createResponse.Content.ReadFromJsonAsync<VehicleSummaryDto>();
 
         var submitResponse = await ownerClient.PostAsync($"/api/fleet/vehicles/{summary!.VehicleId}/submit", null);
@@ -130,6 +131,7 @@ public class FleetIntegrationTests : IntegrationTestBase
             10.7769,
             106.7009,
             "District 1, HCMC"));
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var summary = await createResponse.Content.ReadFromJsonAsync<VehicleSummaryDto>();
         var vehicleId = summary!.VehicleId;
 

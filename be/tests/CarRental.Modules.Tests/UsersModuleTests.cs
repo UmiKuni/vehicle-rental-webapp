@@ -323,10 +323,53 @@ public class UsersModuleTests
         user.Status.Should().Be(UserStatus.Active);
     }
 
+    [Fact]
+    public void VerifyDocumentByTypeMock_ShouldRequireBothIdAndDriverLicenseForIsVerified()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.IsIdVerified.Should().BeFalse();
+        user.IsDriverLicenseVerified.Should().BeFalse();
+        user.IsVerified.Should().BeFalse();
+
+        var verifyIdResult = user.VerifyDocumentByTypeMock(DocumentType.CCCD, "mock/cccd.jpg");
+        verifyIdResult.IsSuccess.Should().BeTrue();
+        user.IsIdVerified.Should().BeTrue();
+        user.IsDriverLicenseVerified.Should().BeFalse();
+        user.IsVerified.Should().BeFalse();
+
+        var verifyLicenseResult = user.VerifyDocumentByTypeMock(DocumentType.GPLX, "mock/gplx.jpg");
+        verifyLicenseResult.IsSuccess.Should().BeTrue();
+        user.IsIdVerified.Should().BeTrue();
+        user.IsDriverLicenseVerified.Should().BeTrue();
+        user.IsVerified.Should().BeTrue();
+        user.IdentityDocuments.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void VerifyDocumentByTypeMock_WhenBanned_ShouldFail()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.Ban(Guid.NewGuid(), "Violation");
+
+        var result = user.VerifyDocumentByTypeMock(DocumentType.CCCD);
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("users.banned");
+    }
+
+    [Fact]
+    public void RegisterAdmin_ShouldInitializeWithAdminRoleAndVerifiedStatus()
+    {
+        var result = User.RegisterAdmin("admin@example.com", "0900000100", "hashed_password");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Role.Should().Be(UserRole.Admin);
+        result.Value.Status.Should().Be(UserStatus.Active);
+        result.Value.IsVerified.Should().BeTrue();
     // =========================================================================
     // RefreshToken Tests
     // =========================================================================
-
+    }
+    
     [Fact]
     public void RefreshToken_WhenNotRevokedAndNotExpired_ShouldBeActive()
     {

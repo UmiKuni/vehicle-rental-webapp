@@ -20,6 +20,14 @@ public class User : AggregateRoot<UserId>
     public OwnerProfile? OwnerProfile { get; private set; }
     public IReadOnlyCollection<IdentityDocument> IdentityDocuments => _identityDocuments.AsReadOnly();
 
+    public bool IsIdVerified => _identityDocuments.Any(
+        d => d.Type == DocumentType.CCCD && d.VerificationStatus == DocumentVerificationStatus.Verified);
+
+    public bool IsDriverLicenseVerified => _identityDocuments.Any(
+        d => d.Type == DocumentType.GPLX && d.VerificationStatus == DocumentVerificationStatus.Verified);
+
+    public bool IsVerified => Role == UserRole.Admin || (IsIdVerified && IsDriverLicenseVerified);
+
     private User() { }
 
     private User(UserId id, string email, string phone, string passwordHash)
@@ -44,6 +52,16 @@ public class User : AggregateRoot<UserId>
             return Result.Failure<User>(UsersErrors.InvalidPassword87B027);
 
         return Result.Success(new User(UserId.New(), email, phone, passwordHash));
+    }
+
+    public static Result<User> RegisterAdmin(string email, string phone, string passwordHash)
+    {
+        var result = Register(email, phone, passwordHash);
+        if (result.IsFailure)
+            return result;
+
+        result.Value.Role = UserRole.Admin;
+        return result;
     }
 
     public Result UpdateProfile(string fullName, string address)
@@ -74,9 +92,40 @@ public class User : AggregateRoot<UserId>
         if (string.IsNullOrWhiteSpace(storageKey))
             return Result.Failure(UsersErrors.InvalidDocument);
 
-        // Replace any existing document of the same type
-        _identityDocuments.RemoveAll(d => d.Type == type);
-        _identityDocuments.Add(new IdentityDocument(Guid.CreateVersion7(), Id, type, storageKey));
+        var existing = _identityDocuments.FirstOrDefault(d => d.Type == type);
+        if (existing is null)
+        {
+            _identityDocuments.Add(new IdentityDocument(Guid.CreateVersion7(), Id, type, storageKey));
+        }
+        else
+        {
+            existing.UpdateStorageKey(storageKey);
+        }
+
+        return Result.Success();
+    }
+
+    public Result VerifyDocumentByTypeMock(DocumentType type, string? storageKey = null)
+    {
+        if (Status == UserStatus.Banned)
+            return Result.Failure(UsersErrors.Banned3E03B5);
+
+        var effectiveKey = string.IsNullOrWhiteSpace(storageKey)
+            ? $"mock/{type.ToString().ToLowerInvariant()}/{Id.Value:N}.jpg"
+            : storageKey.Trim();
+
+        var existing = _identityDocuments.FirstOrDefault(d => d.Type == type);
+        if (existing is null)
+        {
+            var doc = new IdentityDocument(Guid.CreateVersion7(), Id, type, effectiveKey);
+            doc.Verify(true, null);
+            _identityDocuments.Add(doc);
+        }
+        else
+        {
+            existing.UpdateStorageKey(effectiveKey);
+            existing.Verify(true, null);
+        }
 
         return Result.Success();
     }

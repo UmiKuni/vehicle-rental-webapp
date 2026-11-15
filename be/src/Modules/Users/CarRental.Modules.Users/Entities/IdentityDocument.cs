@@ -28,4 +28,11 @@ public class IdentityDocument : Entity<Guid>
         VerificationStatus = ok ? DocumentVerificationStatus.Verified : DocumentVerificationStatus.Rejected;
         RejectReason = ok ? null : reason;
     }
+
+    internal void UpdateStorageKey(string storageKey)
+    {
+        StorageKey = storageKey;
+        VerificationStatus = DocumentVerificationStatus.Pending;
+        RejectReason = null;
+    }
 }

@@ -10,7 +10,8 @@ public static class BookingEndpoints
     public static IEndpointRouteBuilder MapBookingsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/bookings")
-            .WithTags("Bookings");
+            .WithTags("Bookings")
+            .RequireAuthorization("AuthenticatedUser");
 
         // 1. Create a new booking request
         group.MapPost("/", (CreateBookingRequest request) =>
@@ -369,6 +370,7 @@ public static class BookingEndpoints
             return Results.Ok(adminCancelledBooking);
         })
         .WithName("AdminCancelBooking")
+        .RequireAuthorization("AdminOnly")
         .WithSummary("Quản trị viên can thiệp hủy đơn")
         .WithDescription("Allows platform administrator to force-cancel a booking due to dispute, violation, or system event.")
         .Produces<BookingDetailDto>(StatusCodes.Status200OK)
