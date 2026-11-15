@@ -51,8 +51,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
                 "pricing",
                 "availability",
                 "handover",
-                "reporting",
-                "wolverine"
+                "reporting"
             ],
             TablesToIgnore =
             [

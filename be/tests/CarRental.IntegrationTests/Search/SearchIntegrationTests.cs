@@ -127,7 +127,8 @@ public class SearchIntegrationTests : IntegrationTestBase
         await SeedVehicleSearchDocumentAsync("VinFast", "VF9", 7, "Automatic", 1_800_000m, HcmcCenter, "District 1, HCMC");
 
         // Search within 30 km radius of Hanoi center
-        var url = $"/api/search/vehicles?latitude={HanoiCenter.Latitude}&longitude={HanoiCenter.Longitude}&radiusKm=30";
+        var url = FormattableString.Invariant(
+            $"/api/search/vehicles?latitude={HanoiCenter.Latitude}&longitude={HanoiCenter.Longitude}&radiusKm=30");
         var response = await Client.GetAsync(url);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -170,14 +171,25 @@ public class SearchIntegrationTests : IntegrationTestBase
                 850_000m));
         }
 
-        // Allow Wolverine transactional outbox / local queue time to commit and process both events.
-        await Task.Delay(2000);
+        // Poll until Wolverine local queue finishes dynamic handler codegen and commits the projection.
+        HttpResponseMessage? response = null;
+        PagedVehicleSearchResultDto? result = null;
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            response = await Client.GetAsync("/api/search/vehicles?brand=Subaru");
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                result = await response.Content.ReadFromJsonAsync<PagedVehicleSearchResultDto>();
+                if (result?.TotalCount == 1)
+                    break;
+            }
 
-        // 2. Query search endpoint to verify the event projection is live in search catalog
-        var response = await Client.GetAsync("/api/search/vehicles?brand=Subaru");
+            await Task.Delay(150);
+        }
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<PagedVehicleSearchResultDto>();
+        response.Should().NotBeNull();
+        response!.StatusCode.Should().Be(HttpStatusCode.OK);
         result.Should().NotBeNull();
         result!.TotalCount.Should().Be(1);
         result.Items.First().Brand.Should().Be("Subaru");

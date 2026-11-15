@@ -40,13 +40,32 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected async Task<(HttpClient Client, Guid UserId)> CreateAuthenticatedCustomerClientAsync(
         string email = "customer@example.com",
         string phone = "0901234567",
-        string password = "Password123!")
+        string password = "Password123!",
+        bool verified = true)
     {
         var registerResponse = await Client.PostAsJsonAsync("/api/auth/register", new RegisterUserDto(
             email,
             phone,
             password));
         registerResponse.EnsureSuccessStatusCode();
+
+        Guid userId;
+        using (var scope = CreateScope())
+        {
+            var usersDb = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
+            var user = await usersDb.Users
+                .Include(u => u.IdentityDocuments)
+                .FirstAsync(u => u.Email == email.ToLowerInvariant().Trim());
+
+            if (verified)
+            {
+                user.VerifyDocumentByTypeMock(DocumentType.CCCD);
+                user.VerifyDocumentByTypeMock(DocumentType.GPLX);
+                await usersDb.SaveChangesAsync();
+            }
+
+            userId = user.Id.Value;
+        }
 
         var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(
             email,
@@ -58,20 +77,17 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
 
-        using var scope = CreateScope();
-        var usersDb = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
-        var user = await usersDb.Users.FirstAsync(u => u.Email == email.ToLowerInvariant().Trim());
-
-        return (client, user.Id.Value);
+        return (client, userId);
     }
 
     protected async Task<(HttpClient Client, Guid UserId)> CreateAuthenticatedOwnerClientAsync(
         string email = "owner@example.com",
         string phone = "0909888777",
         string password = "Password123!",
-        string taxCode = "0102030405")
+        string taxCode = "0102030405",
+        bool verified = true)
     {
-        var (_, userId) = await CreateAuthenticatedCustomerClientAsync(email, phone, password);
+        var (_, userId) = await CreateAuthenticatedCustomerClientAsync(email, phone, password, verified);
 
         // Transition user to Owner in the database
         using (var scope = CreateScope())

@@ -12,6 +12,7 @@ public class IdentityDocumentConfiguration : IEntityTypeConfiguration<IdentityDo
 
         builder.HasKey(d => d.Id);
         builder.Property(d => d.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(d => d.UserId)
