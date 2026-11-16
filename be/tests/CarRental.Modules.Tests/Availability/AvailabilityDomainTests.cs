@@ -4,9 +4,9 @@ using CarRental.Modules.Availability.Entities;
 using FluentAssertions;
 using Xunit;
 
-namespace CarRental.Modules.Tests;
+namespace CarRental.Modules.Tests.Availability;
 
-public class AvailabilityModuleTests
+public class AvailabilityDomainTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
 

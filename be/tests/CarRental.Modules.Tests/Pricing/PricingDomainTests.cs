@@ -7,9 +7,9 @@ using CarRental.Modules.Pricing.Entities;
 using FluentAssertions;
 using Xunit;
 
-namespace CarRental.Modules.Tests;
+namespace CarRental.Modules.Tests.Pricing;
 
-public class PricingModuleTests
+public class PricingDomainTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
 
