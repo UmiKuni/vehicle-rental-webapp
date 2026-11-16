@@ -1,5 +1,5 @@
-using CarRental.Modules.Pricing.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Messaging;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Pricing.Contracts;
@@ -7,6 +7,7 @@ using CarRental.Modules.Pricing.Contracts.Dtos;
 using CarRental.Modules.Pricing.Contracts.Enums;
 using CarRental.Modules.Pricing.Data;
 using CarRental.Modules.Pricing.Entities;
+using CarRental.Modules.Pricing.Errors;
 using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Pricing.Services;
@@ -15,11 +16,19 @@ public sealed class PricingApiService : IPricingApi
 {
     private readonly PricingDbContext _dbContext;
     private readonly IFleetApi _fleetApi;
+    private readonly IEventOutbox _eventOutbox;
+    private readonly TimeProvider _clock;
 
-    public PricingApiService(PricingDbContext dbContext, IFleetApi fleetApi)
+    public PricingApiService(
+        PricingDbContext dbContext,
+        IFleetApi fleetApi,
+        IEventOutbox eventOutbox,
+        TimeProvider clock)
     {
         _dbContext = dbContext;
         _fleetApi = fleetApi;
+        _eventOutbox = eventOutbox;
+        _clock = clock;
     }
 
     public async Task<Result<PricingPlanDto>> GetPricingAsync(
@@ -31,7 +40,7 @@ public sealed class PricingApiService : IPricingApi
             .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
 
         return plan is null
-            ? Result.Failure<PricingPlanDto>(NotFound())
+            ? Result.Failure<PricingPlanDto>(PricingErrors.NotFound)
             : Result.Success(ToDto(plan));
     }
 
@@ -45,7 +54,7 @@ public sealed class PricingApiService : IPricingApi
             .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
 
         if (plan is null)
-            return Result.Failure<QuoteDto>(NotFound());
+            return Result.Failure<QuoteDto>(PricingErrors.NotFound);
 
         var quoteResult = plan.CalculateQuote(period);
         return quoteResult.IsFailure
@@ -71,7 +80,7 @@ public sealed class PricingApiService : IPricingApi
                 PricingErrors.OwnerRequired);
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
-        var now = DateTimeOffset.UtcNow;
+        var now = _clock.GetUtcNow();
         var plan = await _dbContext.PricingPlans
             .IgnoreAutoIncludes()
             .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
@@ -118,9 +127,13 @@ public sealed class PricingApiService : IPricingApi
             return Result.Failure<PricingPlanDto>(feeResult.Error);
 
         _dbContext.FeeRules.AddRange(plan.FeeRules);
-        await _dbContext.SaveChangesAsync(ct);
         _dbContext.PricingPlanVersions.Add(plan.CreateVersionSnapshot(now));
         await _dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        var integrationEvents = plan.DomainEvents.OfType<IIntegrationEvent>().ToList();
+        plan.ClearDomainEvents();
+        await _eventOutbox.PublishRangeAsync(integrationEvents, ct);
 
         return Result.Success(ToDto(plan));
     }
@@ -148,7 +161,4 @@ public sealed class PricingApiService : IPricingApi
                 .OrderBy(f => f.Type)
                 .Select(f => new FeeRuleDto(f.Type.ToString(), f.Amount))
                 .ToList());
-
-    private static Error NotFound() =>
-        new("pricing.not_found", "Pricing plan was not found for the vehicle.");
 }

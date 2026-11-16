@@ -12,6 +12,7 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
 
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(f => f.PricingPlanId)

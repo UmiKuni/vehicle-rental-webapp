@@ -12,6 +12,7 @@ public sealed class PricingPlanVersionConfiguration : IEntityTypeConfiguration<P
 
         builder.HasKey(v => v.Id);
         builder.Property(v => v.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(v => v.VehicleId)
