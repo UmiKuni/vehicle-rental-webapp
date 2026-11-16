@@ -12,6 +12,7 @@ public sealed class VehicleCalendarConfiguration : IEntityTypeConfiguration<Vehi
 
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Id)
+            .ValueGeneratedNever()
             .HasColumnName("vehicle_id");
 
         builder.Property(c => c.LastSyncedAt)
@@ -26,5 +27,8 @@ public sealed class VehicleCalendarConfiguration : IEntityTypeConfiguration<Vehi
             .WithOne()
             .HasForeignKey(e => e.VehicleId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(c => c.Entries)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

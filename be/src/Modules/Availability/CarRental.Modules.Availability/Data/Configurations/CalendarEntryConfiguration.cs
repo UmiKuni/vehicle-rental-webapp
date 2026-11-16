@@ -12,6 +12,7 @@ public sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<Calend
 
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(e => e.VehicleId)

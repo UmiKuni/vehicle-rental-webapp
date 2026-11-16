@@ -26,6 +26,8 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSingleton(TimeProvider.System);
+
 // Register modular monolith modules
 builder.Services
     .AddUsersModule(builder.Configuration)

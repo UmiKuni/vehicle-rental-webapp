@@ -1,5 +1,7 @@
 using CarRental.BuildingBlocks.Messaging;
 using CarRental.Modules.Audit.EventHandlers;
+using CarRental.Modules.Availability.EventHandlers;
+using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Fleet.Contracts.Events;
 using CarRental.Modules.Pricing.Contracts.Events;
 using CarRental.Modules.Search.EventHandlers;
@@ -36,9 +38,14 @@ public static class WolverineExtensions
             }
             opts.Discovery.IncludeType<AuditCommandHandlers>();
             opts.Discovery.IncludeType<SearchEventHandlers>();
+            opts.Discovery.IncludeType<AvailabilityEventHandlers>();
             opts.LocalQueue("search-events");
             opts.PublishMessage<VehiclePublished>().ToLocalQueue("search-events");
             opts.PublishMessage<PricingUpdated>().ToLocalQueue("search-events");
+            opts.LocalQueue("availability-events");
+            opts.PublishMessage<BookingCancelled>().ToLocalQueue("availability-events");
+            opts.PublishMessage<BookingRejected>().ToLocalQueue("availability-events");
+            opts.PublishMessage<BookingExpired>().ToLocalQueue("availability-events");
 
             // Integration tests should not leave durable local queue work to drain after the
             // test database is torn down. Production retains durable local queues.

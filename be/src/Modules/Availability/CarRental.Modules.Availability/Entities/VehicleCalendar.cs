@@ -45,7 +45,7 @@ public class VehicleCalendar : AggregateRoot<Guid>
             return Result.Failure(AvailabilityErrors.PastDate);
 
         if (!IsAvailable(range, now))
-            return Result.Failure(AvailabilityErrors.SlotUnavailable3493D3);
+            return Result.Failure(AvailabilityErrors.SlotUnavailable);
 
         var effectiveTtl = ttl > MaxHoldTtl ? MaxHoldTtl : ttl;
         if (effectiveTtl <= TimeSpan.Zero)
@@ -102,7 +102,7 @@ public class VehicleCalendar : AggregateRoot<Guid>
             return Result.Failure(AvailabilityErrors.InvalidRange);
 
         if (!IsAvailable(range, now))
-            return Result.Failure(AvailabilityErrors.SlotUnavailableEA8C70);
+            return Result.Failure(AvailabilityErrors.SlotUnavailable);
 
         var entry = new CalendarEntry(
             Guid.CreateVersion7(),
