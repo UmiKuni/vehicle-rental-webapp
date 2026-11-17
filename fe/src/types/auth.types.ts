@@ -21,7 +21,7 @@ export interface TokenResponse {
 }
 
 export interface AuthUser {
-  id: number
+  id: number | string
   username: string
   email: string
   fullName: string

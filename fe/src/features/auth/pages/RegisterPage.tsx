@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AtSign, ShieldCheck, Zap, Sparkles, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AtSign, AlertCircle } from 'lucide-react'
 import { registerSchema, type RegisterFormValues } from '../schemas/register.schema'
 import { useRegister } from '../hooks/useRegister'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
-import { ROUTES } from '@/shared/constants'
+import { APP_NAME, ROUTES } from '@/shared/constants'
 import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const location = useLocation()
+  const isStandaloneRegister = location.pathname === ROUTES.REGISTER
   const { mutate: registerUser, isPending, error } = useRegister()
 
   const {
@@ -48,83 +49,52 @@ export default function RegisterPage() {
   const onSubmit = (values: RegisterFormValues) => registerUser(values)
 
   return (
-    <div className="flex min-h-[calc(100dvh-6rem)] items-center justify-center bg-slate-100 dark:bg-zinc-950 p-4 sm:p-6 lg:p-8">
+    <div className={`flex ${isStandaloneRegister ? 'min-h-dvh' : 'min-h-[calc(100dvh-6rem)]'} items-center justify-center bg-slate-100 p-4 dark:bg-zinc-950 sm:p-6 lg:p-8`}>
       {/* Centered Card Container */}
-      <div className="w-full max-w-md md:max-w-4xl overflow-hidden rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl grid grid-cols-1 md:grid-cols-12">
+      <div className="grid w-full max-w-md grid-cols-1 overflow-hidden rounded-2xl border border-[#d9e0df] bg-white shadow-[0_18px_55px_rgba(18,39,38,.12)] dark:border-zinc-800 dark:bg-zinc-900 md:max-w-5xl md:grid-cols-12">
         {/* Left Column (Brand & Benefits - Desktop only) */}
-        <div className="hidden md:flex md:col-span-5 bg-[#0c1017] p-8 lg:p-10 flex-col justify-between text-white">
+        <div className="hidden flex-col justify-between bg-[#142222] p-9 text-white md:col-span-5 md:flex lg:p-12">
           {/* Top Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#1a8a9d] to-[#0c6b80] text-white shadow-md">
-              <Car className="size-5" />
-            </div>
+          <div className="flex items-center gap-3">
+            <div className="grid size-9 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-[18px]" /></div>
             <div>
-              <span className="font-extrabold tracking-wider text-white text-sm">AUTOFLEET</span>
-              <p className="text-[9px] font-mono tracking-widest text-[#22d3ee] -mt-0.5">SMART MOBILITY</p>
+              <span className="text-sm font-bold tracking-[-.02em] text-white">{APP_NAME}</span>
+              <p className="mb-0 mt-0.5 text-[10px] font-medium tracking-[.08em] text-[#9bb5b3]">CUSTOMER PORTAL</p>
             </div>
           </div>
 
           {/* Middle Headline & Value Props */}
-          <div className="my-6">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-[#22d3ee] mb-3">
-              <Sparkles className="size-3" />
-              PWA Member Registration
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-tight">
-              Start Your Journey
-              <span className="block text-[#22d3ee] mt-1">Next-Gen Self-Drive Rentals</span>
+          <div className="my-12 max-w-sm">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[.14em] text-[#8fb8b4]">ACCOUNT SETUP</p>
+            <h1 className="text-[32px] font-bold leading-[1.12] tracking-[-.045em] text-white lg:text-[38px]">
+              Create your rental account.
             </h1>
-            <p className="mt-3 text-xs text-zinc-400 leading-relaxed max-w-xs">
-              Create an account in 30 seconds for first-ride perks and quick driver license verification.
+            <p className="mb-0 mt-4 max-w-[34ch] text-sm font-medium leading-6 text-[#bdc9c7]">
+              Save your details, complete driver verification and manage your bookings in one place.
             </p>
-
-            <div className="mt-6 space-y-3">
-              {[
-                { icon: Zap, text: 'Ultra-fast booking, paperless vehicle pickup' },
-                { icon: ShieldCheck, text: 'Online KYC identity verification in 2 minutes' },
-                { icon: Car, text: '60+ late-model self-drive vehicles, routinely serviced' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-start gap-2.5 text-xs text-zinc-300">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/10 text-[#22d3ee] mt-0.5">
-                    <Icon className="size-3" />
-                  </div>
-                  <span className="leading-snug">{text}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Bottom Social Proof Widget */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 flex items-center gap-3">
-            <span className="text-xl">⭐️</span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Rated 4.9/5 Stars</p>
-              <p className="text-[11px] text-zinc-400 truncate">From over 15,000+ safe journeys</p>
-            </div>
-          </div>
+          <p className="mb-0 border-t border-white/15 pt-4 text-[11px] font-medium text-[#9bb0ae]">CUSTOMER PORTAL · ACCOUNT SETUP</p>
         </div>
 
         {/* Right Form Column (App Native Form) */}
-        <div className="md:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-center bg-white dark:bg-zinc-900">
+          <div className="flex flex-col justify-center bg-white p-6 dark:bg-zinc-900 sm:p-9 lg:p-12 md:col-span-7">
           {/* Mobile-only App Icon Header */}
-          <div className="md:hidden flex flex-col items-center text-center pb-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1a8a9d] to-[#0c6b80] text-white shadow-md shadow-[#1a8a9d]/20 mb-2">
-              <Car className="size-6" />
-            </div>
-            <span className="text-base font-extrabold tracking-tight text-foreground">AutoFleet PWA</span>
-            <p className="text-[11px] text-muted-foreground">Smart & fast self-drive car rental</p>
+            <div className="mb-5 flex items-center gap-2.5 md:hidden">
+              <div className="grid size-8 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-4" /></div>
+              <span className="text-sm font-bold tracking-tight text-foreground">{APP_NAME}</span>
           </div>
 
           {/* Segmented Control Switcher (Login / Register) */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
+          <div className="mb-6 grid grid-cols-2 border-b border-slate-200 dark:border-zinc-700">
             <Link
-              to={`${ROUTES.PROFILE_AUTH}?mode=login`}
+              to={isStandaloneRegister ? ROUTES.LOGIN : `${ROUTES.PROFILE_AUTH}?mode=login`}
               state={location.state}
-              className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
+              className="flex min-h-11 items-center justify-center text-[13px] font-semibold text-slate-600 transition hover:text-[#173b3d] dark:text-zinc-300 dark:hover:text-white"
             >
               Sign In
             </Link>
-            <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
+            <div aria-current="page" className="flex min-h-11 items-center justify-center border-b-2 border-[#287f7e] text-[13px] font-bold text-[#173b3d] dark:text-white">
               Sign Up
             </div>
           </div>
@@ -146,7 +116,7 @@ export default function RegisterPage() {
                   <Input
                     placeholder="John Doe"
                     autoFocus
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('fullName')}
                   />
                 </div>
@@ -158,7 +128,7 @@ export default function RegisterPage() {
                   <Input
                     placeholder="johndoe"
                     autoComplete="username"
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('username')}
                   />
                 </div>
@@ -173,7 +143,7 @@ export default function RegisterPage() {
                     type="email"
                     placeholder="a@gmail.com"
                     autoComplete="email"
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('email')}
                   />
                 </div>
@@ -186,7 +156,7 @@ export default function RegisterPage() {
                     type="tel"
                     placeholder="0912345678"
                     autoComplete="tel"
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('phone')}
                   />
                 </div>
@@ -201,7 +171,7 @@ export default function RegisterPage() {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 pr-9 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 pr-9 focus-visible:border-[#287f7e]"
                     {...register('password')}
                   />
                   <button
@@ -222,7 +192,7 @@ export default function RegisterPage() {
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="new-password"
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 pr-9 text-xs focus-visible:border-[#1a8a9d]"
+                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 pr-9 focus-visible:border-[#287f7e]"
                     {...register('confirmPassword')}
                   />
                   <button
@@ -241,7 +211,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               loading={isPending}
-              className="mt-4 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
+              className="mt-4 h-12 w-full rounded-lg bg-[#176f70] text-sm font-semibold text-white shadow-none transition-colors hover:bg-[#125d5e] active-press"
             >
               Create Account
             </Button>

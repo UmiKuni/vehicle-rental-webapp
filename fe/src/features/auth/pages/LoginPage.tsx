@@ -1,26 +1,32 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useLocation } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Car, KeyRound, Sparkles, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, User, Lock, Car, AlertCircle } from 'lucide-react'
 import { loginSchema, type LoginFormValues } from '../schemas/login.schema'
 import { useLogin } from '../hooks/useLogin'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
-import { ROUTES } from '@/shared/constants'
+import { APP_NAME, ROUTES } from '@/shared/constants'
 import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
+import { useAuth } from '@/shared/contexts/AuthContext'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [portalChoice, setPortalChoice] = useState<'admin' | 'customer' | null>(null)
   const location = useLocation()
-  const { mutate: login, isPending, error } = useLogin()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+  const isAdminLogin = location.pathname === ROUTES.ADMIN_LOGIN
+  const isStandaloneLogin = location.pathname === ROUTES.LOGIN
+  const { mutate: login, isPending, error } = useLogin(setPortalChoice)
 
   const {
     register,
     handleSubmit,
-    setValue,
     setError,
+    reset,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -37,102 +43,74 @@ export default function LoginPage() {
     })
   }, [error, setError])
 
-  const fillQuickAccount = (user: string, pass: string) => {
-    setValue('username', user, { shouldValidate: true })
-    setValue('password', pass, { shouldValidate: true })
-  }
-
   const onSubmit = (values: LoginFormValues) => login(values)
 
   return (
-    <div className="flex min-h-[calc(100dvh-6rem)] items-center justify-center bg-slate-100 dark:bg-zinc-950 p-4 sm:p-6 lg:p-8">
+    <div className={`flex ${(isAdminLogin || isStandaloneLogin) ? 'min-h-dvh' : 'min-h-[calc(100dvh-6rem)]'} items-center justify-center bg-slate-100 p-4 dark:bg-zinc-950 sm:p-6 lg:p-8`}>
       {/* Centered Card Container */}
-      <div className="w-full max-w-md md:max-w-4xl overflow-hidden rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl grid grid-cols-1 md:grid-cols-12">
+      <div className="grid w-full max-w-md grid-cols-1 overflow-hidden rounded-2xl border border-[#d9e0df] bg-white shadow-[0_18px_55px_rgba(18,39,38,.12)] dark:border-zinc-800 dark:bg-zinc-900 md:max-w-5xl md:grid-cols-12">
         {/* Left Column (Brand & Benefits - Desktop only) */}
-        <div className="hidden md:flex md:col-span-5 bg-[#0c1017] p-8 lg:p-10 flex-col justify-between text-white">
+        <div className="hidden flex-col justify-between bg-[#142222] p-9 text-white md:col-span-5 md:flex lg:p-12">
           {/* Top Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#1a8a9d] to-[#0c6b80] text-white shadow-md">
-              <Car className="size-5" />
-            </div>
+          <div className="flex items-center gap-3">
+            <div className="grid size-9 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-[18px]" /></div>
             <div>
-              <span className="font-extrabold tracking-wider text-white text-sm">AUTOFLEET</span>
-              <p className="text-[9px] font-mono tracking-widest text-[#22d3ee] -mt-0.5">SMART MOBILITY</p>
+              <span className="text-sm font-bold tracking-[-.02em] text-white">{APP_NAME}</span>
+              <p className="mb-0 mt-0.5 text-[10px] font-medium tracking-[.08em] text-[#9bb5b3]">{isAdminLogin ? 'ADMIN CONSOLE' : 'CUSTOMER PORTAL'}</p>
             </div>
           </div>
 
-          {/* Middle Headline & Value Props */}
-          <div className="my-6">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-[#22d3ee] mb-3">
-              <Sparkles className="size-3" />
-              Smart Car Rental Platform
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-tight">
-              Discover Your Journey
-              <span className="block text-[#22d3ee] mt-1">Next-Gen Self-Drive Rentals</span>
+          <div className="my-12 max-w-sm">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[.14em] text-[#8fb8b4]">{isAdminLogin ? 'PLATFORM OPERATIONS' : 'VEHICLE RENTALS'}</p>
+            <h1 className="text-[32px] font-bold leading-[1.12] tracking-[-.045em] text-white lg:text-[38px]">
+              {isAdminLogin ? 'Rental operations, in one place.' : 'A simpler way to rent a vehicle.'}
             </h1>
-            <p className="mt-3 text-xs text-zinc-400 leading-relaxed max-w-xs">
-              Experience contactless booking, 100% digital PWA paperwork, and instant pickup within 1 minute.
+            <p className="mb-0 mt-4 max-w-[34ch] text-sm font-medium leading-6 text-[#bdc9c7]">
+              {isAdminLogin ? 'Review fleet listings, maintain the vehicle catalog and manage account access.' : 'Find a vehicle, arrange your booking and keep your trip details together.'}
             </p>
-
-            <div className="mt-6 space-y-3">
-              {[
-                { icon: Zap, text: 'Ultra-fast booking, paperless vehicle pickup' },
-                { icon: ShieldCheck, text: 'Online KYC identity verification in 2 minutes' },
-                { icon: Car, text: '60+ late-model self-drive vehicles, routinely serviced' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-start gap-2.5 text-xs text-zinc-300">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/10 text-[#22d3ee] mt-0.5">
-                    <Icon className="size-3" />
-                  </div>
-                  <span className="leading-snug">{text}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Bottom Social Proof Widget */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 flex items-center gap-3">
-            <span className="text-xl">⭐️</span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Rated 4.9/5 Stars</p>
-              <p className="text-[11px] text-zinc-400 truncate">From over 15,000+ safe journeys</p>
-            </div>
-          </div>
+          <p className="mb-0 border-t border-white/15 pt-4 text-[11px] font-medium text-[#9bb0ae]">{isAdminLogin ? 'Authorized staff only' : 'Your account · bookings · vehicle details'}</p>
         </div>
 
         {/* Right Form Column (App Native Form) */}
-        <div className="md:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-center bg-white dark:bg-zinc-900">
+        <div className="flex flex-col justify-center bg-white p-6 dark:bg-zinc-900 sm:p-9 lg:p-12 md:col-span-7">
           {/* Mobile-only App Icon Header */}
-          <div className="md:hidden flex flex-col items-center text-center pb-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1a8a9d] to-[#0c6b80] text-white shadow-md shadow-[#1a8a9d]/20 mb-2">
-              <Car className="size-6" />
-            </div>
-            <span className="text-base font-extrabold tracking-tight text-foreground">AutoFleet PWA</span>
-            <p className="text-[11px] text-muted-foreground">Smart & fast self-drive car rental</p>
+          <div className="mb-5 flex items-center gap-2.5 md:hidden">
+            <div className="grid size-8 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-4" /></div>
+            <span className="text-sm font-bold tracking-tight text-foreground">{isAdminLogin ? `${APP_NAME} Admin` : APP_NAME}</span>
           </div>
 
           {/* Segmented Control Switcher (Login / Register) */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-2xl mb-5">
-            <div className="py-2 text-center text-xs font-bold rounded-xl bg-white dark:bg-zinc-900 text-foreground shadow-xs">
-              Sign In
+          {isAdminLogin ? (
+            <div className="mb-6 grid grid-cols-2 border-b border-slate-200 dark:border-zinc-700">
+              <span aria-current="page" className="flex min-h-11 items-center justify-center border-b-2 border-[#287f7e] px-3 text-[13px] font-bold text-[#173b3d] dark:text-white">
+                Admin
+              </span>
+              <Link to={ROUTES.LOGIN} className="flex min-h-11 items-center justify-center px-3 text-[13px] font-semibold text-slate-600 transition hover:text-[#173b3d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#287f7e] dark:text-zinc-300 dark:hover:text-white">
+                Customer sign in
+              </Link>
             </div>
-            <Link
-              to={`${ROUTES.PROFILE_AUTH}?mode=register`}
-              state={location.state}
-              className="py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
-            >
-              Sign Up
-            </Link>
-          </div>
+          ) : (
+            <div className="mb-6 grid grid-cols-2 border-b border-slate-200 dark:border-zinc-700">
+              <span aria-current="page" className="flex min-h-11 items-center justify-center border-b-2 border-[#287f7e] text-[13px] font-bold text-[#173b3d] dark:text-white">Sign in</span>
+              <Link to={isStandaloneLogin ? ROUTES.REGISTER : `${ROUTES.PROFILE_AUTH}?mode=register`} state={location.state} className="flex min-h-11 items-center justify-center text-[13px] font-semibold text-slate-600 transition hover:text-[#173b3d] dark:text-zinc-300 dark:hover:text-white">Sign Up</Link>
+            </div>
+          )}
 
           {/* Greeting */}
           <div className="mb-5">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Sign In</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sign in to continue booking and manage your trips.
+            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">{isAdminLogin ? 'Admin sign in' : 'Sign in'}</h2>
+            <p className="mt-1 text-sm font-medium leading-5 text-muted-foreground">
+              {isAdminLogin ? 'Use an administrator account to continue to the control panel.' : 'Sign in to continue booking and manage your trips.'}
             </p>
           </div>
+
+          {!isAdminLogin && (
+            <div className="-mt-2 mb-4 text-[13px] text-muted-foreground">
+              Platform administrator? <Link to={ROUTES.ADMIN_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Sign in to admin</Link>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
@@ -144,7 +122,7 @@ export default function LoginPage() {
                   placeholder="Email or phone number"
                   autoComplete="username"
                   autoFocus
-                  className="h-11 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 text-xs font-medium focus-visible:border-[#1a8a9d]"
+                  className="h-12 rounded-lg bg-slate-50 dark:bg-zinc-800/60 pl-10 text-sm font-semibold focus-visible:border-[#287f7e]"
                   {...register('username')}
                 />
               </div>
@@ -156,7 +134,7 @@ export default function LoginPage() {
                 <a
                   href="#forgot"
                   onClick={(e) => e.preventDefault()}
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
                 >
                 Forgot password?
                 </a>
@@ -168,9 +146,9 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+              placeholder="••••••••"
                   autoComplete="current-password"
-                  className="h-11 rounded-xl bg-slate-50 dark:bg-zinc-800/60 pl-10 pr-10 text-xs font-medium focus-visible:border-[#1a8a9d]"
+                  className="h-12 rounded-lg bg-slate-50 dark:bg-zinc-800/60 pl-10 pr-10 text-sm font-semibold focus-visible:border-[#287f7e]"
                   {...register('password')}
                 />
                 <button
@@ -188,39 +166,37 @@ export default function LoginPage() {
             <Button
               type="submit"
               loading={isPending}
-              className="mt-5 w-full h-11 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-semibold text-sm shadow-sm transition-colors active-press"
+              className="mt-5 h-12 w-full rounded-lg bg-[#176f70] text-sm font-semibold text-white shadow-none transition-colors hover:bg-[#125d5e] active-press"
             >
               Sign In
             </Button>
           </form>
-
-          {/* Quick Demo Test Fill */}
-          <div className="mt-5 pt-4 border-t border-border/60">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
-              <KeyRound className="size-3.5 text-zinc-400" />
-              <span>Demo accounts (click to fill):</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: 'User (KYC)', u: 'user', p: 'user123', bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-300/40' },
-                { label: 'Admin',      u: 'admin', p: 'admin123', bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-300/40' },
-                { label: 'Manager',    u: 'manager', p: 'manager123', bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-300/40' },
-                { label: 'Staff',      u: 'staff', p: 'staff123', bg: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-300/40' },
-              ].map(({ label, u, p, bg }) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => fillQuickAccount(u, p)}
-                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold hover:opacity-80 transition-all ${bg}`}
-                >
-                  <span className="size-1.5 rounded-full bg-current" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
+
+      {portalChoice && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#101719a8] p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="portal-choice-title" className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-[0_16px_48px_rgba(0,0,0,.18)] dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="mb-2 text-xs font-semibold text-[#176f70]">Account type</p>
+            <h2 id="portal-choice-title" className="m-0 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+              {portalChoice === 'customer' ? 'Switch to the customer portal?' : 'Open the admin workspace?'}
+            </h2>
+            <p className="mb-0 mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+              {portalChoice === 'customer'
+                ? 'This is a customer account. The mobile portal is designed for browsing vehicles, bookings and your profile.'
+                : 'This is an administrator account. The admin workspace is designed for fleet and platform management.'}
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {portalChoice === 'customer' ? (
+                <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
+              ) : (
+                <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
+              )}
+              <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="h-10 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to mobile portal' : 'Continue to admin workspace'}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   )
 }

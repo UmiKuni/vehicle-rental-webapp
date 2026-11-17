@@ -1,4 +1,5 @@
 import { Calendar, MapPin, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Booking } from '@/types/booking.types'
 import { useCancelBooking } from '../hooks/useBookings'
 import { formatDate } from '@/shared/utils'
@@ -7,11 +8,16 @@ interface BookingCardProps {
   booking: Booking
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
+  PENDING:   { label: 'Pending',   class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   CONFIRMED: { label: 'Confirmed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  PAID:      { label: 'Paid',      class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   ACTIVE:    { label: 'Active',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
+  IN_PROGRESS: { label: 'In progress', class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
   COMPLETED: { label: 'Completed', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
   CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  REJECTED:  { label: 'Rejected',  class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  EXPIRED:   { label: 'Expired',   class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
 }
 
 export function BookingCard({ booking }: BookingCardProps) {
@@ -75,8 +81,22 @@ export function BookingCard({ booking }: BookingCardProps) {
       </div>
 
       {/* Actions */}
-      {booking.status === 'CONFIRMED' && (
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
+        <Link to={`/bookings/${booking.id}`} className="mr-auto rounded-lg px-3 py-1.5 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
+        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+          <Link to={`/bookings/${booking.id}/payment`} className="rounded-lg bg-[#1a8a9d] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Payment</Link>
+        )}
+        {(booking.status === 'PAID' || booking.status === 'CONFIRMED') && (
+          <Link to={`/bookings/${booking.id}/pickup`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
+        )}
+        {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && (
+          <Link to={`/bookings/${booking.id}/return`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
+        )}
+        {booking.status === 'COMPLETED' && (
+          <Link to={`/bookings/${booking.id}/settlement`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
+        )}
+        {booking.status === 'CONFIRMED' && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={isPending}
@@ -93,7 +113,8 @@ export function BookingCard({ booking }: BookingCardProps) {
             Help
           </a>
         </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

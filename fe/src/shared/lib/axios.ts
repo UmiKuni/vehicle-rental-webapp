@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
         // No refresh token — redirect to login
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
-        window.location.href = '/login'
+        if (window.location.pathname !== '/login') window.location.href = '/login'
         return Promise.reject(error)
       }
 
@@ -76,7 +76,7 @@ apiClient.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+          `${import.meta.env.VITE_API_BASE_URL}/users/refresh`,
           { refreshToken },
           { headers: { 'Content-Type': 'application/json' } }
         )

@@ -1,6 +1,5 @@
 /**
- * Mock API interceptor — only active when VITE_APP_ENV=development
- * and there's no real backend.
+ * Mock API interceptor — opt in with VITE_USE_MOCK_API=true.
  *
  * Intercepts specific Axios requests and returns realistic fake data.
  * Remove this file (and its import in main.tsx) when connecting to real backend.
@@ -259,10 +258,10 @@ function delay(ms = 300) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-// Only install mock when there's no real backend configured
-const isDev = import.meta.env.VITE_APP_ENV === 'development'
+// Real API calls are the default. Enable this adapter only for an explicit mock run.
+const isMockEnabled = import.meta.env.VITE_USE_MOCK_API === 'true'
 
-if (isDev) {
+if (isMockEnabled) {
   apiClient.interceptors.request.use(async (config) => {
     const url = config.url ?? ''
 
@@ -556,7 +555,7 @@ if (isDev) {
     }
 
     // Vehicles — get by ID
-    const vehicleDetailMatch = url.match(/\/vehicles\/([a-zA-Z0-9_-]+)$/)
+    const vehicleDetailMatch = url.match(/\/(?:fleet\/)?vehicles\/([a-zA-Z0-9_-]+)$/)
     if (vehicleDetailMatch && config.method === 'get') {
       const id = vehicleDetailMatch[1]
       const vehicle = MOCK_VEHICLES.find((v) => v.id === id)

@@ -20,6 +20,17 @@ export function useKycStatus(enabled = true) {
   })
 }
 
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { fullName: string; address: string }) => profileApi.updateProfile(data),
+    onSuccess: (profile) => {
+      queryClient.setQueryData([QUERY_KEYS.PROFILE], profile)
+    },
+  })
+}
+
 export function useSetMockKycStatus() {
   const queryClient = useQueryClient()
 
