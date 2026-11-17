@@ -29,7 +29,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         builder.Property(n => n.Content)
             .IsRequired()
-            .HasColumnType("jsonb")
+            .HasColumnType("text")
             .HasColumnName("content");
 
         builder.Property(n => n.Status)

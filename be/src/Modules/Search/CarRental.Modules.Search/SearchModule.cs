@@ -1,5 +1,6 @@
 using CarRental.Modules.Search.Data;
 using CarRental.Modules.Search.Contracts;
+using CarRental.Modules.Search.EventHandlers;
 using CarRental.Modules.Search.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,6 +25,11 @@ public static class SearchModule
             }));
 
         services.AddScoped<ISearchApi, SearchApiService>();
+        services.AddScoped<SearchEventHandlers>();
+        services.AddScoped<VehiclePublishedConsumer>();
+        services.AddScoped<VehicleUnpublishedConsumer>();
+        services.AddScoped<PricingUpdatedConsumer>();
+        services.AddScoped<RatingSummaryUpdatedConsumer>();
 
         return services;
     }

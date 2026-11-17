@@ -69,7 +69,6 @@ namespace CarRental.Modules.Support.Data.Migrations
                         .HasColumnName("updated_at");
 
                     b.Property<uint>("Version")
-                        .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
@@ -86,7 +85,6 @@ namespace CarRental.Modules.Support.Data.Migrations
             modelBuilder.Entity("CarRental.Modules.Support.Entities.TicketMessage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

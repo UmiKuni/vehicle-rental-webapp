@@ -1,7 +1,29 @@
 @baseUrl = http://localhost:8080
+@seedAdminEmail = admin.seed@example.com
 @seedOwnerEmail = owner.seed@example.com
 @seedCustomerEmail = customer.seed@example.com
 @seedPassword = Password123!
+
+### Login as the seeded admin
+# @name loginAdmin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedAdminEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@adminToken = {{loginAdmin.response.body.$.accessToken}}
+
+### Admin: Get all users (paginated)
+GET {{baseUrl}}/api/users?page=1&pageSize=10
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
 
 ### Login as the seeded owner
 # @name loginOwner
@@ -85,3 +107,45 @@ Authorization: Bearer {{accessToken}}
 {
     "refreshToken": "{{refreshedRefreshToken}}"
 }
+
+###
+
+@customerId = {{loginCustomer.response.body.$.userId}}
+@customerToken = {{loginCustomer.response.body.$.accessToken}}
+
+### Check customer verification status (initially false)
+GET {{baseUrl}}/api/users/me/verification-status
+Accept: application/json
+Authorization: Bearer {{customerToken}}
+
+###
+
+### Verify customer's citizen ID (CCCD) (mock)
+POST {{baseUrl}}/api/users/me/verify-id
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+    "documentNumber": "079095001234",
+    "fullName": "Seed Customer",
+    "address": "2 Le Loi, Ho Chi Minh City"
+}
+
+###
+
+### Verify customer's driver's license (GPLX) (mock)
+POST {{baseUrl}}/api/users/me/verify-driver-license
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+    "licenseNumber": "790123456789",
+    "licenseClass": "B2"
+}
+
+###
+
+### Access authenticated profile after both ID and driver's license are verified
+GET {{baseUrl}}/api/users/{{customerId}}/profile
+Accept: application/json
+Authorization: Bearer {{customerToken}}

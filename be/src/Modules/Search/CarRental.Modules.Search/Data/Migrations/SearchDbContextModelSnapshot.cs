@@ -123,8 +123,7 @@ namespace CarRental.Modules.Search.Data.Migrations
                                 .HasForeignKey("VehicleSearchDocumentId");
                         });
 
-                    b.Navigation("Location")
-                        .IsRequired();
+                    b.Navigation("Location");
                 });
 #pragma warning restore 612, 618
         }

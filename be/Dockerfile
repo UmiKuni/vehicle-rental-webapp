@@ -18,6 +18,7 @@ COPY src/Shared/CarRental.BuildingBlocks/*.csproj src/Shared/CarRental.BuildingB
 COPY tests/CarRental.ArchitectureTests/*.csproj tests/CarRental.ArchitectureTests/
 COPY tests/CarRental.BuildingBlocks.Tests/*.csproj tests/CarRental.BuildingBlocks.Tests/
 COPY tests/CarRental.Modules.Tests/*.csproj tests/CarRental.Modules.Tests/
+COPY tests/CarRental.IntegrationTests/*.csproj tests/CarRental.IntegrationTests/
 
 # Copy Core Rental Flow Module projects
 COPY src/Modules/Bookings/CarRental.Modules.Bookings/*.csproj src/Modules/Bookings/CarRental.Modules.Bookings/

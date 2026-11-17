@@ -2,6 +2,7 @@ using CarRental.Modules.Users.Errors;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
+using CarRental.Modules.Users.Contracts.Enums;
 using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -212,4 +213,183 @@ public class UsersApiService : IUsersApi
         await _dbContext.SaveChangesAsync(ct);
         return Result.Success();
     }
+
+    public async Task<Result<PagedResult<AdminUserDto>>> GetAllUsersAsync(
+        int page = 1,
+        int pageSize = 10,
+        string? search = null,
+        string? role = null,
+        string? status = null,
+        CancellationToken ct = default)
+    {
+        var normalizedPage = page < 1 ? 1 : page;
+        var normalizedPageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100);
+
+        var dbUsers = await _dbContext.Users.AsNoTracking().ToListAsync(ct);
+        IEnumerable<AdminUserDto> source = dbUsers.Count > 0
+            ? dbUsers.Select(MapToAdminUserDto)
+            : GetMockAdminUsers();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            source = source.Where(u =>
+                u.Email.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                u.Phone.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                u.FullName.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            var roleFilter = role.Trim();
+            source = source.Where(u => string.Equals(u.Role, roleFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var statusFilter = status.Trim();
+            source = source.Where(u => string.Equals(u.Status, statusFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var filtered = source.OrderBy(u => u.Email, StringComparer.OrdinalIgnoreCase).ToList();
+        var items = filtered
+            .Skip((normalizedPage - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
+            .ToList();
+
+        return Result.Success(new PagedResult<AdminUserDto>(items, filtered.Count, normalizedPage, normalizedPageSize));
+    }
+
+    public async Task<Result<UserVerificationStatusDto>> GetVerificationStatusAsync(Guid userId, CancellationToken ct = default)
+    {
+        var userIdValue = UserId.From(userId);
+        var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
+        if (user is null)
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
+
+        return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    public async Task<Result<UserVerificationStatusDto>> VerifyIdAsync(Guid userId, VerifyIdDocumentDto? dto = null, CancellationToken ct = default)
+    {
+        var userIdValue = UserId.From(userId);
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
+        if (user is null)
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
+
+        var storageKey = !string.IsNullOrWhiteSpace(dto?.StorageKey)
+            ? dto.StorageKey.Trim()
+            : !string.IsNullOrWhiteSpace(dto?.DocumentNumber)
+                ? $"mock/cccd/{userId:N}_{dto.DocumentNumber.Trim()}.jpg"
+                : $"mock/cccd/{userId:N}.jpg";
+
+        var verifyResult = user.VerifyDocumentByTypeMock(DocumentType.CCCD, storageKey);
+        if (verifyResult.IsFailure)
+            return Result.Failure<UserVerificationStatusDto>(verifyResult.Error);
+
+        if (!string.IsNullOrWhiteSpace(dto?.FullName) || user.CustomerProfile is null)
+        {
+            var fullName = string.IsNullOrWhiteSpace(dto?.FullName)
+                ? "Verified Customer"
+                : dto.FullName.Trim();
+            var address = dto?.Address ?? user.CustomerProfile?.Address ?? string.Empty;
+            var profileResult = user.UpdateProfile(fullName, address);
+            if (profileResult.IsFailure)
+                return Result.Failure<UserVerificationStatusDto>(profileResult.Error);
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    public async Task<Result<UserVerificationStatusDto>> VerifyDriverLicenseAsync(Guid userId, VerifyDriverLicenseDto? dto = null, CancellationToken ct = default)
+    {
+        var userIdValue = UserId.From(userId);
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
+        if (user is null)
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
+
+        var storageKey = !string.IsNullOrWhiteSpace(dto?.StorageKey)
+            ? dto.StorageKey.Trim()
+            : !string.IsNullOrWhiteSpace(dto?.LicenseNumber)
+                ? $"mock/gplx/{userId:N}_{dto.LicenseNumber.Trim()}.jpg"
+                : dto?.LicenseClass is not null
+                    ? $"mock/gplx/{userId:N}_{dto.LicenseClass.Value}.jpg"
+                    : $"mock/gplx/{userId:N}.jpg";
+
+        var verifyResult = user.VerifyDocumentByTypeMock(DocumentType.GPLX, storageKey);
+        if (verifyResult.IsFailure)
+            return Result.Failure<UserVerificationStatusDto>(verifyResult.Error);
+
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    private static IdentityDocumentDto MapToDocumentDto(IdentityDocument doc) =>
+        new(doc.Id, doc.Type, doc.StorageKey, doc.VerificationStatus, doc.RejectReason);
+
+    private static UserVerificationStatusDto MapToVerificationStatusDto(User user) =>
+        new(
+            user.Id.Value,
+            user.IsIdVerified,
+            user.IsDriverLicenseVerified,
+            user.IsVerified,
+            user.IdentityDocuments.Select(MapToDocumentDto).ToList());
+
+    private static AdminUserDto MapToAdminUserDto(User user) =>
+        new(
+            user.Id.Value,
+            user.Email,
+            user.Phone,
+            user.CustomerProfile?.FullName ?? string.Empty,
+            user.CustomerProfile?.Address ?? string.Empty,
+            user.Role.ToString(),
+            user.Status.ToString(),
+            user.IsIdVerified,
+            user.IsDriverLicenseVerified,
+            user.IsVerified,
+            user.IdentityDocuments.Select(MapToDocumentDto).ToList());
+
+    private static IReadOnlyList<AdminUserDto> GetMockAdminUsers() =>
+    [
+        new(
+            Guid.Parse("00000000-0000-0000-0000-000000000002"),
+            "admin.seed@example.com",
+            "0900000100",
+            "Platform Administrator",
+            "District 1, Ho Chi Minh City",
+            UserRole.Admin.ToString(),
+            UserStatus.Active.ToString(),
+            true,
+            true,
+            true,
+            []),
+        new(
+            Guid.Parse("00000000-0000-0000-0000-000000000101"),
+            "owner.seed@example.com",
+            "0900000101",
+            "Seed Vehicle Owner",
+            "1 Nguyen Hue, Ho Chi Minh City",
+            UserRole.Owner.ToString(),
+            UserStatus.Active.ToString(),
+            true,
+            true,
+            true,
+            [
+                new(Guid.Parse("10000000-0000-0000-0000-000000000001"), DocumentType.CCCD, "mock/cccd/seed-owner.jpg", DocumentVerificationStatus.Verified, null),
+                new(Guid.Parse("10000000-0000-0000-0000-000000000002"), DocumentType.GPLX, "mock/gplx/seed-owner.jpg", DocumentVerificationStatus.Verified, null)
+            ]),
+        new(
+            Guid.Parse("00000000-0000-0000-0000-000000000102"),
+            "customer.seed@example.com",
+            "0900000102",
+            "Seed Customer",
+            "2 Le Loi, Ho Chi Minh City",
+            UserRole.Customer.ToString(),
+            UserStatus.Active.ToString(),
+            false,
+            false,
+            false,
+            [])
+    ];
 }

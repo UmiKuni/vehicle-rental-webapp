@@ -74,7 +74,6 @@ namespace CarRental.Modules.Fleet.Data.Migrations
                         .HasColumnName("transmission");
 
                     b.Property<uint>("Version")
-                        .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
@@ -92,7 +91,6 @@ namespace CarRental.Modules.Fleet.Data.Migrations
             modelBuilder.Entity("CarRental.Modules.Fleet.Entities.VehicleApproval", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -150,7 +148,6 @@ namespace CarRental.Modules.Fleet.Data.Migrations
             modelBuilder.Entity("CarRental.Modules.Fleet.Entities.VehicleImage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

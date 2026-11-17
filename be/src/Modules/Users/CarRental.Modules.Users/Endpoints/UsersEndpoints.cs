@@ -53,7 +53,7 @@ public static class UsersEndpoints
             return Results.NoContent();
         })
         .WithName("LogoutUser")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("UnverifiedUserAllowed")
         .WithSummary("Revoke a refresh token.")
         .Produces(StatusCodes.Status204NoContent);
 
@@ -99,39 +99,141 @@ public static class UsersEndpoints
             return Results.NoContent();
         })
         .WithName("AuthLogoutUser")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("UnverifiedUserAllowed")
         .WithSummary("Revoke refresh token (alias).")
         .Produces(StatusCodes.Status204NoContent);
 
         authGroup.MapGet("/me", (ClaimsPrincipal principal) =>
-        {
-            var userId = GetUserId(principal);
-            return Results.Ok(new CurrentUserDto(
-                userId,
-                principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
-                principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty));
-        })
+            Results.Ok(BuildCurrentUserDto(principal)))
         .WithName("AuthGetCurrentUser")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("UnverifiedUserAllowed")
         .WithSummary("Get authenticated user identity (alias).")
         .Produces<CurrentUserDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        var authenticated = group.MapGroup(string.Empty)
-            .RequireAuthorization("AuthenticatedUser");
+        var unverifiedAllowed = group.MapGroup(string.Empty)
+            .RequireAuthorization("UnverifiedUserAllowed");
 
-        authenticated.MapGet("/me", (ClaimsPrincipal principal) =>
-        {
-            var userId = GetUserId(principal);
-            return Results.Ok(new CurrentUserDto(
-                userId,
-                principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
-                principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty));
-        })
+        unverifiedAllowed.MapGet("/me", (ClaimsPrincipal principal) =>
+            Results.Ok(BuildCurrentUserDto(principal)))
         .WithName("GetCurrentUser")
         .WithSummary("Get the authenticated user identity.")
         .Produces<CurrentUserDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        unverifiedAllowed.MapGet("/me/verification-status", async (
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.GetVerificationStatusAsync(GetUserId(principal), ct);
+            return result.ToHttpResult();
+        })
+        .WithName("GetMyVerificationStatus")
+        .WithSummary("Get the current user's citizen ID and driver's license verification status.")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        unverifiedAllowed.MapGet("/{userId:guid}/verification-status", async (
+            Guid userId,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+                return Results.Forbid();
+
+            var result = await api.GetVerificationStatusAsync(userId, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("GetUserVerificationStatus")
+        .WithSummary("Get a user's citizen ID and driver's license verification status.")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        unverifiedAllowed.MapPost("/me/verify-id", async (
+            VerifyIdDocumentDto? dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.VerifyIdAsync(GetUserId(principal), dto, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("VerifyMyId")
+        .WithSummary("Verify the current user's citizen ID (CCCD) (mock).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        unverifiedAllowed.MapPost("/{userId:guid}/verify-id", async (
+            Guid userId,
+            VerifyIdDocumentDto? dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+                return Results.Forbid();
+
+            var result = await api.VerifyIdAsync(userId, dto, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("VerifyUserId")
+        .WithSummary("Verify a user's citizen ID (CCCD) (mock).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        unverifiedAllowed.MapPost("/me/verify-driver-license", async (
+            VerifyDriverLicenseDto? dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.VerifyDriverLicenseAsync(GetUserId(principal), dto, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("VerifyMyDriverLicense")
+        .WithSummary("Verify the current user's driver's license (GPLX) (mock).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        unverifiedAllowed.MapPost("/{userId:guid}/verify-driver-license", async (
+            Guid userId,
+            VerifyDriverLicenseDto? dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+                return Results.Forbid();
+
+            var result = await api.VerifyDriverLicenseAsync(userId, dto, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("VerifyUserDriverLicense")
+        .WithSummary("Verify a user's driver's license (GPLX) (mock).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        var authenticated = group.MapGroup(string.Empty)
+            .RequireAuthorization("AuthenticatedUser");
 
         authenticated.MapPut("/{userId:guid}/profile", async (
             Guid userId,
@@ -203,6 +305,24 @@ public static class UsersEndpoints
         var admin = group.MapGroup(string.Empty)
             .RequireAuthorization("AdminOnly");
 
+        admin.MapGet("/", async (
+            IUsersApi api,
+            int page = 1,
+            int pageSize = 10,
+            string? search = null,
+            string? role = null,
+            string? status = null,
+            CancellationToken ct = default) =>
+        {
+            var result = await api.GetAllUsersAsync(page, pageSize, search, role, status, ct);
+            return result.ToHttpResult();
+        })
+        .WithName("AdminGetAllUsers")
+        .WithSummary("Get all users (paginated, Admin only) (mock).")
+        .Produces<PagedResult<AdminUserDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden);
+
         admin.MapPut("/{userId:guid}/ban", async (
             Guid userId,
             ClaimsPrincipal principal,
@@ -230,6 +350,22 @@ public static class UsersEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static CurrentUserDto BuildCurrentUserDto(ClaimsPrincipal principal)
+    {
+        var userId = GetUserId(principal);
+        var isIdVerified = string.Equals(principal.FindFirstValue("id_verified"), "true", StringComparison.OrdinalIgnoreCase);
+        var isDriverLicenseVerified = string.Equals(principal.FindFirstValue("driver_license_verified"), "true", StringComparison.OrdinalIgnoreCase);
+        var isVerified = string.Equals(principal.FindFirstValue("verified_user"), "true", StringComparison.OrdinalIgnoreCase);
+
+        return new CurrentUserDto(
+            userId,
+            principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
+            principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty,
+            isIdVerified,
+            isDriverLicenseVerified,
+            isVerified);
     }
 
     private static Guid GetUserId(ClaimsPrincipal principal)

@@ -1,2 +1,18 @@
-# No HTTP endpoints are currently mapped for the Reporting module.
-# Add dashboard requests when the reporting endpoint surface is exposed.
+@baseUrl = http://localhost:8080
+@ownerId = 00000000-0000-0000-0000-000000000001
+
+### Get admin dashboard
+GET {{baseUrl}}/api/reporting/dashboard
+Accept: application/json
+
+###
+
+### Get daily booking statistics
+GET {{baseUrl}}/api/reporting/daily-stats?from=2026-11-01&to=2026-11-10
+Accept: application/json
+
+###
+
+### Get owner revenue report
+GET {{baseUrl}}/api/reporting/owner/revenue?ownerId={{ownerId}}&month=11&year=2026
+Accept: application/json

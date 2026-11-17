@@ -1,2 +1,61 @@
-# No HTTP endpoints are currently mapped for the Handover module.
-# Add pickup, return, photo, and confirmation requests when exposed.
+@baseUrl = http://localhost:8080
+@bookingId = 00000000-0000-0000-0000-000000000301
+@handoverId = c1111111-0000-0000-0000-000000000001
+
+### Start pickup handover
+# @name createHandover
+POST {{baseUrl}}/api/handovers/
+Content-Type: application/json
+
+{
+  "bookingId": "{{bookingId}}",
+  "type": "Pickup"
+}
+
+###
+
+### List handovers for a booking
+GET {{baseUrl}}/api/handovers/booking/{{bookingId}}
+Accept: application/json
+
+###
+
+### Get handover details
+GET {{baseUrl}}/api/handovers/{{handoverId}}
+Accept: application/json
+
+###
+
+### Update vehicle condition
+PUT {{baseUrl}}/api/handovers/{{handoverId}}/condition
+Content-Type: application/json
+
+{
+  "odo": 15420,
+  "fuelLevel": 100,
+  "damageNote": "No new damage observed"
+}
+
+###
+
+### Upload a handover photo
+POST {{baseUrl}}/api/handovers/{{handoverId}}/photos
+Content-Type: application/json
+
+{
+  "corner": "FrontLeft",
+  "storageKey": "seed/handovers/front-left.jpg",
+  "fileHash": "e3b0c44298fc1c149afbf4c8996fb924",
+  "clientCapturedAt": "2026-11-20T08:50:00+07:00"
+}
+
+###
+
+### Confirm handover as owner
+PUT {{baseUrl}}/api/handovers/{{handoverId}}/confirm
+Content-Type: application/json
+
+{
+  "confirmedByRole": "Owner",
+  "signatureToken": "development-signature"
+}

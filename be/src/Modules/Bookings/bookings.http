@@ -1,2 +1,60 @@
-# No HTTP endpoints are currently mapped for the Bookings module.
-# Add booking requests here when the module endpoint surface is exposed.
+@baseUrl = http://localhost:8080
+@vehicleId = 00000000-0000-0000-0000-000000000001
+@bookingId = 00000000-0000-0000-0000-000000000301
+
+### Create a booking request
+# @name createBooking
+POST {{baseUrl}}/api/bookings/
+Content-Type: application/json
+
+{
+  "vehicleId": "{{vehicleId}}",
+  "startTime": "2026-11-20T09:00:00+07:00",
+  "endTime": "2026-11-22T18:00:00+07:00",
+  "pickupLocation": "1 Nguyen Hue, District 1, Ho Chi Minh City",
+  "includeInsurance": false,
+  "notes": "REST Client sample booking"
+}
+
+###
+
+### List customer bookings
+GET {{baseUrl}}/api/bookings/me?page=1&pageSize=10
+Accept: application/json
+
+###
+
+### List owner booking requests
+GET {{baseUrl}}/api/bookings/owner?page=1&pageSize=10
+Accept: application/json
+
+###
+
+### Get booking details
+GET {{baseUrl}}/api/bookings/{{bookingId}}
+Accept: application/json
+
+###
+
+### Approve booking
+PUT {{baseUrl}}/api/bookings/{{bookingId}}/approve
+
+###
+
+### Reject booking
+PUT {{baseUrl}}/api/bookings/{{bookingId}}/reject
+Content-Type: application/json
+
+{
+  "reason": "Vehicle unavailable"
+}
+
+###
+
+### Cancel booking
+PUT {{baseUrl}}/api/bookings/{{bookingId}}/cancel
+Content-Type: application/json
+
+{
+  "reason": "Customer changed travel plans"
+}

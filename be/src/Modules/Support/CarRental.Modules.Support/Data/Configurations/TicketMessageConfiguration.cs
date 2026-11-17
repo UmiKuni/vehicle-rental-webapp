@@ -12,6 +12,7 @@ public sealed class TicketMessageConfiguration : IEntityTypeConfiguration<Ticket
 
         builder.HasKey(m => m.Id);
         builder.Property(m => m.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(m => m.SupportTicketId)

@@ -1,4 +1,8 @@
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.Modules.Audit.EventHandlers;
+using CarRental.Modules.Fleet.Contracts.Events;
+using CarRental.Modules.Pricing.Contracts.Events;
+using CarRental.Modules.Search.EventHandlers;
 using Wolverine;
 using Wolverine.ErrorHandling;
 using Wolverine.Postgresql;
@@ -30,9 +34,20 @@ public static class WolverineExtensions
             {
                 opts.Discovery.IncludeAssembly(assembly);
             }
+            opts.Discovery.IncludeType<AuditCommandHandlers>();
+            opts.Discovery.IncludeType<SearchEventHandlers>();
+            opts.LocalQueue("search-events");
+            opts.PublishMessage<VehiclePublished>().ToLocalQueue("search-events");
+            opts.PublishMessage<PricingUpdated>().ToLocalQueue("search-events");
 
-            // Local queues are durable and use the outbox
-            opts.Policies.UseDurableLocalQueues();
+            // Integration tests should not leave durable local queue work to drain after the
+            // test database is torn down. Production retains durable local queues.
+            var useDurableLocalQueues = builder.Configuration
+                .GetValue("Wolverine:UseDurableLocalQueues", !builder.Environment.IsEnvironment("Testing"));
+            if (useDurableLocalQueues)
+            {
+                opts.Policies.UseDurableLocalQueues();
+            }
             opts.Policies.AutoApplyTransactions();
 
             // Retry policy for transient failures
@@ -51,7 +66,7 @@ public static class WolverineExtensions
         return builder;
     }
 }
-
+//
 /// <summary>
 /// <see cref="IEventOutbox"/> implementation backed by Wolverine's message bus.
 /// </summary>

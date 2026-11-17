@@ -33,6 +33,7 @@ public static class PaymentEndpoints
             return Results.Ok(checkout);
         })
         .WithName("CreatePaymentCheckout")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Khởi tạo phiên thanh toán (VNPay / MoMo)")
         .WithDescription("Initiates an online checkout session with payment gateway (VNPay, MoMo, Bank Transfer) for a booking.")
         .Produces<PaymentCheckoutDto>(StatusCodes.Status200OK)
@@ -54,6 +55,7 @@ public static class PaymentEndpoints
             return Results.Ok(payment);
         })
         .WithName("GetPaymentById")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Xem chi tiết giao dịch thanh toán")
         .WithDescription("Retrieves details and execution status of a specific payment transaction.")
         .Produces<PaymentDetailDto>(StatusCodes.Status200OK)
@@ -90,6 +92,7 @@ public static class PaymentEndpoints
             return Results.Ok(summary);
         })
         .WithName("GetPaymentByBooking")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Xem tình trạng thanh toán & cọc của đơn")
         .WithDescription("Retrieves all payments and security deposit status associated with a booking.")
         .Produces<BookingPaymentSummaryDto>(StatusCodes.Status200OK);
@@ -104,6 +107,7 @@ public static class PaymentEndpoints
             return Results.Ok(response);
         })
         .WithName("HandlePaymentWebhook")
+        .AllowAnonymous()
         .WithSummary("IPN Webhook callback từ cổng thanh toán")
         .WithDescription("Receives asynchronous Instant Payment Notifications (IPN) from payment gateways (VNPay / MoMo) to update transaction and booking status.")
         .Produces<PaymentWebhookResponseDto>(StatusCodes.Status200OK);
@@ -122,6 +126,7 @@ public static class PaymentEndpoints
             return Results.Ok(result);
         })
         .WithName("ReleaseDeposit")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Hoàn trả toàn bộ tiền cọc sau khi trả xe")
         .WithDescription("Releases the full security deposit back to the customer after vehicle return inspection passes.")
         .Produces<DepositActionDto>(StatusCodes.Status200OK);
@@ -149,6 +154,7 @@ public static class PaymentEndpoints
             return Results.Ok(result);
         })
         .WithName("DeductDeposit")
+        .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Khấu trừ cọc do hư hỏng, quá km, trễ hạn")
         .WithDescription("Deducts a specified amount from the security deposit for repair costs, over-mileage, or late returns, refunding the remainder.")
         .Produces<DepositActionDto>(StatusCodes.Status200OK)

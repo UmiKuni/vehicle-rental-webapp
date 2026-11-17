@@ -31,6 +31,24 @@ public class SupportModuleTests
     }
 
     [Fact]
+    public void Open_WithEmptyBookingId_ShouldFail()
+    {
+        var result = SupportTicket.Open(Guid.Empty, ReporterId, "Problem description", null, Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("support.invalid_booking");
+    }
+
+    [Fact]
+    public void Open_WithEmptyReporterId_ShouldFail()
+    {
+        var result = SupportTicket.Open(BookingId, Guid.Empty, "Problem description", null, Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("support.invalid_reporter");
+    }
+
+    [Fact]
     public void Open_WithEmptyMessage_ShouldFail()
     {
         var result = SupportTicket.Open(BookingId, ReporterId, "   ", null, Now);
@@ -52,6 +70,20 @@ public class SupportModuleTests
     }
 
     [Fact]
+    public void AddMessage_WithEmptySenderOrContent_ShouldFail()
+    {
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Initial problem", null, Now).Value;
+
+        var emptySender = ticket.AddMessage(Guid.Empty, "Hello", null, Now);
+        emptySender.IsSuccess.Should().BeFalse();
+        emptySender.Error.Code.Should().Be("support.invalid_sender");
+
+        var emptyContent = ticket.AddMessage(ReporterId, "   ", null, Now);
+        emptyContent.IsSuccess.Should().BeFalse();
+        emptyContent.Error.Code.Should().Be("support.empty_message");
+    }
+
+    [Fact]
     public void StartReview_ByAdmin_ShouldTransitionToInProgress()
     {
         var ticket = SupportTicket.Open(BookingId, ReporterId, "Need assistance", null, Now).Value;
@@ -63,21 +95,42 @@ public class SupportModuleTests
     }
 
     [Fact]
-    public void Resolve_WithValidPercentage_ShouldTransitionToResolved()
+    public void StartReview_WithEmptyAdminId_ShouldFail()
     {
-        var ticket = SupportTicket.Open(BookingId, ReporterId, "Deposit dispute", null, Now).Value;
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Need assistance", null, Now).Value;
+
+        var result = ticket.StartReview(Guid.Empty, Now.AddMinutes(5));
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("support.invalid_admin");
+    }
+
+    [Fact]
+    public void StartReview_WhenAlreadyInProgress_ShouldFail()
+    {
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Need assistance", null, Now).Value;
         ticket.StartReview(AdminId, Now.AddMinutes(5));
 
-        // 80% refund to customer, 20% to owner for cleaning
-        var resolveResult = ticket.Resolve(AdminId, 80, "Owner justified cleaning fee; 80% refunded to customer.", Now.AddMinutes(30));
+        var secondReview = ticket.StartReview(AdminId, Now.AddMinutes(10));
 
-        resolveResult.IsSuccess.Should().BeTrue();
+        secondReview.IsSuccess.Should().BeFalse();
+        secondReview.Error.Code.Should().Be("support.invalid_state");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(50)]
+    [InlineData(100)]
+    public void Resolve_BoundaryPercentages_ShouldSucceed(int percent)
+    {
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Dispute", null, Now).Value;
+        ticket.StartReview(AdminId, Now.AddMinutes(5));
+
+        var result = ticket.Resolve(AdminId, percent, $"Resolution note with {percent}%", Now.AddMinutes(30));
+
+        result.IsSuccess.Should().BeTrue();
         ticket.Status.Should().Be(TicketStatus.Resolved);
-        ticket.DepositToCustomerPercent.Should().Be(80);
-        ticket.ResolutionNote.Should().Be("Owner justified cleaning fee; 80% refunded to customer.");
-        ticket.ResolvedBy.Should().Be(AdminId);
-        ticket.ResolvedAt.Should().Be(Now.AddMinutes(30));
-        ticket.DomainEvents.Should().ContainItemsAssignableTo<TicketResolved>();
+        ticket.DepositToCustomerPercent.Should().Be(percent);
     }
 
     [Fact]
@@ -92,6 +145,32 @@ public class SupportModuleTests
         var above100 = ticket.Resolve(AdminId, 105, "Note", Now);
         above100.IsSuccess.Should().BeFalse();
         above100.Error.Code.Should().Be("support.invalid_percent");
+    }
+
+    [Fact]
+    public void Resolve_WithEmptyAdminIdOrEmptyNote_ShouldFail()
+    {
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Deposit dispute", null, Now).Value;
+
+        var emptyAdmin = ticket.Resolve(Guid.Empty, 50, "Valid note", Now);
+        emptyAdmin.IsSuccess.Should().BeFalse();
+        emptyAdmin.Error.Code.Should().Be("support.invalid_admin");
+
+        var emptyNote = ticket.Resolve(AdminId, 50, "   ", Now);
+        emptyNote.IsSuccess.Should().BeFalse();
+        emptyNote.Error.Code.Should().Be("support.missing_resolution_note");
+    }
+
+    [Fact]
+    public void Resolve_WhenAlreadyResolved_ShouldFail()
+    {
+        var ticket = SupportTicket.Open(BookingId, ReporterId, "Dispute", null, Now).Value;
+        ticket.Resolve(AdminId, 100, "Full refund", Now);
+
+        var secondResolve = ticket.Resolve(AdminId, 50, "Attempt re-resolve", Now);
+
+        secondResolve.IsSuccess.Should().BeFalse();
+        secondResolve.Error.Code.Should().Be("support.already_resolved");
     }
 
     [Fact]

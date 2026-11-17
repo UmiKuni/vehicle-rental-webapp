@@ -23,8 +23,8 @@ namespace CarRental.Modules.Search.Data.Migrations
                 columns: table => new
                 {
                     vehicle_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    location_lat = table.Column<double>(type: "double precision", nullable: false),
-                    location_lon = table.Column<double>(type: "double precision", nullable: false),
+                    location_lat = table.Column<double>(type: "double precision", nullable: true),
+                    location_lon = table.Column<double>(type: "double precision", nullable: true),
                     brand = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     model = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     seats = table.Column<int>(type: "integer", nullable: false),

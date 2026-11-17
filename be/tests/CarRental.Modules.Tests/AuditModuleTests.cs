@@ -38,6 +38,59 @@ public class AuditModuleTests
     }
 
     [Fact]
+    public void Record_WithEmptyIdAndTimestamp_ShouldAssignDefaults()
+    {
+        var result = AuditLogEntry.Record(
+            Guid.Empty,
+            default,
+            ActorId,
+            "192.168.1.1",
+            "UpdateVehicle",
+            "Vehicle",
+            "veh_999");
+
+        result.IsSuccess.Should().BeTrue();
+        var entry = result.Value;
+        entry.Id.Should().NotBeEmpty();
+        entry.Timestamp.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void Record_WithEmptyIpAddress_ShouldDefaultToFallback()
+    {
+        var result = AuditLogEntry.Record(
+            Guid.NewGuid(),
+            Now,
+            ActorId,
+            "   ",
+            "UpdateVehicle",
+            "Vehicle",
+            "veh_999");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IpAddress.Should().Be("0.0.0.0");
+    }
+
+    [Fact]
+    public void Record_WithNullStates_ShouldSucceed()
+    {
+        var result = AuditLogEntry.Record(
+            Guid.NewGuid(),
+            Now,
+            ActorId,
+            "127.0.0.1",
+            "DeleteDocument",
+            "Document",
+            "doc_123",
+            beforeState: null,
+            afterState: null);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.BeforeState.Should().BeNull();
+        result.Value.AfterState.Should().BeNull();
+    }
+
+    [Fact]
     public void Record_WithEmptyActorId_ShouldFail()
     {
         var result = AuditLogEntry.Record(
@@ -123,5 +176,56 @@ public class AuditModuleTests
         entry.AfterState.Should().NotContain("123456789012");
         entry.AfterState.Should().Contain("*********901");
         entry.AfterState.Should().Contain("*********012");
+    }
+
+    [Fact]
+    public void Record_WithPiiShorterThan8Digits_ShouldNotMask()
+    {
+        var json = "{\"postalCode\":\"700000\",\"shortCode\":\"12345\"}";
+
+        var result = AuditLogEntry.Record(
+            Guid.NewGuid(),
+            Now,
+            ActorId,
+            "10.0.0.1",
+            "UpdateLocation",
+            "Location",
+            "loc_1",
+            json,
+            null);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.BeforeState.Should().Be(json);
+    }
+
+    [Fact]
+    public void Record_WithMultipleNestedPii_ShouldMaskAllOccurrences()
+    {
+        var complexJson = @"{
+            ""user"": {
+                ""cccd"": ""079090001234"",
+                ""gplx"": ""510000123456""
+            },
+            ""oldDoc"": ""12345678""
+        }";
+
+        var result = AuditLogEntry.Record(
+            Guid.NewGuid(),
+            Now,
+            ActorId,
+            "10.0.0.1",
+            "BatchVerify",
+            "User",
+            "usr_all",
+            complexJson,
+            complexJson);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.BeforeState.Should().NotContain("079090001234");
+        result.Value.BeforeState.Should().Contain("*********234");
+        result.Value.BeforeState.Should().NotContain("510000123456");
+        result.Value.BeforeState.Should().Contain("*********456");
+        result.Value.BeforeState.Should().NotContain("12345678");
+        result.Value.BeforeState.Should().Contain("*****678");
     }
 }

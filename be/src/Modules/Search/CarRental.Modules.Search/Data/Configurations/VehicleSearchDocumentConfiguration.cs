@@ -17,12 +17,11 @@ public sealed class VehicleSearchDocumentConfiguration : IEntityTypeConfiguratio
         builder.OwnsOne(d => d.Location, loc =>
         {
             loc.Property(p => p.Latitude)
-                .IsRequired()
                 .HasColumnName("location_lat");
             loc.Property(p => p.Longitude)
-                .IsRequired()
                 .HasColumnName("location_lon");
         });
+        builder.Navigation(d => d.Location).IsRequired(false);
 
         builder.Property(d => d.Brand)
             .IsRequired()

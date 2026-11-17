@@ -12,6 +12,7 @@ public class VehicleImageConfiguration : IEntityTypeConfiguration<VehicleImage>
 
         builder.HasKey(i => i.Id);
         builder.Property(i => i.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(i => i.VehicleId)

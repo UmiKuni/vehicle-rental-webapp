@@ -30,8 +30,18 @@ public class ReviewsModuleTests
         review.VehicleId.Should().Be(VehicleId);
         review.CustomerId.Should().Be(CustomerId);
         review.Rating.Should().Be(5);
+        review.Content.Should().Be("Amazing car and smooth ride!");
         review.Status.Should().Be(ReviewStatus.Published);
         booking.HasReviewed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_WhenBookingIsNull_ShouldFail()
+    {
+        var result = Review.Create(null!, CustomerId, 5, "Good", Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("review.invalid_booking");
     }
 
     [Fact]
@@ -46,18 +56,29 @@ public class ReviewsModuleTests
         secondResult.Error.Code.Should().Be("review.already_reviewed");
     }
 
-    [Fact]
-    public void Create_WhenInvalidRating_ShouldFail()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(6)]
+    public void Create_WhenInvalidRating_ShouldFail(int rating)
     {
         var booking = CreateTestReviewableBooking();
 
-        var zeroRating = Review.Create(booking, CustomerId, 0, "Bad", Now);
-        zeroRating.IsSuccess.Should().BeFalse();
-        zeroRating.Error.Code.Should().Be("review.invalid_rating");
+        var result = Review.Create(booking, CustomerId, rating, "Feedback", Now);
 
-        var sixRating = Review.Create(booking, CustomerId, 6, "Over the top", Now);
-        sixRating.IsSuccess.Should().BeFalse();
-        sixRating.Error.Code.Should().Be("review.invalid_rating");
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("review.invalid_rating");
+    }
+
+    [Fact]
+    public void Create_WhenContentIsEmpty_ShouldFail()
+    {
+        var booking = CreateTestReviewableBooking();
+
+        var result = Review.Create(booking, CustomerId, 4, "   ", Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("review.empty_content");
     }
 
     [Fact]
@@ -66,6 +87,17 @@ public class ReviewsModuleTests
         var booking = CreateTestReviewableBooking();
 
         var result = Review.Create(booking, Guid.NewGuid(), 5, "Good", Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("review.unauthorized");
+    }
+
+    [Fact]
+    public void Create_WhenCustomerIdIsEmpty_ShouldFail()
+    {
+        var booking = CreateTestReviewableBooking();
+
+        var result = Review.Create(booking, Guid.Empty, 5, "Good", Now);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Code.Should().Be("review.unauthorized");
@@ -91,6 +123,37 @@ public class ReviewsModuleTests
     }
 
     [Fact]
+    public void Hide_WithEmptyAdminIdOrReason_ShouldFail()
+    {
+        var booking = CreateTestReviewableBooking();
+        var review = Review.Create(booking, CustomerId, 4, "Normal", Now).Value;
+
+        var emptyAdmin = review.Hide(Guid.Empty, "Reason");
+        emptyAdmin.IsSuccess.Should().BeFalse();
+        emptyAdmin.Error.Code.Should().Be("review.invalid_admin");
+
+        var emptyReason = review.Hide(Guid.NewGuid(), "   ");
+        emptyReason.IsSuccess.Should().BeFalse();
+        emptyReason.Error.Code.Should().Be("review.missing_reason");
+    }
+
+    [Fact]
+    public void Restore_WithEmptyAdminId_ShouldFail()
+    {
+        var booking = CreateTestReviewableBooking();
+        var review = Review.Create(booking, CustomerId, 4, "Normal", Now).Value;
+
+        var result = review.Restore(Guid.Empty);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("review.invalid_admin");
+    }
+
+    // =========================================================================
+    // RatingSummary Aggregate Tests
+    // =========================================================================
+
+    [Fact]
     public void RatingSummary_AddAndRemoveRating_ShouldComputeAccurateAverage()
     {
         var summary = RatingSummary.Create(VehicleId);
@@ -113,5 +176,32 @@ public class ReviewsModuleTests
         summary.RemoveRating(5);
         summary.TotalReviews.Should().Be(2);
         summary.AverageRating.Should().Be(3.50m);
+    }
+
+    [Fact]
+    public void RatingSummary_RemoveLastRating_ShouldResetToZero()
+    {
+        var summary = RatingSummary.Create(VehicleId);
+        summary.AddRating(4);
+        summary.TotalReviews.Should().Be(1);
+        summary.AverageRating.Should().Be(4.00m);
+
+        summary.RemoveRating(4);
+        summary.TotalReviews.Should().Be(0);
+        summary.AverageRating.Should().Be(0m);
+    }
+
+    [Fact]
+    public void RatingSummary_AddRating_ShouldClampValuesOutsideRange()
+    {
+        var summary = RatingSummary.Create(VehicleId);
+
+        // Adding 10 should be clamped to 5
+        summary.AddRating(10);
+        summary.AverageRating.Should().Be(5.00m);
+
+        // Adding 0 should be clamped to 1
+        summary.AddRating(0);
+        summary.AverageRating.Should().Be(3.00m); // (5 + 1) / 2
     }
 }

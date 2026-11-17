@@ -64,7 +64,8 @@ public class Booking : AggregateRoot<BookingId>
         string pickupLocation,
         IReadOnlyList<BookingLineItem> lineItems,
         CancellationPolicySnapshot policy,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        BookingId? bookingId = null)
     {
         if (customerId == Guid.Empty)
             return Result.Failure<Booking>(BookingsErrors.InvalidCustomer);
@@ -102,9 +103,9 @@ public class Booking : AggregateRoot<BookingId>
         if (policy == null)
             return Result.Failure<Booking>(BookingsErrors.MissingPolicy);
 
-        var bookingId = BookingId.New();
+        var id = bookingId ?? BookingId.New();
         return Result.Success(new Booking(
-            bookingId,
+            id,
             customerId,
             ownerId,
             vehicleId,

@@ -1,4 +1,5 @@
 using CarRental.Modules.Pricing.Contracts.Events;
+using Wolverine.Attributes;
 
 namespace CarRental.Modules.Search.EventHandlers;
 
@@ -7,6 +8,13 @@ namespace CarRental.Modules.Search.EventHandlers;
 /// </summary>
 public sealed class PricingUpdatedConsumer
 {
+    [WolverineIgnore]
+    public Task Consume(PricingUpdated message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Task.CompletedTask;
+    }
+
     /*
      * WHAT TO DO IN THIS FILE:
      * ------------------------
@@ -19,9 +27,4 @@ public sealed class PricingUpdatedConsumer
      *    - Uses LWW timestamp check (LastPricingEventAt) to ensure eventual consistency.
      * 3. Persist changes to SearchDbContext.
      */
-    public Task Consume(PricingUpdated @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
 }
-

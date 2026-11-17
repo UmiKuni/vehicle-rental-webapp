@@ -10,7 +10,8 @@ public static class HandoverEndpoints
     public static IEndpointRouteBuilder MapHandoverEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/handovers")
-            .WithTags("Handover");
+            .WithTags("Handover")
+            .RequireAuthorization("AuthenticatedUser");
 
         // 1. Create a new handover inspection record
         group.MapPost("/", (CreateHandoverRequest request) =>
