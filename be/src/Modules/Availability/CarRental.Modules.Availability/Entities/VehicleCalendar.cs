@@ -36,16 +36,16 @@ public class VehicleCalendar : AggregateRoot<Guid>
         DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+            return AvailabilityErrors.InvalidBooking;
 
-        if (range == null)
-            return Result.Failure(AvailabilityErrors.InvalidRange);
+        if (range is null)
+            return AvailabilityErrors.InvalidRange;
 
         if (range.Start <= now)
-            return Result.Failure(AvailabilityErrors.PastDate);
+            return AvailabilityErrors.PastDate;
 
         if (!IsAvailable(range, now))
-            return Result.Failure(AvailabilityErrors.SlotUnavailable);
+            return AvailabilityErrors.SlotUnavailable;
 
         var effectiveTtl = ttl > MaxHoldTtl ? MaxHoldTtl : ttl;
         if (effectiveTtl <= TimeSpan.Zero)
@@ -70,11 +70,11 @@ public class VehicleCalendar : AggregateRoot<Guid>
     public Result ConfirmHold(Guid bookingId, DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+            return AvailabilityErrors.InvalidBooking;
 
         var holdEntry = _entries.FirstOrDefault(e => e.BookingId == bookingId && e.Type == CalendarEntryType.Hold);
-        if (holdEntry == null || !holdEntry.IsActive(now))
-            return Result.Failure(AvailabilityErrors.HoldNotFoundOrExpired);
+        if (holdEntry is null || !holdEntry.IsActive(now))
+            return AvailabilityErrors.HoldNotFoundOrExpired;
 
         holdEntry.Confirm();
         LastSyncedAt = now;
@@ -85,7 +85,7 @@ public class VehicleCalendar : AggregateRoot<Guid>
     public Result Release(Guid bookingId, DateTimeOffset now)
     {
         if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+            return AvailabilityErrors.InvalidBooking;
 
         _entries.RemoveAll(e => e.BookingId == bookingId);
         LastSyncedAt = now;
@@ -93,16 +93,16 @@ public class VehicleCalendar : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    public Result Block(CalendarEntryType type, DateTimeRange range, DateTimeOffset now)
+    public Result<CalendarEntry> Block(CalendarEntryType type, DateTimeRange range, DateTimeOffset now)
     {
         if (type != CalendarEntryType.OwnerBlocked && type != CalendarEntryType.Maintenance)
-            return Result.Failure(AvailabilityErrors.InvalidBlockType);
+            return AvailabilityErrors.InvalidBlockType;
 
-        if (range == null)
-            return Result.Failure(AvailabilityErrors.InvalidRange);
+        if (range is null)
+            return AvailabilityErrors.InvalidRange;
 
         if (!IsAvailable(range, now))
-            return Result.Failure(AvailabilityErrors.SlotUnavailable);
+            return AvailabilityErrors.SlotUnavailable;
 
         var entry = new CalendarEntry(
             Guid.CreateVersion7(),
@@ -115,17 +115,17 @@ public class VehicleCalendar : AggregateRoot<Guid>
         _entries.Add(entry);
         LastSyncedAt = now;
 
-        return Result.Success();
+        return entry;
     }
 
     public Result Unblock(Guid entryId, DateTimeOffset now)
     {
         var entry = _entries.FirstOrDefault(e => e.Id == entryId);
-        if (entry == null)
-            return Result.Failure(AvailabilityErrors.EntryNotFound);
+        if (entry is null)
+            return AvailabilityErrors.EntryNotFound;
 
         if (entry.Type != CalendarEntryType.OwnerBlocked && entry.Type != CalendarEntryType.Maintenance)
-            return Result.Failure(AvailabilityErrors.InvalidEntryType);
+            return AvailabilityErrors.InvalidEntryType;
 
         _entries.Remove(entry);
         LastSyncedAt = now;

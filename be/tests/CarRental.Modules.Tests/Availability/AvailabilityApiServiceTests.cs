@@ -1,11 +1,13 @@
 using System.Reflection;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Availability.Contracts.Dtos;
 using CarRental.Modules.Availability.Contracts.Enums;
 using CarRental.Modules.Availability.Data;
 using CarRental.Modules.Availability.Data.Repositories;
 using CarRental.Modules.Availability.Entities;
 using CarRental.Modules.Availability.Services;
+using CarRental.Modules.Availability.Validators;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
 using FluentAssertions;
@@ -229,6 +231,74 @@ public class AvailabilityApiServiceTests
         ownerUnblock.IsSuccess.Should().BeTrue();
         harness.DbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
         harness.Calendars[vehicleId].Entries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BlockScheduleRequestValidator_ShouldValidateRangeAndBlockType()
+    {
+        var validator = new BlockScheduleRequestValidator();
+
+        var validOwnerBlock = validator.Validate(new BlockScheduleRequest(Now.AddDays(1), Now.AddDays(2), "Trip", CalendarEntryType.OwnerBlocked));
+        validOwnerBlock.IsValid.Should().BeTrue();
+
+        var validDefaultType = validator.Validate(new BlockScheduleRequest(Now.AddDays(1), Now.AddDays(2), "Maintenance", null));
+        validDefaultType.IsValid.Should().BeTrue();
+
+        var validMaintenance = validator.Validate(new BlockScheduleRequest(Now.AddDays(1), Now.AddDays(2), "Service", CalendarEntryType.Maintenance));
+        validMaintenance.IsValid.Should().BeTrue();
+
+        var reversedRange = validator.Validate(new BlockScheduleRequest(Now.AddDays(3), Now.AddDays(2), "Reversed"));
+        reversedRange.IsValid.Should().BeFalse();
+        reversedRange.Errors.Should().Contain(e => e.ErrorCode == "availability.invalid_range");
+
+        var zeroLengthRange = validator.Validate(new BlockScheduleRequest(Now.AddDays(2), Now.AddDays(2), "Same"));
+        zeroLengthRange.IsValid.Should().BeFalse();
+        zeroLengthRange.Errors.Should().Contain(e => e.ErrorCode == "availability.invalid_range");
+
+        var invalidType = validator.Validate(new BlockScheduleRequest(Now.AddDays(1), Now.AddDays(2), "Booked", CalendarEntryType.Booked));
+        invalidType.IsValid.Should().BeFalse();
+        invalidType.Errors.Should().Contain(e => e.ErrorCode == "availability.invalid_block_type");
+    }
+
+    [Fact]
+    public async Task ConcurrencyExceptions_ShouldMapToExpectedDomainErrors()
+    {
+        var ownerId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+        var bookingId = Guid.NewGuid();
+        var range = DateTimeRange.Create(Now.AddDays(2), Now.AddDays(4)).Value;
+        var harness = CreateHarness(ownerId);
+
+        harness.DbContextMock
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var placeConcurrency = await harness.Service.PlaceHoldAsync(vehicleId, bookingId, range, TimeSpan.FromHours(1));
+        placeConcurrency.IsFailure.Should().BeTrue();
+        placeConcurrency.Error.Code.Should().Be("availability.slot_unavailable");
+        placeConcurrency.Error.Type.Should().Be(ErrorType.Conflict);
+
+        var blockConcurrency = await harness.Service.BlockAsync(vehicleId, ownerId, range, "Maintenance", CalendarEntryType.Maintenance);
+        blockConcurrency.IsFailure.Should().BeTrue();
+        blockConcurrency.Error.Code.Should().Be("availability.slot_unavailable");
+        blockConcurrency.Error.Type.Should().Be(ErrorType.Conflict);
+
+        // Save successfully to place a hold, then fail ConfirmHoldAsync with concurrency exception
+        harness.DbContextMock
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        harness.Calendars.Clear();
+
+        (await harness.Service.PlaceHoldAsync(vehicleId, bookingId, range, TimeSpan.FromHours(1))).IsSuccess.Should().BeTrue();
+
+        harness.DbContextMock
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var confirmConcurrency = await harness.Service.ConfirmHoldAsync(vehicleId, bookingId);
+        confirmConcurrency.IsFailure.Should().BeTrue();
+        confirmConcurrency.Error.Code.Should().Be("availability.hold_not_found_or_expired");
+        confirmConcurrency.Error.Type.Should().Be(ErrorType.NotFound);
     }
 
     private static (

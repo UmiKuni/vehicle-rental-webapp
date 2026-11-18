@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Contracts.Dtos;
 using CarRental.Modules.Availability.Contracts.Enums;
@@ -25,10 +26,7 @@ public static class AvailabilityEndpoints
             IAvailabilityApi api,
             CancellationToken ct) =>
         {
-            if (!start.HasValue || !end.HasValue)
-                return Result.Failure(AvailabilityErrors.InvalidRange).ToHttpResult();
-
-            var rangeResult = DateTimeRange.Create(start.Value, end.Value);
+            var rangeResult = CreateRange(start, end);
             if (rangeResult.IsFailure)
                 return rangeResult.ToHttpResult();
 
@@ -60,7 +58,7 @@ public static class AvailabilityEndpoints
             IAvailabilityApi api,
             CancellationToken ct) =>
         {
-            var rangeResult = DateTimeRange.Create(request.StartTime, request.EndTime);
+            var rangeResult = CreateRange(request.StartTime, request.EndTime);
             if (rangeResult.IsFailure)
                 return rangeResult.ToHttpResult();
 
@@ -74,6 +72,7 @@ public static class AvailabilityEndpoints
 
             return result.ToCreatedHttpResult(_ => $"/api/availability/vehicles/{vehicleId}/calendar");
         })
+        .WithValidation<BlockScheduleRequest>()
         .WithName("BlockVehicleSchedule")
         .RequireAuthorization("OwnerOnly")
         .WithSummary("Block vehicle schedule manually")
@@ -100,6 +99,14 @@ public static class AvailabilityEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
+    }
+
+    private static Result<DateTimeRange> CreateRange(DateTimeOffset? start, DateTimeOffset? end)
+    {
+        if (!start.HasValue || !end.HasValue)
+            return AvailabilityErrors.InvalidRange;
+
+        return DateTimeRange.Create(start.Value, end.Value);
     }
 
     private static Guid GetUserId(ClaimsPrincipal principal)

@@ -37,14 +37,12 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         DateTimeRange range,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure<bool>(AvailabilityErrors.InvalidVehicle);
-
-        if (range is null)
-            return Result.Failure<bool>(AvailabilityErrors.InvalidRange);
+        var validation = ValidateVehicleAndRange(vehicleId, range);
+        if (validation.IsFailure)
+            return validation.Error;
 
         var hasOverlap = await _repository.HasActiveOverlapAsync(vehicleId, range, _clock.GetUtcNow(), ct);
-        return Result.Success(!hasOverlap);
+        return !hasOverlap;
     }
 
     public async Task<Result<AvailabilityCheckResultDto>> CheckVehicleAvailabilityAsync(
@@ -52,11 +50,9 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         DateTimeRange range,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure<AvailabilityCheckResultDto>(AvailabilityErrors.InvalidVehicle);
-
-        if (range is null)
-            return Result.Failure<AvailabilityCheckResultDto>(AvailabilityErrors.InvalidRange);
+        var validation = ValidateVehicleAndRange(vehicleId, range);
+        if (validation.IsFailure)
+            return validation.Error;
 
         var overlapping = await _repository.GetActiveOverlappingEntriesAsync(vehicleId, range, _clock.GetUtcNow(), ct);
         var busyPeriods = overlapping
@@ -64,13 +60,13 @@ public sealed class AvailabilityApiService : IAvailabilityApi
             .ToList();
 
         var isAvailable = busyPeriods.Count == 0;
-        return Result.Success(new AvailabilityCheckResultDto(
+        return new AvailabilityCheckResultDto(
             vehicleId,
             range.Start,
             range.End,
             isAvailable,
             isAvailable ? null : "Vehicle is unavailable during the requested time range.",
-            busyPeriods));
+            busyPeriods);
     }
 
     public async Task<Result<IReadOnlyList<CalendarEntryDto>>> GetCalendarAsync(
@@ -80,14 +76,14 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         CancellationToken ct = default)
     {
         if (vehicleId == Guid.Empty)
-            return Result.Failure<IReadOnlyList<CalendarEntryDto>>(AvailabilityErrors.InvalidVehicle);
+            return AvailabilityErrors.InvalidVehicle;
 
         if (from.HasValue && to.HasValue && to.Value <= from.Value)
-            return Result.Failure<IReadOnlyList<CalendarEntryDto>>(AvailabilityErrors.InvalidRange);
+            return AvailabilityErrors.InvalidRange;
 
         var entries = await _repository.GetActiveEntriesAsync(vehicleId, from, to, _clock.GetUtcNow(), ct);
         return Result.Success<IReadOnlyList<CalendarEntryDto>>(
-            entries.Select(e => ToEntryDto(e, null)).ToList());
+            entries.Select(e => ToEntryDto(e)).ToList());
     }
 
     public async Task<Result> PlaceHoldAsync(
@@ -97,40 +93,24 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         TimeSpan ttl,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidVehicle);
-
-        if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+        var validation = ValidateVehicleAndBooking(vehicleId, bookingId);
+        if (validation.IsFailure)
+            return validation.Error;
 
         if (range is null)
-            return Result.Failure(AvailabilityErrors.InvalidRange);
+            return AvailabilityErrors.InvalidRange;
 
         var now = _clock.GetUtcNow();
-        var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
-        if (calendar is null)
-        {
-            calendar = VehicleCalendar.Create(vehicleId, now);
-            _repository.Add(calendar);
-        }
+        var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
 
         var result = calendar.PlaceHold(bookingId, range, ttl, now);
         if (result.IsFailure)
             return result;
 
-        try
-        {
-            await _dbContext.SaveChangesAsync(ct);
-            return Result.Success();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Result.Failure(AvailabilityErrors.SlotUnavailable);
-        }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
-        {
-            return Result.Failure(AvailabilityErrors.SlotUnavailable);
-        }
+        return await SaveWithConcurrencyHandlingAsync(
+            AvailabilityErrors.SlotUnavailable,
+            handleUniqueViolation: true,
+            ct);
     }
 
     public async Task<Result> ConfirmHoldAsync(
@@ -138,29 +118,22 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         Guid bookingId,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidVehicle);
-
-        if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+        var validation = ValidateVehicleAndBooking(vehicleId, bookingId);
+        if (validation.IsFailure)
+            return validation.Error;
 
         var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
         if (calendar is null)
-            return Result.Failure(AvailabilityErrors.HoldNotFoundOrExpired);
+            return AvailabilityErrors.HoldNotFoundOrExpired;
 
         var result = calendar.ConfirmHold(bookingId, _clock.GetUtcNow());
         if (result.IsFailure)
             return result;
 
-        try
-        {
-            await _dbContext.SaveChangesAsync(ct);
-            return Result.Success();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Result.Failure(AvailabilityErrors.HoldNotFoundOrExpired);
-        }
+        return await SaveWithConcurrencyHandlingAsync(
+            AvailabilityErrors.HoldNotFoundOrExpired,
+            handleUniqueViolation: false,
+            ct);
     }
 
     public async Task<Result> ReleaseHoldAsync(
@@ -168,11 +141,9 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         Guid bookingId,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidVehicle);
-
-        if (bookingId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.InvalidBooking);
+        var validation = ValidateVehicleAndBooking(vehicleId, bookingId);
+        if (validation.IsFailure)
+            return validation.Error;
 
         var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
         if (calendar is null)
@@ -194,50 +165,29 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         CalendarEntryType type = CalendarEntryType.OwnerBlocked,
         CancellationToken ct = default)
     {
-        if (vehicleId == Guid.Empty)
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.InvalidVehicle);
+        var validation = ValidateVehicleAndRange(vehicleId, range);
+        if (validation.IsFailure)
+            return validation.Error;
 
-        if (ownerId == Guid.Empty)
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.NotCalendarOwner);
-
-        if (range is null)
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.InvalidRange);
-
-        var vehicleResult = await _fleetApi.GetVehicleSummaryAsync(vehicleId, ct);
-        if (vehicleResult.IsFailure)
-            return Result.Failure<CalendarEntryDto>(vehicleResult.Error);
-
-        if (vehicleResult.Value.OwnerId != ownerId)
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.NotCalendarOwner);
+        var authResult = await EnsureVehicleOwnerAsync(vehicleId, ownerId, ct);
+        if (authResult.IsFailure)
+            return authResult.Error;
 
         var now = _clock.GetUtcNow();
-        var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
-        if (calendar is null)
-        {
-            calendar = VehicleCalendar.Create(vehicleId, now);
-            _repository.Add(calendar);
-        }
+        var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
 
-        var existingEntryIds = calendar.Entries.Select(e => e.Id).ToHashSet();
         var blockResult = calendar.Block(type, range, now);
         if (blockResult.IsFailure)
-            return Result.Failure<CalendarEntryDto>(blockResult.Error);
+            return blockResult.Error;
 
-        var createdEntry = calendar.Entries.Single(e => !existingEntryIds.Contains(e.Id));
+        var saveResult = await SaveWithConcurrencyHandlingAsync(
+            AvailabilityErrors.SlotUnavailable,
+            handleUniqueViolation: true,
+            ct);
 
-        try
-        {
-            await _dbContext.SaveChangesAsync(ct);
-            return Result.Success(ToEntryDto(createdEntry, reason));
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.SlotUnavailable);
-        }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
-        {
-            return Result.Failure<CalendarEntryDto>(AvailabilityErrors.SlotUnavailable);
-        }
+        return saveResult.IsFailure
+            ? saveResult.Error
+            : ToEntryDto(blockResult.Value, reason);
     }
 
     public async Task<Result> UnblockAsync(
@@ -246,21 +196,18 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         CancellationToken ct = default)
     {
         if (blockId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.EntryNotFound);
+            return AvailabilityErrors.EntryNotFound;
 
         if (ownerId == Guid.Empty)
-            return Result.Failure(AvailabilityErrors.NotCalendarOwner);
+            return AvailabilityErrors.NotCalendarOwner;
 
         var calendar = await _repository.GetByEntryIdAsync(blockId, ct);
         if (calendar is null)
-            return Result.Failure(AvailabilityErrors.EntryNotFound);
+            return AvailabilityErrors.EntryNotFound;
 
-        var vehicleResult = await _fleetApi.GetVehicleSummaryAsync(calendar.VehicleId, ct);
-        if (vehicleResult.IsFailure)
-            return Result.Failure(vehicleResult.Error);
-
-        if (vehicleResult.Value.OwnerId != ownerId)
-            return Result.Failure(AvailabilityErrors.NotCalendarOwner);
+        var authResult = await EnsureVehicleOwnerAsync(calendar.VehicleId, ownerId, ct);
+        if (authResult.IsFailure)
+            return authResult.Error;
 
         var result = calendar.Unblock(blockId, _clock.GetUtcNow());
         if (result.IsFailure)
@@ -270,7 +217,80 @@ public sealed class AvailabilityApiService : IAvailabilityApi
         return Result.Success();
     }
 
-    private static CalendarEntryDto ToEntryDto(CalendarEntry entry, string? note) =>
+    private async Task<VehicleCalendar> GetOrCreateCalendarAsync(
+        Guid vehicleId,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
+        if (calendar is not null)
+            return calendar;
+
+        calendar = VehicleCalendar.Create(vehicleId, now);
+        _repository.Add(calendar);
+        return calendar;
+    }
+
+    private async Task<Result> EnsureVehicleOwnerAsync(
+        Guid vehicleId,
+        Guid ownerId,
+        CancellationToken ct)
+    {
+        if (ownerId == Guid.Empty)
+            return AvailabilityErrors.NotCalendarOwner;
+
+        var vehicleResult = await _fleetApi.GetVehicleSummaryAsync(vehicleId, ct);
+        if (vehicleResult.IsFailure)
+            return vehicleResult.Error;
+
+        return vehicleResult.Value.OwnerId == ownerId
+            ? Result.Success()
+            : AvailabilityErrors.NotCalendarOwner;
+    }
+
+    private async Task<Result> SaveWithConcurrencyHandlingAsync(
+        Error conflictError,
+        bool handleUniqueViolation,
+        CancellationToken ct)
+    {
+        try
+        {
+            await _dbContext.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return conflictError;
+        }
+        catch (DbUpdateException ex) when (handleUniqueViolation && IsUniqueViolation(ex))
+        {
+            return conflictError;
+        }
+    }
+
+    private static Result ValidateVehicleAndRange(Guid vehicleId, DateTimeRange? range)
+    {
+        if (vehicleId == Guid.Empty)
+            return AvailabilityErrors.InvalidVehicle;
+
+        if (range is null)
+            return AvailabilityErrors.InvalidRange;
+
+        return Result.Success();
+    }
+
+    private static Result ValidateVehicleAndBooking(Guid vehicleId, Guid bookingId)
+    {
+        if (vehicleId == Guid.Empty)
+            return AvailabilityErrors.InvalidVehicle;
+
+        if (bookingId == Guid.Empty)
+            return AvailabilityErrors.InvalidBooking;
+
+        return Result.Success();
+    }
+
+    private static CalendarEntryDto ToEntryDto(CalendarEntry entry, string? note = null) =>
         new(
             entry.Id,
             entry.VehicleId,

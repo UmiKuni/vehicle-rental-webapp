@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Data;
 using CarRental.Modules.Availability.Data.Repositories;
@@ -26,6 +27,7 @@ public static class AvailabilityModule
             }));
 
         services.TryAddSingleton(TimeProvider.System);
+        services.AddValidatorsFromAssembly(typeof(AvailabilityModule).Assembly);
         services.AddScoped<IVehicleCalendarRepository, VehicleCalendarRepository>();
         services.AddScoped<IAvailabilityApi, AvailabilityApiService>();
         services.AddHostedService<ExpiredHoldCleanupService>();
