@@ -1,7 +1,7 @@
 # Car Rental Platform: Master Backend Implementation Plan
 
 > **Author:** Architecture & Backend Engineering Team  
-> **Source Design:** [be/docs/domain-model-entities-reworked.md](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/docs/domain-model-entities-reworked.md) (Derived 1:1 from `Thiết kế hệ thống, CSDL và API`)  
+> **Source Design:** [be/docs/domain-model-entities-reworked.md](./domain-model-entities-reworked.md) (Derived 1:1 from `Thiết kế hệ thống, CSDL và API`)  
 > **Target Framework:** .NET 9, ASP.NET Core, PostgreSQL 17 + PostGIS, Wolverine 3.8 Outbox, NetArchTest  
 > **Scope:** Full master implementation plan covering Shared Kernel and 13 modules across isolated git branches and folders.
 
@@ -73,20 +73,20 @@ main (Production / Stable)
 
 | Phase | Module / Component | Dedicated Git Branch | Local Implementation Plan | Published Events | Synchronous Contracts Provided | Status (Scope: Domain & EF Core Data) |
 |---|---|---|---|---|---|---|
-| **0** | **Shared Kernel** | `feat/shared-kernel` | [BuildingBlocks Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Shared/CarRental.BuildingBlocks/IMPLEMENTATION_PLAN.md) | None | Building blocks, Primitives, Value Objects (`Money`, `DateTimeRange`, `GeoPoint`) | ✅ **Completed** (75 tests passing) |
-| **1** | **Users** | `feat/module-users` | [Users Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Users/IMPLEMENTATION_PLAN.md) | **0** | `IUsersApi.GetBookingEligibilityAsync`, `GetContactAsync` | ✅ **Completed** |
-| **1** | **Fleet** | `feat/module-fleet` | [Fleet Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Fleet/IMPLEMENTATION_PLAN.md) | **2** (`VehiclePublished`, `VehicleUnpublished`) | `IFleetApi.GetVehicleSummaryAsync` | ✅ **Completed** |
-| **1** | **Pricing** | `feat/module-pricing` | [Pricing Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Pricing/IMPLEMENTATION_PLAN.md) | **1** (`PricingUpdated`) | `IPricingApi.GetQuoteAsync` | ✅ **Completed** |
-| **1** | **Availability** | `feat/module-availability` | [Availability Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Availability/IMPLEMENTATION_PLAN.md) | **0** | `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `CheckAvailabilityAsync` | ✅ **Completed** |
-| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync`, `MarkPaidAsync`, `GetRentalDetailsAsync`, `StartTripAsync`, `CompleteTripAsync` | ✅ **Completed** |
-| **2** | **Payments** | `feat/module-payments` | [Payments Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | `IPaymentsApi.CreateCheckoutAsync`, `FreezeDepositAsync`, `SettleDepositAsync`, `ReleaseDepositAsync` | ✅ **Completed** |
-| **3** | **Handover** | `feat/module-handover` | [Handover Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Handover/IMPLEMENTATION_PLAN.md) | **1** (`HandoverConfirmed`) | None | ✅ **Completed** |
-| **3** | **Reviews** | `feat/module-reviews` | [Reviews Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reviews/IMPLEMENTATION_PLAN.md) | **1** (`RatingSummaryUpdated`) | None | ✅ **Completed** |
-| **3** | **Support** | `feat/module-support` | [Support Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Support/IMPLEMENTATION_PLAN.md) | **2** (`TicketOpened`, `TicketResolved`) | None | ✅ **Completed** |
-| **4** | **Search** | `feat/module-search` | [Search Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Search/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
-| **4** | **Notifications** | `feat/module-notifications` | [Notifications Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Notifications/IMPLEMENTATION_PLAN.md) | **0** (Consumer) | None | ✅ **Completed** |
-| **4** | **Audit** | `feat/module-audit` | [Audit Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Audit/IMPLEMENTATION_PLAN.md) | **0** (Cross-cutting) | `RecordAuditEntry` message contract | ✅ **Completed** |
-| **4** | **Reporting** | `feat/module-reporting` | [Reporting Plan](file:///c:/Users/Nguyen/OneDrive/M%C3%A1y%20t%C3%ADnh/DotNet_class/Do_An/vehicle-rental-webapp/be/src/Modules/Reporting/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
+| **0** | **Shared Kernel** | `feat/shared-kernel` | [BuildingBlocks Plan](../src/Shared/CarRental.BuildingBlocks/IMPLEMENTATION_PLAN.md) | None | Building blocks, Primitives, Value Objects (`Money`, `DateTimeRange`, `GeoPoint`) | ✅ **Completed** (75 tests passing) |
+| **1** | **Users** | `feat/module-users` | [Users Plan](../src/Modules/Users/IMPLEMENTATION_PLAN.md) | **0** | `IUsersApi.GetBookingEligibilityAsync`, `GetContactAsync` | ✅ **Completed** |
+| **1** | **Fleet** | `feat/module-fleet` | [Fleet Plan](../src/Modules/Fleet/IMPLEMENTATION_PLAN.md) | **2** (`VehiclePublished`, `VehicleUnpublished`) | `IFleetApi.GetVehicleSummaryAsync` | ✅ **Completed** |
+| **1** | **Pricing** | `feat/module-pricing` | [Pricing Plan](../src/Modules/Pricing/IMPLEMENTATION_PLAN.md) | **1** (`PricingUpdated`) | `IPricingApi.GetQuoteAsync` | ✅ **Completed** |
+| **1** | **Availability** | `feat/module-availability` | [Availability Plan](../src/Modules/Availability/IMPLEMENTATION_PLAN.md) | **0** | `IAvailabilityApi.PlaceHoldAsync`, `ConfirmHoldAsync`, `ReleaseHoldAsync`, `CheckAvailabilityAsync` | ✅ **Completed** |
+| **2** | **Bookings** | `feat/module-bookings` | [Bookings Plan](../src/Modules/Bookings/IMPLEMENTATION_PLAN.md) | **7** (`BookingRequested`, `BookingConfirmed`, `BookingPaid`, `BookingRejected`, `BookingCancelled`, `BookingExpired`, `BookingCompleted`) | `IBookingApi.IsParticipantAsync`, `MarkPaidAsync`, `GetRentalDetailsAsync`, `StartTripAsync`, `CompleteTripAsync` | ✅ **Completed** |
+| **2** | **Payments** | `feat/module-payments` | [Payments Plan](../src/Modules/Payments/IMPLEMENTATION_PLAN.md) | **2** (`PaymentSucceeded`, `PaymentFailed`) | `IPaymentsApi.CreateCheckoutAsync`, `FreezeDepositAsync`, `SettleDepositAsync`, `ReleaseDepositAsync` | ✅ **Completed** |
+| **3** | **Handover** | `feat/module-handover` | [Handover Plan](../src/Modules/Handover/IMPLEMENTATION_PLAN.md) | **1** (`HandoverConfirmed`) | None | ✅ **Completed** |
+| **3** | **Reviews** | `feat/module-reviews` | [Reviews Plan](../src/Modules/Reviews/IMPLEMENTATION_PLAN.md) | **1** (`RatingSummaryUpdated`) | None | ✅ **Completed** |
+| **3** | **Support** | `feat/module-support` | [Support Plan](../src/Modules/Support/IMPLEMENTATION_PLAN.md) | **2** (`TicketOpened`, `TicketResolved`) | None | ✅ **Completed** |
+| **4** | **Search** | `feat/module-search` | [Search Plan](../src/Modules/Search/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
+| **4** | **Notifications** | `feat/module-notifications` | [Notifications Plan](../src/Modules/Notifications/IMPLEMENTATION_PLAN.md) | **0** (Consumer) | None | ✅ **Completed** |
+| **4** | **Audit** | `feat/module-audit` | [Audit Plan](../src/Modules/Audit/IMPLEMENTATION_PLAN.md) | **0** (Cross-cutting) | `RecordAuditEntry` message contract | ✅ **Completed** |
+| **4** | **Reporting** | `feat/module-reporting` | [Reporting Plan](../src/Modules/Reporting/IMPLEMENTATION_PLAN.md) | **0** (Read Model) | None | ✅ **Completed** |
 
 ---
 
