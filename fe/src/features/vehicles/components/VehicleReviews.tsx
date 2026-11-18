@@ -22,7 +22,7 @@ export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { 
             {visibleReviews.map((review) => (
               <article key={review.id} className="vehicle-review-card">
                 <div className="vehicle-review-header">
-                  <div><strong>{review.reviewerName}</strong><time dateTime={review.createdAt}>{new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(review.createdAt))}</time></div>
+                  <div><strong>{review.reviewerName}</strong><time dateTime={review.createdAt}>{new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(review.createdAt))}</time></div>
                   <span><Star size={14} fill="currentColor" /> {review.rating.toFixed(1)}</span>
                 </div>
                 <p>{review.comment}</p>

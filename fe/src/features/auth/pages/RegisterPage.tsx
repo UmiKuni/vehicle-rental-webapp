@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation } from 'react-router-dom'
-import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AtSign, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, Mail, Phone, Car, AlertCircle } from 'lucide-react'
 import { registerSchema, type RegisterFormValues } from '../schemas/register.schema'
 import { useRegister } from '../hooks/useRegister'
 import { Button } from '@/shared/components/ui/Button'
@@ -27,7 +27,6 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: '',
-      username: '',
       email: '',
       phone: '',
       password: '',
@@ -37,7 +36,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!error) return
-    const validFields = ['fullName', 'username', 'email', 'phone', 'password', 'confirmPassword']
+    const validFields = ['fullName', 'email', 'phone', 'password', 'confirmPassword']
     Object.entries(getFieldErrors(error)).forEach(([field, messages]) => {
       const name = field.charAt(0).toLowerCase() + field.slice(1)
       if (validFields.includes(name) && messages[0]) {
@@ -109,7 +108,7 @@ export default function RegisterPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <FormField label="Full name" error={errors.fullName?.message}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
@@ -122,17 +121,6 @@ export default function RegisterPage() {
                 </div>
               </FormField>
 
-              <FormField label="Username" error={errors.username?.message}>
-                <div className="relative">
-                  <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
-                  <Input
-                    placeholder="johndoe"
-                    autoComplete="username"
-                    className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
-                    {...register('username')}
-                  />
-                </div>
-              </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

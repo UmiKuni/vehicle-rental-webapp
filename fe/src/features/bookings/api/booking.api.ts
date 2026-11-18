@@ -10,7 +10,7 @@ interface BookingSummaryDto {
   startTime: string
   endTime: string
   status: string
-  totalAmount: number
+  totalAmount?: number
   createdAt: string
 }
 
@@ -44,7 +44,7 @@ function mapBooking(dto: BookingSummaryDto | BookingDetailDto): Booking {
     transmission: 'AUTOMATIC',
     fuelType: 'GASOLINE',
     seats: 0,
-    pricePerDay: (detail.totalRentAmount ?? dto.totalAmount) / totalDays,
+    pricePerDay: (detail.totalRentAmount ?? dto.totalAmount ?? 0) / totalDays,
     imageUrl: 'https://placehold.co/800x500?text=Vehicle',
     rating: 0,
     tripsCount: 0,
@@ -66,7 +66,7 @@ function mapBooking(dto: BookingSummaryDto | BookingDetailDto): Booking {
     endDate: dto.endTime,
     totalDays,
     pricePerDay: vehicle.pricePerDay,
-    totalAmount: dto.totalAmount,
+    totalAmount: detail.totalRentAmount ?? dto.totalAmount ?? 0,
     depositAmount: detail.securityDepositAmount ?? 0,
     deliveryType: 'STATION',
     deliveryAddress: detail.pickupLocation,
@@ -79,6 +79,11 @@ export const bookingApi = {
   getMyBookings: async (): Promise<Booking[]> => {
     const { data } = await apiClient.get<PagedBookings>('/bookings/me')
     return data.items.map(mapBooking)
+  },
+
+  getBooking: async (id: string): Promise<Booking> => {
+    const { data } = await apiClient.get<BookingDetailDto>(`/bookings/${id}`)
+    return mapBooking(data)
   },
 
   createBooking: async (payload: CreateBookingPayload): Promise<Booking> => {

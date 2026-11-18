@@ -64,9 +64,9 @@ export default function KycWizardPage() {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50 mb-6">
           <CheckCircle2 className="size-10 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <h2 className="text-xl font-bold text-foreground">Profile Submitted!</h2>
+        <h2 className="text-xl font-bold text-foreground">Verification accepted</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-xs leading-relaxed">
-          We will review and respond within <strong>1–2 business days</strong>. You will receive notifications via email.
+          The backend mock verification accepted your identity and license details. Document photos stay on this device because image uploads are not available yet.
         </p>
         <button
           onClick={() => navigate(ROUTES.PROFILE)}

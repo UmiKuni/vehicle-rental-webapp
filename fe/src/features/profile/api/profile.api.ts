@@ -4,7 +4,12 @@ import type { AuthUser } from '@/types/auth.types'
 
 interface BackendIdentity { userId: string; email: string; role: string }
 interface BackendProfile { userId: string; email: string; phone: string; fullName: string; address: string }
-interface BookingEligibility { isEligible: boolean; ineligibilityReason?: string | null }
+interface VerificationStatus {
+  userId: string
+  isIdVerified: boolean
+  isDriverLicenseVerified: boolean
+  isVerified: boolean
+}
 
 async function currentProfile() {
   const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
@@ -42,21 +47,31 @@ export const profileApi = {
 
   getKycStatus: async (): Promise<KycProfile> => {
     const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
-    const { data: eligibility } = await apiClient.get<BookingEligibility>(`/users/eligibility/${identity.userId}`)
+    const { data: verification } = await apiClient.get<VerificationStatus>('/users/me/verification-status')
     return {
       id: identity.userId,
       userId: identity.userId,
-      status: eligibility.isEligible ? 'VERIFIED' : 'UNVERIFIED',
+      status: verification.isVerified ? 'VERIFIED' : 'UNVERIFIED',
       vehicleInterests: [],
       licenseClass: 'B2',
-      hasLicense: eligibility.isEligible,
-      rejectionReason: eligibility.ineligibilityReason ?? undefined,
+      hasLicense: verification.isDriverLicenseVerified,
     }
   },
 
   submitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
-    void payload
-    throw new Error('KYC submission is not implemented by the backend yet.')
+    const { profile } = await currentProfile()
+    if (payload.step2.docType !== 'CCCD') {
+      throw new Error('The current backend verification API only accepts National ID (CCCD) documents.')
+    }
+    await apiClient.post('/users/me/verify-id', {
+      documentNumber: payload.step2.idNumber,
+      fullName: profile.fullName,
+      address: payload.step3.address || profile.address,
+    })
+    const licenseClasses: Record<string, number> = { A1: 0, A2: 1, B1: 3, B2: 4, C: 6, D: 9, E: 10, FC: 11, INTERNATIONAL: 12 }
+    const licenseClass = licenseClasses[payload.step1.licenseClass] ?? 4
+    await apiClient.post('/users/me/verify-driver-license', { licenseNumber: payload.licenseNumber, licenseClass })
+    return profileApi.getKycStatus()
   },
 
   uploadCccdImage: async (file: File, side: 'front' | 'back'): Promise<{ url: string }> => {
@@ -66,8 +81,7 @@ export const profileApi = {
   },
 
   resubmitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
-    void payload
-    throw new Error('KYC resubmission is not implemented by the backend yet.')
+    return profileApi.submitKyc(payload)
   },
 
   setMockKycStatus: async (status: KycProfile['status']): Promise<KycProfile> => {

@@ -3,10 +3,13 @@ import type { ReactNode } from 'react'
 import type { AuthState, AuthUser } from '@/types/auth.types'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
 import { safeBase64Decode } from '@/shared/utils'
+import { authApi } from '@/features/auth/api/auth.api'
+import { getErrorMessage } from '@/shared/lib/query-client'
+import { toast } from 'sonner'
 
 interface AuthContextValue extends AuthState {
   login: (user: AuthUser, accessToken: string, refreshToken: string) => void
-  logout: () => void
+  logout: () => Promise<void>
   updateUser: (user: AuthUser) => void
 }
 
@@ -62,10 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   )
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    setUser(null)
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout()
+    } catch (error) {
+      toast.error(`Server sign-out failed: ${getErrorMessage(error)}`)
+    } finally {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      setUser(null)
+    }
   }, [])
 
   const updateUser = useCallback((updatedUser: AuthUser) => {

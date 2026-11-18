@@ -9,8 +9,8 @@ export default function NotificationsPage() {
       <div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1a8a9d]">Inbox</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Notifications</h1><p className="mt-1 text-sm text-muted-foreground">Updates about your trips and account.</p></div><div className="flex size-11 items-center justify-center rounded-2xl bg-[#1a8a9d]/10 text-[#1a8a9d]"><BellRing size={21} /></div></div>
       <section className="flex min-h-[42vh] flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 text-center">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground"><Bell size={24} /></div>
-        <h2 className="mt-4 text-base font-bold text-foreground">You're all caught up</h2>
-        <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">Updates about bookings or account verification will appear here.</p>
+        <h2 className="mt-4 text-base font-bold text-foreground">Inbox is not connected yet</h2>
+        <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">The backend has notification event handlers, but does not expose an API to list notifications yet.</p>
       </section>
       <p className="text-center text-[11px] leading-5 text-muted-foreground">Your inbox will sync when the notifications API is connected.</p>
     </main>

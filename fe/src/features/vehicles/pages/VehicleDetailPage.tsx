@@ -29,17 +29,23 @@ export default function VehicleDetailPage() {
   const locationState = (location.state as VehicleDetailLocationState | null) ?? {}
 
   useEffect(() => {
-    setDescriptionExpanded(false)
-    setBookingVehicle(null)
+    const frame = window.requestAnimationFrame(() => {
+      setDescriptionExpanded(false)
+      setBookingVehicle(null)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [vehicleId])
 
   useEffect(() => {
     if (!vehicle || locationState.resumeBookingVehicleId !== vehicle.id) return
-    setBookingVehicle(vehicle)
-    navigate(`${location.pathname}${location.search}`, {
-      replace: true,
-      state: { pickupAt: locationState.pickupAt, returnAt: locationState.returnAt },
+    const frame = window.requestAnimationFrame(() => {
+      setBookingVehicle(vehicle)
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: { pickupAt: locationState.pickupAt, returnAt: locationState.returnAt },
+      })
     })
+    return () => window.cancelAnimationFrame(frame)
   }, [vehicle, locationState.resumeBookingVehicleId, locationState.pickupAt, locationState.returnAt, location.pathname, location.search, navigate])
 
   if (isLoading) return <div className="vehicle-detail-loading"><CardSkeleton /></div>
@@ -126,6 +132,7 @@ export default function VehicleDetailPage() {
         <button type="button" onClick={() => setBookingVehicle(vehicle)} disabled={!vehicle.isAvailable}>Book Now</button>
       </div>
       <BookingModal
+        key={bookingVehicle ? `${bookingVehicle.id}-${locationState.pickupAt ?? ''}-${locationState.returnAt ?? ''}` : 'closed'}
         vehicle={bookingVehicle}
         onClose={() => setBookingVehicle(null)}
         onSuccess={(booking) => navigate(`/booking/${booking.id}`)}

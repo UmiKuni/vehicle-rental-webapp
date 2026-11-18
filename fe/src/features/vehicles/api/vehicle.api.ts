@@ -8,6 +8,7 @@ interface VehicleSearchItem {
   seats: number
   transmission: string
   address: string
+  location: { latitude: number; longitude: number }
   priceFrom: number
   averageRating: number
   totalReviews: number
@@ -27,6 +28,7 @@ interface FleetVehicle {
   seats: number
   primaryImageKey?: string | null
   address: string
+  location: { latitude: number; longitude: number }
 }
 
 interface Money { amount: number }
@@ -37,7 +39,7 @@ interface PricingPlan {
 }
 
 function mapVehicle(
-  vehicle: Pick<FleetVehicle, 'vehicleId' | 'status' | 'brandName' | 'modelName' | 'transmission' | 'seats' | 'address' | 'primaryImageKey'>,
+  vehicle: Pick<FleetVehicle, 'vehicleId' | 'status' | 'brandName' | 'modelName' | 'transmission' | 'seats' | 'address' | 'primaryImageKey' | 'location'>,
   pricePerDay = 0,
   rating = 0,
   reviewCount = 0,
@@ -59,6 +61,8 @@ function mapVehicle(
     rating,
     tripsCount: reviewCount,
     location: vehicle.address,
+    latitude: vehicle.location.latitude,
+    longitude: vehicle.location.longitude,
     features: [],
     isAvailable: vehicle.status.toLowerCase() === 'published',
     depositAmount,
@@ -79,6 +83,9 @@ export const vehicleApi = {
             : params?.transmission === 'MANUAL' ? 'Manual' : undefined,
         minPrice: params?.minPrice,
         maxPrice: params?.maxPrice,
+        latitude: params?.latitude,
+        longitude: params?.longitude,
+        radiusKm: params?.latitude != null && params?.longitude != null ? 25 : undefined,
         page: 1,
         pageSize: 100,
       },
@@ -92,6 +99,7 @@ export const vehicleApi = {
       transmission: vehicle.transmission,
       seats: vehicle.seats,
       address: vehicle.address,
+      location: vehicle.location,
     }, vehicle.priceFrom, vehicle.averageRating, vehicle.totalReviews))
   },
 
@@ -106,5 +114,26 @@ export const vehicleApi = {
       0,
       pricing.depositAmount.amount,
     )
+  },
+}
+
+export const availabilityApi = {
+  check: async (vehicleId: string, start: string, end: string): Promise<{ isAvailable: boolean; conflictReason?: string | null }> => {
+    const { data } = await apiClient.get<{ isAvailable: boolean; conflictReason?: string | null }>(
+      `/availability/vehicles/${vehicleId}/check`,
+      { params: { start: new Date(`${start}T00:00:00`).toISOString(), end: new Date(`${end}T00:00:00`).toISOString() } },
+    )
+    return data
+  },
+}
+
+export const pricingApi = {
+  quote: async (vehicleId: string, start: string, end: string): Promise<{ total: Money; depositAmount: Money }> => {
+    const { data } = await apiClient.post<{ total: Money; depositAmount: Money }>('/pricing/quotes', {
+      vehicleId,
+      startTime: new Date(`${start}T00:00:00`).toISOString(),
+      endTime: new Date(`${end}T00:00:00`).toISOString(),
+    })
+    return data
   },
 }

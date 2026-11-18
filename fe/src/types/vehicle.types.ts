@@ -39,6 +39,8 @@ export interface Vehicle {
   rating: number
   tripsCount: number
   location: string
+  latitude?: number
+  longitude?: number
   features: string[]
   isAvailable: boolean
   depositAmount: number
@@ -60,6 +62,8 @@ export interface VehicleFilterParams {
   seats?: number
   transmission?: TransmissionType | 'ALL'
   location?: string
+  latitude?: number
+  longitude?: number
   brand?: string
   pickupAt?: string
   returnAt?: string

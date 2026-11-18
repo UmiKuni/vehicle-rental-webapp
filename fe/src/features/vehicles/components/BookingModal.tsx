@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { X, ShieldAlert, LogIn } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Vehicle } from '@/types/vehicle.types'
@@ -6,6 +7,7 @@ import type { Booking, DeliveryType } from '@/types/booking.types'
 import { useCreateBooking } from '@/features/bookings/hooks/useBookings'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
+import { availabilityApi, pricingApi } from '@/features/vehicles/api/vehicle.api'
 import { ROUTES } from '@/shared/constants'
 import { Button } from '@/shared/components/ui/Button'
 import { BookingPriceSummary } from './BookingPriceSummary'
@@ -35,11 +37,19 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [customerName, setCustomerName] = useState(user?.fullName ?? '')
   const [customerPhone, setCustomerPhone] = useState('0912345678')
-
-  useEffect(() => {
-    setStartDate(initialStartDate?.slice(0, 10) || tomorrow)
-    setEndDate(initialEndDate?.slice(0, 10) || dayAfter)
-  }, [vehicle?.id, initialStartDate, initialEndDate, tomorrow, dayAfter])
+  const validDates = endDate > startDate
+  const availability = useQuery({
+    queryKey: ['vehicle-availability', vehicle?.id, startDate, endDate],
+    queryFn: () => availabilityApi.check(vehicle!.id, startDate, endDate),
+    enabled: !!vehicle && validDates,
+    staleTime: 30_000,
+  })
+  const quote = useQuery({
+    queryKey: ['vehicle-pricing-quote', vehicle?.id, startDate, endDate],
+    queryFn: () => pricingApi.quote(vehicle!.id, startDate, endDate),
+    enabled: !!vehicle && validDates,
+    staleTime: 30_000,
+  })
 
   if (!vehicle) return null
 
@@ -49,7 +59,8 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   const diffTime = Math.max(0, end.getTime() - start.getTime())
   const totalDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
   const deliveryFee = deliveryType === 'DOORSTEP' ? 100000 : 0
-  const rentalAmount = totalDays * vehicle.pricePerDay
+  const rentalAmount = quote.data?.total.amount ?? totalDays * vehicle.pricePerDay
+  const depositAmount = quote.data?.depositAmount.amount ?? vehicle.depositAmount
   const totalAmount = rentalAmount + deliveryFee
 
   const requestLogin = () => {
@@ -72,6 +83,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
       requestLogin()
       return
     }
+    if (!validDates || availability.isLoading || availability.data?.isAvailable === false || quote.isLoading || quote.isError) return
 
     createBooking(
       {
@@ -197,9 +209,15 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
             totalDays={totalDays}
             rentalAmount={rentalAmount}
             deliveryFee={deliveryFee}
-            depositAmount={vehicle.depositAmount}
+            depositAmount={depositAmount}
             totalAmount={totalAmount}
           />
+          {validDates && quote.isLoading && <p className="text-xs text-muted-foreground">Calculating rental quote…</p>}
+          {quote.isError && <p role="alert" className="text-xs font-medium text-destructive">Could not calculate the rental quote. <button type="button" className="underline" onClick={() => void quote.refetch()}>Try again</button></p>}
+          {!validDates && <p role="alert" className="text-xs font-medium text-destructive">Return date must be after pickup date.</p>}
+          {validDates && availability.isLoading && <p className="text-xs text-muted-foreground">Checking vehicle availability…</p>}
+          {availability.data?.isAvailable === false && <p role="alert" className="text-xs font-medium text-destructive">{availability.data.conflictReason || 'This vehicle is not available for the selected dates.'}</p>}
+          {availability.isError && <p role="alert" className="text-xs font-medium text-destructive">Could not check availability. <button type="button" className="underline" onClick={() => void availability.refetch()}>Try again</button></p>}
         </form>
 
         {/* Sticky Action Footer */}
@@ -209,6 +227,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
               form="booking-form"
               type="submit"
               loading={isPending}
+              disabled={!validDates || availability.isLoading || availability.isError || availability.data?.isAvailable === false || quote.isLoading || quote.isError}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press"
             >
               Confirm Booking · {new Intl.NumberFormat('en-US').format(totalAmount)} VND

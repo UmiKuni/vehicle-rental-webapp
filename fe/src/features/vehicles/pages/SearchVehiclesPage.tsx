@@ -44,18 +44,30 @@ export default function SearchVehiclesPage() {
 
   const sortedVehicles = useMemo(() => vehicles, [vehicles])
   const selectedVehicle = sortedVehicles.find((vehicle) => vehicle.id === selectedId) ?? sortedVehicles[0]
+  const coordinateBounds = useMemo(() => {
+    const locatedVehicles = sortedVehicles.filter((vehicle) => vehicle.latitude != null && vehicle.longitude != null)
+    const latitudes = locatedVehicles.map((vehicle) => vehicle.latitude!)
+    const longitudes = locatedVehicles.map((vehicle) => vehicle.longitude!)
+    return {
+      minLatitude: latitudes.length ? Math.min(...latitudes) : 0,
+      maxLatitude: latitudes.length ? Math.max(...latitudes) : 0,
+      minLongitude: longitudes.length ? Math.min(...longitudes) : 0,
+      maxLongitude: longitudes.length ? Math.max(...longitudes) : 0,
+      hasCoordinates: locatedVehicles.length > 0,
+    }
+  }, [sortedVehicles])
 
   const locate = useCallback(() => {
     if (!navigator.geolocation) {
       setLocation('Ho Chi Minh City')
       setLocationFromGoogle(false)
-      setFilters((current) => ({ ...current, location: undefined }))
+      setFilters((current) => ({ ...current, location: undefined, latitude: undefined, longitude: undefined }))
       return
     }
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        setFilters((current) => ({ ...current, location: undefined }))
+        setFilters((current) => ({ ...current, location: undefined, latitude: coords.latitude, longitude: coords.longitude }))
         try {
           setLocation(await reverseGeocode(coords.latitude, coords.longitude))
           setLocationFromGoogle(true)
@@ -69,7 +81,7 @@ export default function SearchVehiclesPage() {
       () => {
         setLocation('Ho Chi Minh City')
         setLocationFromGoogle(false)
-        setFilters((current) => ({ ...current, location: undefined }))
+        setFilters((current) => ({ ...current, location: undefined, latitude: undefined, longitude: undefined }))
         setLocating(false)
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
@@ -79,10 +91,14 @@ export default function SearchVehiclesPage() {
   const changeLocation = (value: string) => {
     setLocation(value)
     setLocationFromGoogle(false)
-    setFilters((current) => ({ ...current, location: value.trim() || undefined }))
+    setFilters((current) => ({ ...current, location: value.trim() || undefined, latitude: undefined, longitude: undefined }))
   }
 
-  useEffect(() => { if (!hasSavedFilters || location === 'Finding your location...') locate() }, [hasSavedFilters, location, locate])
+  useEffect(() => {
+    if (hasSavedFilters && location !== 'Finding your location...') return
+    const timer = window.setTimeout(locate, 0)
+    return () => window.clearTimeout(timer)
+  }, [hasSavedFilters, location, locate])
   useEffect(() => {
     try { sessionStorage.setItem('vehicle-search-filters', JSON.stringify(filters)) } catch { /* Search still works without storage access. */ }
   }, [filters])
@@ -90,22 +106,20 @@ export default function SearchVehiclesPage() {
     try { sessionStorage.setItem('vehicle-search-location', location) } catch { /* Search still works without storage access. */ }
   }, [location])
   useEffect(() => {
-    if (!selectedId && sortedVehicles.length) setSelectedId(sortedVehicles[0].id)
-    else if (selectedId && !sortedVehicles.some((vehicle) => vehicle.id === selectedId)) setSelectedId(sortedVehicles[0]?.id ?? null)
-  }, [sortedVehicles, selectedId])
-
-  useEffect(() => {
     const state = routerLocation.state as { resumeBookingVehicleId?: string; resumeBookingVehicle?: Vehicle; pickupAt?: string; returnAt?: string } | null
     if (!state?.resumeBookingVehicleId) return
     const vehicle = sortedVehicles.find((item) => item.id === state.resumeBookingVehicleId)
       ?? (state.resumeBookingVehicle?.id === state.resumeBookingVehicleId ? state.resumeBookingVehicle : undefined)
     if (!vehicle) return
-    setSelectedVehicleForBooking(vehicle)
-    setFilters((current) => ({ ...current, pickupAt: state.pickupAt, returnAt: state.returnAt }))
-    navigate(`${routerLocation.pathname}${routerLocation.search}`, {
-      replace: true,
-      state: { pickupAt: state.pickupAt, returnAt: state.returnAt },
-    })
+    const timer = window.setTimeout(() => {
+      setSelectedVehicleForBooking(vehicle)
+      setFilters((current) => ({ ...current, pickupAt: state.pickupAt, returnAt: state.returnAt }))
+      navigate(`${routerLocation.pathname}${routerLocation.search}`, {
+        replace: true,
+        state: { pickupAt: state.pickupAt, returnAt: state.returnAt },
+      })
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [sortedVehicles, routerLocation.state, routerLocation.pathname, routerLocation.search, navigate])
 
   const handleTouchStart = (event: React.TouchEvent) => { (event.currentTarget as HTMLElement).dataset.touchY = String(event.touches[0].clientY) }
@@ -142,7 +156,12 @@ export default function SearchVehiclesPage() {
           <span className="map-label label-one">DISTRICT 1</span><span className="map-label label-two">BINH THANH</span><span className="map-label label-three">THU THIEM</span><span className="map-river-label">SAIGON RIVER</span>
           <div className="map-current-location"><LocateFixed size={14} /></div>
           {sortedVehicles.map((vehicle, index) => {
-            const position = pinPositions[index % pinPositions.length]
+            const position = vehicle.latitude != null && vehicle.longitude != null && coordinateBounds.hasCoordinates
+              ? {
+                  left: `${coordinateBounds.maxLongitude === coordinateBounds.minLongitude ? 50 : 10 + ((vehicle.longitude - coordinateBounds.minLongitude) / (coordinateBounds.maxLongitude - coordinateBounds.minLongitude)) * 80}%`,
+                  top: `${coordinateBounds.maxLatitude === coordinateBounds.minLatitude ? 50 : 10 + ((coordinateBounds.maxLatitude - vehicle.latitude) / (coordinateBounds.maxLatitude - coordinateBounds.minLatitude)) * 80}%`,
+                }
+              : pinPositions[index % pinPositions.length]
             const active = vehicle.id === selectedVehicle?.id
             return <button key={vehicle.id} type="button" className={`vehicle-map-pin ${active ? 'active' : ''}`} style={position} onClick={() => { setSelectedId(vehicle.id); setIsExpanded(false) }} aria-label={`Select ${vehicle.name}`}><MapPin size={active ? 16 : 13} fill="currentColor" /><span>{new Intl.NumberFormat('en-US', { notation: 'compact' }).format(vehicle.pricePerDay)} VND</span></button>
           })}
@@ -172,7 +191,7 @@ export default function SearchVehiclesPage() {
           )}
         </div>
       </section>
-      <BookingModal vehicle={selectedVehicleForBooking} onClose={() => setSelectedVehicleForBooking(null)} onSuccess={(booking) => navigate(`/booking/${booking.id}`)} initialStartDate={filters.pickupAt} initialEndDate={filters.returnAt} />
+      <BookingModal key={selectedVehicleForBooking ? `${selectedVehicleForBooking.id}-${filters.pickupAt ?? ''}-${filters.returnAt ?? ''}` : 'closed'} vehicle={selectedVehicleForBooking} onClose={() => setSelectedVehicleForBooking(null)} onSuccess={(booking) => navigate(`/booking/${booking.id}`)} initialStartDate={filters.pickupAt} initialEndDate={filters.returnAt} />
     </div>
   )
 }

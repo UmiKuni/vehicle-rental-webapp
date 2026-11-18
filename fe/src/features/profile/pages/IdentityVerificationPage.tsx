@@ -30,6 +30,7 @@ export default function IdentityVerificationPage() {
     if (!front) return setError('Upload the front of your ID or the information page of your passport.')
     if (docType === 'CCCD' && !back) return setError('Upload the back of your National ID.')
     if (docType === 'PASSPORT' && !expiryDate) return setError('Enter your passport expiry date.')
+    if (docType !== 'CCCD') return setError('The current backend verification API only accepts National ID (CCCD) documents.')
     const previous = JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') as Record<string, unknown>
     sessionStorage.setItem(draftKey, JSON.stringify({ ...previous, identity: { docType, idNumber: value, country, expiryDate } }))
     navigate(ROUTES.VERIFY_LICENSE)

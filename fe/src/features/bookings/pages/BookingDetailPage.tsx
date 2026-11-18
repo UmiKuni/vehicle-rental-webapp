@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarCheck } from 'lucide-react'
-import { useBookings } from '../hooks/useBookings'
+import { useBooking } from '../hooks/useBookings'
 import { BookingCard } from '../components/BookingCard'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
 import { ErrorState } from '@/shared/components/common/StateViews'
@@ -8,8 +8,7 @@ import { ROUTES } from '@/shared/constants'
 
 export default function BookingDetailPage() {
   const { bookingId } = useParams()
-  const { data: bookings = [], isLoading, isFetching, isError, refetch } = useBookings()
-  const booking = bookings.find((item) => item.id === bookingId)
+  const { data: booking, isLoading, isError, refetch } = useBooking(bookingId)
 
   return (
     <main className="space-y-4 px-4 pt-5 pb-24">
@@ -30,9 +29,6 @@ export default function BookingDetailPage() {
           {booking.status === 'COMPLETED' && <Link to={`/bookings/${booking.id}/settlement`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Settlement &amp; deposit refund</Link>}
         </div>
       </>}
-      {!isLoading && !isFetching && !isError && !booking && (
-        <ErrorState message="This booking could not be found." onRetry={() => void refetch()} />
-      )}
     </main>
   )
 }

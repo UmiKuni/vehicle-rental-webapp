@@ -17,7 +17,6 @@ export function useRegister() {
     mutationFn: (data: RegisterFormValues) => {
       // Exclude confirmPassword when calling backend API
       const payload: RegisterRequest = {
-        username: data.username,
         email: data.email,
         fullName: data.fullName,
         phone: data.phone,

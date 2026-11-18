@@ -59,6 +59,7 @@ export interface KycStep3Data {
 // Combined submission payload
 export interface KycSubmitPayload {
   step1: KycStep1Data
+  licenseNumber?: string
   step2: {
     docType: IdentityDocType
     idNumber: string

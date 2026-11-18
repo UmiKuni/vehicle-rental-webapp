@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { kycStep2Schema, type KycStep2Values } from '../schemas/kyc.schema'
-import { useKycImageUpload } from '../hooks/useKycSubmit'
 import { ImageUploadZone } from './ImageUploadZone'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
@@ -25,7 +24,6 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
     defaultValues?.backPreview ?? defaultValues?.cccdBackPreview
   )
 
-  const { mutateAsync: uploadImage, isPending: isUploading } = useKycImageUpload()
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 
@@ -59,11 +57,6 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
       setBackPreview(localUrl)
       setValue('backPreview', localUrl)
       setValue('cccdBackPreview', localUrl)
-    }
-    try {
-      await uploadImage({ file, side })
-    } catch {
-      // Non-blocking in mock mode
     }
   }
 
@@ -178,7 +171,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
           label={currentDocType === 'PASSPORT' ? 'Passport Bio Page' : 'National ID Front'}
           preview={frontPreview}
           onFileSelect={(f) => handleImageUpload(f, 'front')}
-          isUploading={isUploading}
+          isUploading={false}
           hint={currentDocType === 'PASSPORT' ? 'Take photo or upload passport bio page' : 'Take photo or upload ID front side'}
         />
 
@@ -186,7 +179,7 @@ export function KycStep2Cccd({ defaultValues, onNext, onBack }: Props) {
           label={currentDocType === 'PASSPORT' ? 'Visa / Entry Stamp (Optional)' : 'National ID Back'}
           preview={backPreview}
           onFileSelect={(f) => handleImageUpload(f, 'back')}
-          isUploading={isUploading}
+          isUploading={false}
           hint={currentDocType === 'PASSPORT' ? 'Upload Vietnam visa or entry stamp' : 'Take photo or upload ID back side'}
         />
       </div>

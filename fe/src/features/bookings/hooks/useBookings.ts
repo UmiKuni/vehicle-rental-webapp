@@ -13,6 +13,15 @@ export function useBookings() {
   })
 }
 
+export function useBooking(id?: string) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.BOOKINGS, id],
+    queryFn: () => bookingApi.getBooking(id!),
+    enabled: !!id,
+    staleTime: 60 * 1000,
+  })
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient()
 
