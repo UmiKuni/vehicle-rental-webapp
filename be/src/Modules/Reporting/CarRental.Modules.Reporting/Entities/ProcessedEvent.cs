@@ -19,8 +19,8 @@ public sealed class ProcessedEvent : Entity<Guid>
         ProcessedAt = processedAt;
     }
 
-    public static ProcessedEvent Create(Guid eventId, DateTimeOffset? processedAt = null)
+    public static ProcessedEvent Create(Guid eventId, DateTimeOffset processedAt)
     {
-        return new ProcessedEvent(eventId, processedAt ?? DateTimeOffset.UtcNow);
+        return new ProcessedEvent(eventId, processedAt);
     }
 }
