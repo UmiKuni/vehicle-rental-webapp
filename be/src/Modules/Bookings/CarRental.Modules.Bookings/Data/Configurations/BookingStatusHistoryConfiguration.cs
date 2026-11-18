@@ -12,6 +12,7 @@ public sealed class BookingStatusHistoryConfiguration : IEntityTypeConfiguration
 
         builder.HasKey(h => h.Id);
         builder.Property(h => h.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(h => h.BookingId)

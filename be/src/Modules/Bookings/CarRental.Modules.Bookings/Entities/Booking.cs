@@ -68,43 +68,43 @@ public class Booking : AggregateRoot<BookingId>
         BookingId? bookingId = null)
     {
         if (customerId == Guid.Empty)
-            return Result.Failure<Booking>(BookingsErrors.InvalidCustomer);
+            return BookingsErrors.InvalidCustomer;
 
         if (ownerId == Guid.Empty)
-            return Result.Failure<Booking>(BookingsErrors.InvalidOwner);
+            return BookingsErrors.InvalidOwner;
 
         if (vehicleId == Guid.Empty)
-            return Result.Failure<Booking>(BookingsErrors.InvalidVehicle);
+            return BookingsErrors.InvalidVehicle;
 
         if (customerId == ownerId)
-            return Result.Failure<Booking>(BookingsErrors.CustomerIsOwner);
+            return BookingsErrors.CustomerIsOwner;
 
         if (period == null)
-            return Result.Failure<Booking>(BookingsErrors.InvalidPeriod);
+            return BookingsErrors.InvalidPeriod;
 
         if (period.Start <= now)
-            return Result.Failure<Booking>(BookingsErrors.StartInPast);
+            return BookingsErrors.StartInPast;
 
         if (period.End <= period.Start)
-            return Result.Failure<Booking>(BookingsErrors.InvalidDuration);
+            return BookingsErrors.InvalidDuration;
 
         if (string.IsNullOrWhiteSpace(pickupLocation))
-            return Result.Failure<Booking>(BookingsErrors.InvalidLocation);
+            return BookingsErrors.InvalidLocation;
 
         if (lineItems == null || lineItems.Count == 0)
-            return Result.Failure<Booking>(BookingsErrors.MissingLineItems);
+            return BookingsErrors.MissingLineItems;
 
         if (!lineItems.Any(l => l.Type == BookingLineItemType.Rent))
-            return Result.Failure<Booking>(BookingsErrors.MissingRentItem);
+            return BookingsErrors.MissingRentItem;
 
         if (!lineItems.Any(l => l.Type == BookingLineItemType.Deposit))
-            return Result.Failure<Booking>(BookingsErrors.MissingDepositItem);
+            return BookingsErrors.MissingDepositItem;
 
         if (policy == null)
-            return Result.Failure<Booking>(BookingsErrors.MissingPolicy);
+            return BookingsErrors.MissingPolicy;
 
         var id = bookingId ?? BookingId.New();
-        return Result.Success(new Booking(
+        return new Booking(
             id,
             customerId,
             ownerId,
@@ -113,16 +113,16 @@ public class Booking : AggregateRoot<BookingId>
             pickupLocation,
             lineItems,
             policy,
-            now));
+            now);
     }
 
     public Result Approve(Guid ownerId, DateTimeOffset now)
     {
         if (ownerId != OwnerId)
-            return Result.Failure(BookingsErrors.Unauthorized5E2B0A);
+            return BookingsErrors.NotOwner;
 
         if (Status != BookingStatus.Pending)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending bookings can be approved. Current status: {Status}."));
+            return BookingsErrors.InvalidState(nameof(BookingStatus.Pending), Status);
 
         Status = BookingStatus.Confirmed;
         PaymentDeadline = now.AddHours(2);
@@ -134,23 +134,26 @@ public class Booking : AggregateRoot<BookingId>
 
     public Result Reject(Guid ownerId, string reason, DateTimeOffset now)
     {
+        if (string.IsNullOrWhiteSpace(reason))
+            return BookingsErrors.ReasonRequired;
+
         if (ownerId != OwnerId)
-            return Result.Failure(BookingsErrors.UnauthorizedBDDFB3);
+            return BookingsErrors.NotOwner;
 
         if (Status != BookingStatus.Pending)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending bookings can be rejected. Current status: {Status}."));
+            return BookingsErrors.InvalidState(nameof(BookingStatus.Pending), Status);
 
         Status = BookingStatus.Rejected;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Rejected, now, reason));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Rejected, now, reason.Trim()));
         return Result.Success();
     }
 
     public Result MarkPaid(Guid paymentId, DateTimeOffset now)
     {
         if (Status != BookingStatus.Confirmed)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only confirmed bookings can be marked paid. Current status: {Status}."));
+            return BookingsErrors.InvalidState(nameof(BookingStatus.Confirmed), Status);
 
         Status = BookingStatus.Paid;
         UpdatedAt = now;
@@ -161,28 +164,25 @@ public class Booking : AggregateRoot<BookingId>
 
     public Result<CancellationOutcome> Cancel(Guid actorId, string reason, DateTimeOffset now)
     {
+        if (string.IsNullOrWhiteSpace(reason))
+            return BookingsErrors.ReasonRequired;
+
         if (actorId != CustomerId)
-            return Result.Failure<CancellationOutcome>(BookingsErrors.Unauthorized6779FC);
+            return BookingsErrors.NotCustomer;
 
         if (IsTerminalState(Status))
-            return Result.Failure<CancellationOutcome>(Error.Conflict("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
+            return BookingsErrors.TerminalState(Status);
 
         if (Status == BookingStatus.InProgress)
-            return Result.Failure<CancellationOutcome>(BookingsErrors.TripInProgress);
+            return BookingsErrors.TripInProgress;
 
-        Money penalty = Money.Zero();
-        Money refundable = Money.Zero();
+        var penalty = Money.Zero();
+        var refundable = Money.Zero();
 
         if (Status == BookingStatus.Paid)
         {
-            var rentTotal = _lineItems
-                .Where(l => l.Type == BookingLineItemType.Rent)
-                .Aggregate(Money.Zero(), (acc, item) => acc.Add(item.Amount));
-
-            var depositTotal = _lineItems
-                .Where(l => l.Type == BookingLineItemType.Deposit)
-                .Aggregate(Money.Zero(), (acc, item) => acc.Add(item.Amount));
-
+            var rentTotal = SumLineItems(BookingLineItemType.Rent);
+            var depositTotal = SumLineItems(BookingLineItemType.Deposit);
             var timeUntilStart = StartTime > now ? StartTime - now : TimeSpan.Zero;
 
             if (PolicySnapshot != null)
@@ -200,29 +200,32 @@ public class Booking : AggregateRoot<BookingId>
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, reason));
-        return Result.Success(new CancellationOutcome(penalty, refundable));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, reason.Trim()));
+        return new CancellationOutcome(penalty, refundable);
     }
 
     public Result AdminCancel(Guid adminId, string reason, DateTimeOffset now)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(BookingsErrors.InvalidAdmin);
+            return BookingsErrors.InvalidAdmin;
+
+        if (string.IsNullOrWhiteSpace(reason))
+            return BookingsErrors.ReasonRequired;
 
         if (IsTerminalState(Status))
-            return Result.Failure(Error.Conflict("booking.terminal_state", $"Cannot cancel a booking in terminal state {Status}."));
+            return BookingsErrors.TerminalState(Status);
 
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
 
-        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, $"Admin cancel: {reason}"));
+        _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, $"Admin cancel: {reason.Trim()}"));
         return Result.Success();
     }
 
     public Result Expire(string reason, DateTimeOffset now)
     {
         if (Status != BookingStatus.Pending && Status != BookingStatus.Confirmed)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Only pending or confirmed bookings can expire. Current status: {Status}."));
+            return BookingsErrors.InvalidState($"{nameof(BookingStatus.Pending)} or {nameof(BookingStatus.Confirmed)}", Status);
 
         Status = BookingStatus.Expired;
         UpdatedAt = now;
@@ -234,7 +237,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result StartTrip(DateTimeOffset now)
     {
         if (Status != BookingStatus.Paid)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Trip can only be started from Paid status. Current status: {Status}."));
+            return BookingsErrors.InvalidState(nameof(BookingStatus.Paid), Status);
 
         Status = BookingStatus.InProgress;
         UpdatedAt = now;
@@ -246,7 +249,7 @@ public class Booking : AggregateRoot<BookingId>
     public Result CompleteTrip(DateTimeOffset now)
     {
         if (Status != BookingStatus.InProgress)
-            return Result.Failure(Error.Conflict("booking.invalid_state", $"Trip can only be completed from InProgress status. Current status: {Status}."));
+            return BookingsErrors.InvalidState(nameof(BookingStatus.InProgress), Status);
 
         Status = BookingStatus.Completed;
         UpdatedAt = now;
@@ -258,14 +261,19 @@ public class Booking : AggregateRoot<BookingId>
     public Result AddOverKmFee(Money amount)
     {
         if (Status != BookingStatus.Completed)
-            return Result.Failure(BookingsErrors.InvalidState);
+            return BookingsErrors.OverKmFeeRequiresCompleted;
 
         if (amount == null || amount.Amount <= 0)
-            return Result.Failure(BookingsErrors.InvalidFee);
+            return BookingsErrors.InvalidFee;
 
         _lineItems.Add(new BookingLineItem(Guid.CreateVersion7(), Id, BookingLineItemType.OverKmFee, amount));
         return Result.Success();
     }
+
+    private Money SumLineItems(BookingLineItemType type) =>
+        _lineItems
+            .Where(l => l.Type == type)
+            .Aggregate(Money.Zero(), (acc, item) => acc.Add(item.Amount));
 
     private static bool IsTerminalState(BookingStatus status) =>
         status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.Rejected or BookingStatus.Expired;

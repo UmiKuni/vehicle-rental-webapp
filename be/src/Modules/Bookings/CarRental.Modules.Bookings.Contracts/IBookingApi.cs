@@ -8,6 +8,55 @@ namespace CarRental.Modules.Bookings.Contracts;
 /// </summary>
 public interface IBookingApi
 {
+    Task<Result<BookingDetailDto>> CreateAsync(
+        Guid customerId,
+        CreateBookingRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<PagedResult<BookingSummaryDto>>> GetMyBookingsAsync(
+        Guid customerId,
+        string? status = null,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken ct = default);
+
+    Task<Result<PagedResult<BookingSummaryDto>>> GetOwnerBookingsAsync(
+        Guid ownerId,
+        string? status = null,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken ct = default);
+
+    Task<Result<BookingDetailDto>> GetByIdAsync(
+        Guid bookingId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default);
+
+    Task<Result<BookingDetailDto>> ApproveAsync(
+        Guid bookingId,
+        Guid ownerId,
+        CancellationToken ct = default);
+
+    Task<Result<BookingDetailDto>> RejectAsync(
+        Guid bookingId,
+        Guid ownerId,
+        string reason,
+        CancellationToken ct = default);
+
+    Task<Result<BookingCancellationResultDto>> CancelAsync(
+        Guid bookingId,
+        Guid customerId,
+        string reason,
+        CancellationToken ct = default);
+
+    Task<Result<BookingDetailDto>> AdminCancelAsync(
+        Guid bookingId,
+        Guid adminId,
+        string reason,
+        string penaltyParty,
+        CancellationToken ct = default);
+
     Task<bool> IsParticipantAsync(Guid bookingId, Guid userId, CancellationToken ct = default);
 
     /// <summary>

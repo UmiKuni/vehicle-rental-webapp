@@ -12,6 +12,7 @@ public sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<Book
 
         builder.HasKey(l => l.Id);
         builder.Property(l => l.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(l => l.BookingId)
