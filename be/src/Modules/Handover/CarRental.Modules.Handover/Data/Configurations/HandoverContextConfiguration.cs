@@ -12,6 +12,7 @@ public sealed class HandoverContextConfiguration : IEntityTypeConfiguration<Hand
 
         builder.HasKey(c => c.BookingId);
         builder.Property(c => c.BookingId)
+            .ValueGeneratedNever()
             .HasColumnName("booking_id");
 
         builder.Ignore(c => c.Id);

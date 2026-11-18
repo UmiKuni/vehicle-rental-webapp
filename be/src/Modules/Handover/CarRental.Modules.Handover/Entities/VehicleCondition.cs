@@ -19,4 +19,11 @@ public class VehicleCondition : Entity<HandoverId>
         FuelLevel = fuelLevel;
         DamageNotes = damageNotes;
     }
+
+    internal void Update(int odometer, int fuelLevel, string? damageNotes)
+    {
+        Odometer = odometer;
+        FuelLevel = fuelLevel;
+        DamageNotes = damageNotes;
+    }
 }
