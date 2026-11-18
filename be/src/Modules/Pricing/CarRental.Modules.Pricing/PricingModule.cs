@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Pricing.Data;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Services;
@@ -22,6 +23,7 @@ public static class PricingModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", PricingDbContext.Schema)));
 
         services.TryAddSingleton(TimeProvider.System);
+        services.AddValidatorsFromAssembly(typeof(PricingModule).Assembly);
         services.AddScoped<IPricingApi, PricingApiService>();
 
         return services;

@@ -8,6 +8,7 @@ using CarRental.Modules.Pricing.Contracts.Dtos;
 using CarRental.Modules.Pricing.Data;
 using CarRental.Modules.Pricing.Entities;
 using CarRental.Modules.Pricing.Services;
+using CarRental.Modules.Pricing.Validators;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -117,6 +118,65 @@ public class PricingApiServiceTests
         var reversedResult = DateTimeRange.Create(Now.AddHours(2), Now);
         reversedResult.IsFailure.Should().BeTrue();
         reversedResult.Error.Code.Should().Be("datetime_range.invalid_range");
+    }
+
+    [Fact]
+    public void PricingQuoteRequestValidator_ShouldValidateAllPrimitiveRules()
+    {
+        var validator = new PricingQuoteRequestValidator();
+
+        var valid = validator.Validate(new PricingQuoteRequest(Guid.NewGuid(), Now, Now.AddDays(1)));
+        valid.IsValid.Should().BeTrue();
+
+        var emptyVehicle = validator.Validate(new PricingQuoteRequest(Guid.Empty, Now, Now.AddDays(1)));
+        emptyVehicle.IsValid.Should().BeFalse();
+        emptyVehicle.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_vehicle");
+
+        var missingPeriod = validator.Validate(new PricingQuoteRequest(Guid.NewGuid(), default, default));
+        missingPeriod.IsValid.Should().BeFalse();
+        missingPeriod.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_period");
+
+        var reversedPeriod = validator.Validate(new PricingQuoteRequest(Guid.NewGuid(), Now.AddHours(2), Now));
+        reversedPeriod.IsValid.Should().BeFalse();
+        reversedPeriod.Errors.Should().Contain(e => e.ErrorCode == "datetime_range.invalid_range");
+    }
+
+    [Fact]
+    public void ConfigurePricingDtoValidator_ShouldValidateRatesLimitsAndAllowEmptyOwnerId()
+    {
+        var validator = new ConfigurePricingDtoValidator();
+
+        var validWithEmptyOwner = validator.Validate(CreateConfigureDto(Guid.Empty));
+        validWithEmptyOwner.IsValid.Should().BeTrue();
+
+        var validWithZeroDepositAndNullOptional = validator.Validate(new ConfigurePricingDto(
+            HourlyRate: null,
+            WeekdayRate: new Money(500_000, "VND"),
+            WeekendRate: new Money(700_000, "VND"),
+            DepositAmount: Money.Zero("VND"),
+            KmLimit: 100,
+            OverKmFee: null,
+            CleaningFee: null,
+            OwnerId: Guid.Empty));
+        validWithZeroDepositAndNullOptional.IsValid.Should().BeTrue();
+
+        var invalidRates = validator.Validate(new ConfigurePricingDto(
+            HourlyRate: Money.Zero("VND"),
+            WeekdayRate: Money.Zero("VND"),
+            WeekendRate: Money.Zero("VND"),
+            DepositAmount: null!,
+            KmLimit: 0,
+            OverKmFee: Money.Zero("VND"),
+            CleaningFee: Money.Zero("VND"),
+            OwnerId: Guid.Empty));
+
+        invalidRates.IsValid.Should().BeFalse();
+        invalidRates.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_hourly_rate");
+        invalidRates.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_weekday_rate");
+        invalidRates.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_weekend_rate");
+        invalidRates.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_deposit");
+        invalidRates.Errors.Should().Contain(e => e.ErrorCode == "pricing.invalid_km_limit");
+        invalidRates.Errors.Should().NotContain(e => e.ErrorCode == "pricing.invalid_fee_amount");
     }
 
     private static ConfigurePricingDto CreateConfigureDto(Guid ownerId) =>

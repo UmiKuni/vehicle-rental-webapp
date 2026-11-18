@@ -35,13 +35,11 @@ public sealed class PricingApiService : IPricingApi
         Guid vehicleId,
         CancellationToken ct = default)
     {
-        var plan = await _dbContext.PricingPlans
-            .AsNoTracking()
-            .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
+        var planResult = await GetPlanOrFailAsync(vehicleId, ct);
+        if (planResult.IsFailure)
+            return planResult.Error;
 
-        return plan is null
-            ? Result.Failure<PricingPlanDto>(PricingErrors.NotFound)
-            : Result.Success(ToDto(plan));
+        return ToDto(planResult.Value);
     }
 
     public async Task<Result<QuoteDto>> GetQuoteAsync(
@@ -49,17 +47,15 @@ public sealed class PricingApiService : IPricingApi
         DateTimeRange period,
         CancellationToken ct = default)
     {
-        var plan = await _dbContext.PricingPlans
-            .AsNoTracking()
-            .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
+        var planResult = await GetPlanOrFailAsync(vehicleId, ct);
+        if (planResult.IsFailure)
+            return planResult.Error;
 
-        if (plan is null)
-            return Result.Failure<QuoteDto>(PricingErrors.NotFound);
+        var quoteResult = planResult.Value.CalculateQuote(period);
+        if (quoteResult.IsFailure)
+            return quoteResult.Error;
 
-        var quoteResult = plan.CalculateQuote(period);
-        return quoteResult.IsFailure
-            ? Result.Failure<QuoteDto>(quoteResult.Error)
-            : Result.Success(quoteResult.Value.ToDto());
+        return quoteResult.Value.ToDto();
     }
 
     public async Task<Result<PricingPlanDto>> ConfigurePricingAsync(
@@ -68,19 +64,59 @@ public sealed class PricingApiService : IPricingApi
         CancellationToken ct = default)
     {
         if (vehicleId == Guid.Empty)
-            return Result.Failure<PricingPlanDto>(
-                PricingErrors.InvalidVehicle);
+            return PricingErrors.InvalidVehicle;
 
+        var authResult = await EnsureVehicleOwnerAsync(vehicleId, dto.OwnerId, ct);
+        if (authResult.IsFailure)
+            return authResult.Error;
+
+        var now = _clock.GetUtcNow();
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
+
+        var planResult = await UpsertPlanAsync(vehicleId, dto, now, ct);
+        if (planResult.IsFailure)
+            return planResult.Error;
+
+        var plan = planResult.Value;
+        _dbContext.FeeRules.AddRange(plan.FeeRules);
+        _dbContext.PricingPlanVersions.Add(plan.CreateVersionSnapshot(now));
+        await _dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        await PublishIntegrationEventsAsync(plan, ct);
+
+        return ToDto(plan);
+    }
+
+    private async Task<Result<PricingPlan>> GetPlanOrFailAsync(Guid vehicleId, CancellationToken ct)
+    {
+        if (vehicleId == Guid.Empty)
+            return PricingErrors.NotFound;
+
+        var plan = await _dbContext.PricingPlans
+            .AsNoTracking()
+            .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
+
+        return plan is not null ? plan : PricingErrors.NotFound;
+    }
+
+    private async Task<Result> EnsureVehicleOwnerAsync(Guid vehicleId, Guid ownerId, CancellationToken ct)
+    {
         var vehicleResult = await _fleetApi.GetVehicleSummaryAsync(vehicleId, ct);
         if (vehicleResult.IsFailure)
-            return Result.Failure<PricingPlanDto>(vehicleResult.Error);
+            return vehicleResult.Error;
 
-        if (vehicleResult.Value.OwnerId != dto.OwnerId)
-            return Result.Failure<PricingPlanDto>(
-                PricingErrors.OwnerRequired);
+        return vehicleResult.Value.OwnerId == ownerId
+            ? Result.Success()
+            : PricingErrors.OwnerRequired;
+    }
 
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
-        var now = _clock.GetUtcNow();
+    private async Task<Result<PricingPlan>> UpsertPlanAsync(
+        Guid vehicleId,
+        ConfigurePricingDto dto,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
         var plan = await _dbContext.PricingPlans
             .IgnoreAutoIncludes()
             .SingleOrDefaultAsync(p => p.VehicleId == vehicleId, ct);
@@ -96,7 +132,7 @@ public sealed class PricingApiService : IPricingApi
                 now,
                 dto.HourlyRate);
             if (createResult.IsFailure)
-                return Result.Failure<PricingPlanDto>(createResult.Error);
+                return createResult.Error;
 
             plan = createResult.Value;
             _dbContext.PricingPlans.Add(plan);
@@ -115,38 +151,39 @@ public sealed class PricingApiService : IPricingApi
                 now,
                 dto.HourlyRate);
             if (updateResult.IsFailure)
-                return Result.Failure<PricingPlanDto>(updateResult.Error);
+                return updateResult.Error;
         }
 
-        var feeResult = ApplyFeeRule(plan, FeeType.OverKm, dto.OverKmFee, now);
+        var feeResult = ApplyFeeRules(plan, dto, now);
         if (feeResult.IsFailure)
-            return Result.Failure<PricingPlanDto>(feeResult.Error);
+            return feeResult.Error;
 
-        feeResult = ApplyFeeRule(plan, FeeType.Cleaning, dto.CleaningFee, now);
-        if (feeResult.IsFailure)
-            return Result.Failure<PricingPlanDto>(feeResult.Error);
+        return plan;
+    }
 
-        _dbContext.FeeRules.AddRange(plan.FeeRules);
-        _dbContext.PricingPlanVersions.Add(plan.CreateVersionSnapshot(now));
-        await _dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+    private static Result ApplyFeeRules(PricingPlan plan, ConfigurePricingDto dto, DateTimeOffset now)
+    {
+        var overKmResult = ApplyFeeRule(plan, FeeType.OverKm, dto.OverKmFee, now);
+        if (overKmResult.IsFailure)
+            return overKmResult;
 
-        var integrationEvents = plan.DomainEvents.OfType<IIntegrationEvent>().ToList();
-        plan.ClearDomainEvents();
-        await _eventOutbox.PublishRangeAsync(integrationEvents, ct);
-
-        return Result.Success(ToDto(plan));
+        return ApplyFeeRule(plan, FeeType.Cleaning, dto.CleaningFee, now);
     }
 
     private static Result ApplyFeeRule(
         PricingPlan plan,
         FeeType type,
         Money? amount,
-        DateTimeOffset now)
-    {
-        return amount is null
+        DateTimeOffset now) =>
+        amount is null
             ? plan.RemoveFeeRule(type, now)
             : plan.SetFeeRule(type, amount, now);
+
+    private async Task PublishIntegrationEventsAsync(PricingPlan plan, CancellationToken ct)
+    {
+        var integrationEvents = plan.DomainEvents.OfType<IIntegrationEvent>().ToList();
+        plan.ClearDomainEvents();
+        await _eventOutbox.PublishRangeAsync(integrationEvents, ct);
     }
 
     private static PricingPlanDto ToDto(PricingPlan plan) =>

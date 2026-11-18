@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -37,6 +38,7 @@ public static class PricingEndpoints
 
             return (await api.GetQuoteAsync(request.VehicleId, periodResult.Value, ct)).ToHttpResult();
         })
+        .WithValidation<PricingQuoteRequest>()
         .WithName("GetPricingQuote")
         .WithSummary("Calculate a rental quote for a vehicle and period")
         .Produces<QuoteDto>(StatusCodes.Status200OK)
@@ -53,6 +55,7 @@ public static class PricingEndpoints
             var dto = request with { OwnerId = GetUserId(principal) };
             return (await api.ConfigurePricingAsync(vehicleId, dto, ct)).ToHttpResult();
         })
+            .WithValidation<ConfigurePricingDto>()
             .WithName("ConfigureVehiclePricing")
             .WithSummary("Configure hourly/daily rental pricing, deposit, fees, kilometre limit, and conditions")
             .Produces<PricingPlanDto>(StatusCodes.Status200OK)
