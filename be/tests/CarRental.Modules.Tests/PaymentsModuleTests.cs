@@ -1,4 +1,5 @@
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Payments.Contracts.Enums;
 using CarRental.Modules.Payments.Entities;
 using FluentAssertions;
@@ -186,5 +187,21 @@ public class PaymentsModuleTests
         deposit.Status.Should().Be(DepositStatus.Deducted);
         deposit.DeductedAmount.Amount.Should().Be(3_000_000);
         deposit.IsFrozen.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CancelPendingPayment_ShouldTransitionToFailedAndBlockSubsequentSuccess()
+    {
+        var payment = Payment.CreatePending(BookingId, Money.Of(2_000_000), Money.Of(1_000_000), Now).Value;
+        payment.SetPaymentMethod(PaymentMethod.VNPay).IsSuccess.Should().BeTrue();
+
+        var cancelResult = payment.Cancel("Booking cancelled", Now.AddMinutes(5));
+        cancelResult.IsSuccess.Should().BeTrue();
+        payment.Status.Should().Be(PaymentStatus.Failed);
+
+        var markSuccess = payment.MarkSuccess("TXN-LATE", Now.AddMinutes(6));
+        markSuccess.IsFailure.Should().BeTrue();
+        markSuccess.Error.Code.Should().Be("payment.invalid_state");
+        markSuccess.Error.Type.Should().Be(ErrorType.Conflict);
     }
 }

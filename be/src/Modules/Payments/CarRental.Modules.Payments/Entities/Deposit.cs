@@ -62,7 +62,7 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Release(DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be released. Current status: {Status}."));
+            return Result.Failure(PaymentsErrors.DepositInvalidState("Held", Status));
 
         if (IsFrozen)
             return Result.Failure(PaymentsErrors.Frozen);
@@ -75,7 +75,7 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Deduct(Money amount, DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be deducted. Current status: {Status}."));
+            return Result.Failure(PaymentsErrors.DepositInvalidState("Held", Status));
 
         if (amount == null || amount.Amount <= 0)
             return Result.Failure(PaymentsErrors.InvalidDeduction);
@@ -92,7 +92,7 @@ public class Deposit : AggregateRoot<DepositId>
     public Result Forfeit(DateTimeOffset now)
     {
         if (Status != DepositStatus.Held)
-            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be forfeited. Current status: {Status}."));
+            return Result.Failure(PaymentsErrors.DepositInvalidState("Held", Status));
 
         Status = DepositStatus.Forfeited;
         DeductedAmount = Amount;
@@ -106,7 +106,7 @@ public class Deposit : AggregateRoot<DepositId>
             return Result.Failure(PaymentsErrors.InvalidPercent);
 
         if (Status != DepositStatus.Held)
-            return Result.Failure(Error.Conflict("deposit.invalid_state", $"Only held deposits can be settled. Current status: {Status}."));
+            return Result.Failure(PaymentsErrors.DepositInvalidState("Held", Status));
 
         IsFrozen = false;
 

@@ -13,6 +13,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id)
             .HasConversion(id => id.Value, val => new PaymentId(val))
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(p => p.BookingId)
@@ -43,6 +44,19 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
                 .HasColumnName("deposit_portion_currency");
         });
 
+        builder.OwnsOne(p => p.RefundedAmount, nav =>
+        {
+            nav.Property(m => m.Amount)
+                .IsRequired()
+                .HasDefaultValue(0L)
+                .HasColumnName("refunded_amount");
+            nav.Property(m => m.Currency)
+                .IsRequired()
+                .HasMaxLength(8)
+                .HasDefaultValue("VND")
+                .HasColumnName("refunded_currency");
+        });
+
         builder.Property(p => p.Status)
             .HasConversion<string>()
             .HasMaxLength(32)
@@ -67,12 +81,23 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasMaxLength(500)
             .HasColumnName("failure_reason");
 
+        builder.Property(p => p.RefundTransactionId)
+            .HasMaxLength(128)
+            .HasColumnName("refund_transaction_id");
+
+        builder.Property(p => p.RefundReason)
+            .HasMaxLength(500)
+            .HasColumnName("refund_reason");
+
         builder.Property(p => p.CreatedAt)
             .IsRequired()
             .HasColumnName("created_at");
 
         builder.Property(p => p.CompletedAt)
             .HasColumnName("completed_at");
+
+        builder.Property(p => p.RefundedAt)
+            .HasColumnName("refunded_at");
 
         builder.Property(p => p.Version)
             .IsRowVersion()
