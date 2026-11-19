@@ -19,7 +19,7 @@ using CarRental.Modules.Users.Contracts;
 
 namespace CarRental.Modules.Bookings.Services;
 
-public sealed class BookingApiService : IBookingApi
+internal sealed class BookingApiService : IBookingApi
 {
     private static readonly TimeSpan PendingHoldDuration = TimeSpan.FromHours(12);
 

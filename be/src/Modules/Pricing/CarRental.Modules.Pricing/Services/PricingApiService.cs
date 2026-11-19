@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Pricing.Services;
 
-public sealed class PricingApiService : IPricingApi
+internal sealed class PricingApiService : IPricingApi
 {
     private readonly PricingDbContext _dbContext;
     private readonly IFleetApi _fleetApi;

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Payments.Data.Configurations;
 
-public sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
+internal sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
 {
     public void Configure(EntityTypeBuilder<Deposit> builder)
     {

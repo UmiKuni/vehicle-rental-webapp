@@ -3,6 +3,7 @@ using CarRental.Modules.Handover.Contracts.Enums;
 using CarRental.Modules.Handover.Contracts.Events;
 using CarRental.Modules.Reporting.Data;
 using CarRental.Modules.Reporting.Data.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine.Attributes;
 
 namespace CarRental.Modules.Reporting.EventHandlers;
@@ -10,7 +11,55 @@ namespace CarRental.Modules.Reporting.EventHandlers;
 [WolverineHandler]
 public sealed class ReportingBookingLifecycleHandlers
 {
-    public Task Handle(
+    public Task Handle(BookingConfirmed message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingPaid message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingRejected message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingExpired message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingCompleted message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(HandoverConfirmed message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    internal Task Handle(
         BookingConfirmed message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
@@ -25,7 +74,7 @@ public sealed class ReportingBookingLifecycleHandlers
             p => p.MarkConfirmed(),
             ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingPaid message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
@@ -40,7 +89,7 @@ public sealed class ReportingBookingLifecycleHandlers
             p => p.MarkPaid(message.OccurredAt),
             ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingRejected message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
@@ -55,7 +104,7 @@ public sealed class ReportingBookingLifecycleHandlers
             p => p.MarkRejected(),
             ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingExpired message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
@@ -70,7 +119,7 @@ public sealed class ReportingBookingLifecycleHandlers
             p => p.MarkExpired(),
             ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingCompleted message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
@@ -85,7 +134,7 @@ public sealed class ReportingBookingLifecycleHandlers
             p => p.MarkCompleted(message.OccurredAt),
             ct);
 
-    public Task Handle(
+    internal Task Handle(
         HandoverConfirmed message,
         IReportingRepository repository,
         ReportingDbContext dbContext,

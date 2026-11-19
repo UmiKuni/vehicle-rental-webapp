@@ -5,7 +5,7 @@ using FluentValidation;
 
 namespace CarRental.Modules.Payments.Validators;
 
-public sealed class InitiatePaymentRequestValidator : AbstractValidator<InitiatePaymentRequest>
+internal sealed class InitiatePaymentRequestValidator : AbstractValidator<InitiatePaymentRequest>
 {
     public InitiatePaymentRequestValidator()
     {
@@ -37,7 +37,7 @@ public sealed class InitiatePaymentRequestValidator : AbstractValidator<Initiate
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
 
-public sealed class RefundPaymentRequestValidator : AbstractValidator<RefundPaymentRequest>
+internal sealed class RefundPaymentRequestValidator : AbstractValidator<RefundPaymentRequest>
 {
     public RefundPaymentRequestValidator()
     {
@@ -53,7 +53,7 @@ public sealed class RefundPaymentRequestValidator : AbstractValidator<RefundPaym
     }
 }
 
-public sealed class DeductDepositRequestValidator : AbstractValidator<DeductDepositRequest>
+internal sealed class DeductDepositRequestValidator : AbstractValidator<DeductDepositRequest>
 {
     public DeductDepositRequestValidator()
     {
@@ -64,7 +64,7 @@ public sealed class DeductDepositRequestValidator : AbstractValidator<DeductDepo
     }
 }
 
-public sealed class CapturePayPalOrderRequestValidator : AbstractValidator<CapturePayPalOrderRequest>
+internal sealed class CapturePayPalOrderRequestValidator : AbstractValidator<CapturePayPalOrderRequest>
 {
     public CapturePayPalOrderRequestValidator()
     {

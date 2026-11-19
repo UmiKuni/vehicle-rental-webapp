@@ -1,6 +1,6 @@
 namespace CarRental.Modules.Payments.Entities;
 
-public readonly record struct DepositId(Guid Value)
+internal readonly record struct DepositId(Guid Value)
 {
     public static DepositId New() => new(Guid.CreateVersion7());
     public static DepositId From(Guid value) => new(value);

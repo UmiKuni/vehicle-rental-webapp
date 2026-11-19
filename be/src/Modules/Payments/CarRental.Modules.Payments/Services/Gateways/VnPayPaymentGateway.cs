@@ -15,7 +15,7 @@ namespace CarRental.Modules.Payments.Services.Gateways;
 /// <summary>
 /// VNPay payment gateway integration (expects Payments:VNPay:* configuration: TmnCode, HashSecret, BaseUrl, ApiUrl).
 /// </summary>
-public sealed class VnPayPaymentGateway(
+internal sealed class VnPayPaymentGateway(
     IOptions<VnPayOptions> options,
     IHttpClientFactory httpClientFactory,
     TimeProvider clock,

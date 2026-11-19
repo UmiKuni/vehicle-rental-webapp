@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CarRental.Modules.Bookings.Services;
 
-public sealed class BookingExpirationService : BackgroundService
+internal sealed class BookingExpirationService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan PendingHoldDuration = TimeSpan.FromHours(12);

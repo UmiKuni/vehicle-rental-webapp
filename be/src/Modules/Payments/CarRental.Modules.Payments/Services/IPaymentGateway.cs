@@ -4,7 +4,7 @@ using CarRental.Modules.Payments.Contracts.Enums;
 
 namespace CarRental.Modules.Payments.Services;
 
-public sealed record GatewayCheckoutRequest(
+internal sealed record GatewayCheckoutRequest(
     Guid PaymentId,
     Guid BookingId,
     decimal Amount,
@@ -14,13 +14,13 @@ public sealed record GatewayCheckoutRequest(
     DateTimeOffset Now,
     string? ClientIpAddress = null);
 
-public sealed record GatewayCheckoutResult(
+internal sealed record GatewayCheckoutResult(
     string PaymentUrl,
     string QrCodeUrl,
     DateTimeOffset ExpiresAt,
     string? GatewayReferenceId = null);
 
-public sealed record GatewayRefundRequest(
+internal sealed record GatewayRefundRequest(
     Guid PaymentId,
     PaymentMethod Method,
     string GatewayTransactionId,
@@ -30,18 +30,18 @@ public sealed record GatewayRefundRequest(
     string Reason,
     DateTimeOffset? PaymentCompletedAt = null);
 
-public sealed record GatewayRefundResult(
+internal sealed record GatewayRefundResult(
     string RefundTransactionId,
     decimal RefundedAmount,
     DateTimeOffset ProcessedAt);
 
-public sealed record GatewayRawWebhook(
+internal sealed record GatewayRawWebhook(
     PaymentMethod Method,
     string RawBody,
     IReadOnlyDictionary<string, string> Headers,
     IReadOnlyDictionary<string, string> QueryParameters);
 
-public sealed record GatewayWebhookNotification(
+internal sealed record GatewayWebhookNotification(
     PaymentMethod Method,
     string TransactionId,
     string OrderId,
@@ -54,7 +54,7 @@ public sealed record GatewayWebhookNotification(
     string? IgnoredReason = null,
     string? OrderIdToCapture = null);
 
-public interface IPaymentGateway
+internal interface IPaymentGateway
 {
     Task<Result<GatewayCheckoutResult>> CreateCheckoutSessionAsync(
         GatewayCheckoutRequest request,

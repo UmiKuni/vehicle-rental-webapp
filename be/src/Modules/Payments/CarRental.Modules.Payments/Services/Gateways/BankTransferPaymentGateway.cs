@@ -14,7 +14,7 @@ namespace CarRental.Modules.Payments.Services.Gateways;
 /// <summary>
 /// Bank transfer / VietQR payment provider (expects Payments:Transfer:* configuration: BankCode, AccountNumber, AccountName, WebhookSecret).
 /// </summary>
-public sealed partial class BankTransferPaymentGateway(
+internal sealed partial class BankTransferPaymentGateway(
     IOptions<BankTransferOptions> options,
     TimeProvider clock,
     ILogger<BankTransferPaymentGateway> logger) : IPaymentGatewayProvider

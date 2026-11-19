@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<HandoverPhoto>
+internal sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<HandoverPhoto>
 {
     public void Configure(EntityTypeBuilder<HandoverPhoto> builder)
     {

@@ -3,7 +3,7 @@ using CarRental.Modules.Bookings.Entities;
 
 namespace CarRental.Modules.Bookings.Data.Repositories;
 
-public interface IBookingRepository
+internal interface IBookingRepository
 {
     Task<Booking?> GetByIdAsync(BookingId id, CancellationToken ct = default);
 

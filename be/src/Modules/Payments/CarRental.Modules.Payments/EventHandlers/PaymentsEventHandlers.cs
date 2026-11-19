@@ -3,6 +3,7 @@ using CarRental.Modules.Handover.Contracts.Events;
 using CarRental.Modules.Payments.Contracts.Enums;
 using CarRental.Modules.Payments.Data;
 using CarRental.Modules.Payments.Data.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine.Attributes;
 
 namespace CarRental.Modules.Payments.EventHandlers;
@@ -10,7 +11,23 @@ namespace CarRental.Modules.Payments.EventHandlers;
 [WolverineHandler]
 public sealed class PaymentsEventHandlers
 {
-    public async Task Handle(
+    public Task Handle(BookingCancelled message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IPaymentsRepository>(),
+            services.GetRequiredService<PaymentsDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(HandoverConfirmed message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IPaymentsRepository>(),
+            services.GetRequiredService<PaymentsDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    internal async Task Handle(
         BookingCancelled message,
         IPaymentsRepository repository,
         PaymentsDbContext dbContext,
@@ -43,7 +60,7 @@ public sealed class PaymentsEventHandlers
             await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task Handle(
+    internal async Task Handle(
         HandoverConfirmed message,
         IPaymentsRepository repository,
         PaymentsDbContext dbContext,

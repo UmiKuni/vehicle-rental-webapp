@@ -6,7 +6,7 @@ using CarRental.Modules.Bookings.Contracts.Enums;
 
 namespace CarRental.Modules.Bookings.Entities;
 
-public class Booking : AggregateRoot<BookingId>
+internal class Booking : AggregateRoot<BookingId>
 {
     private readonly List<BookingLineItem> _lineItems = new();
     private readonly List<BookingStatusHistory> _statusHistory = new();

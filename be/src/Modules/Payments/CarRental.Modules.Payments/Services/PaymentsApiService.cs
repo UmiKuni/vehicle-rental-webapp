@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace CarRental.Modules.Payments.Services;
 
-public sealed class PaymentsApiService : IPaymentsApi
+internal sealed class PaymentsApiService : IPaymentsApi
 {
     private readonly PaymentsDbContext _dbContext;
     private readonly IPaymentsRepository _repository;

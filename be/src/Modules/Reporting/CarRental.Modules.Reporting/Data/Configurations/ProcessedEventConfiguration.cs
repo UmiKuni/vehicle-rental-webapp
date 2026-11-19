@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Reporting.Data.Configurations;
 
-public class ProcessedEventConfiguration : IEntityTypeConfiguration<ProcessedEvent>
+internal sealed class ProcessedEventConfiguration : IEntityTypeConfiguration<ProcessedEvent>
 {
     public void Configure(EntityTypeBuilder<ProcessedEvent> builder)
     {

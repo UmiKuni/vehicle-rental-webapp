@@ -5,7 +5,7 @@ using FluentValidation;
 
 namespace CarRental.Modules.Handover.Validators;
 
-public sealed class CreateHandoverRequestValidator : AbstractValidator<CreateHandoverRequest>
+internal sealed class CreateHandoverRequestValidator : AbstractValidator<CreateHandoverRequest>
 {
     public CreateHandoverRequestValidator()
     {
@@ -21,7 +21,7 @@ public sealed class CreateHandoverRequestValidator : AbstractValidator<CreateHan
     }
 }
 
-public sealed class UpdateVehicleConditionRequestValidator : AbstractValidator<UpdateVehicleConditionRequest>
+internal sealed class UpdateVehicleConditionRequestValidator : AbstractValidator<UpdateVehicleConditionRequest>
 {
     public UpdateVehicleConditionRequestValidator()
     {
@@ -37,7 +37,7 @@ public sealed class UpdateVehicleConditionRequestValidator : AbstractValidator<U
     }
 }
 
-public sealed class UploadHandoverPhotoRequestValidator : AbstractValidator<UploadHandoverPhotoRequest>
+internal sealed class UploadHandoverPhotoRequestValidator : AbstractValidator<UploadHandoverPhotoRequest>
 {
     public UploadHandoverPhotoRequestValidator()
     {
@@ -58,7 +58,7 @@ public sealed class UploadHandoverPhotoRequestValidator : AbstractValidator<Uplo
     }
 }
 
-public sealed class ConfirmHandoverRequestValidator : AbstractValidator<ConfirmHandoverRequest>
+internal sealed class ConfirmHandoverRequestValidator : AbstractValidator<ConfirmHandoverRequest>
 {
     public ConfirmHandoverRequestValidator()
     {

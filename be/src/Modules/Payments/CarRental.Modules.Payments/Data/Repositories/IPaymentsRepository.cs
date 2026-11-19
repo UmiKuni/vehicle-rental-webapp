@@ -2,7 +2,7 @@ using CarRental.Modules.Payments.Entities;
 
 namespace CarRental.Modules.Payments.Data.Repositories;
 
-public interface IPaymentsRepository
+internal interface IPaymentsRepository
 {
     Task<Payment?> GetPaymentByIdAsync(PaymentId id, CancellationToken ct = default);
 

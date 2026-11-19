@@ -3,6 +3,7 @@ using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Reporting.Data;
 using CarRental.Modules.Reporting.Data.Repositories;
 using CarRental.Modules.Reporting.Entities;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine.Attributes;
 
 namespace CarRental.Modules.Reporting.EventHandlers;
@@ -13,7 +14,16 @@ namespace CarRental.Modules.Reporting.EventHandlers;
 [WolverineHandler]
 public sealed class BookingRequestedConsumer
 {
-    public async Task Handle(
+    public Task Handle(BookingRequested message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<IFleetApi>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    internal async Task Handle(
         BookingRequested message,
         IReportingRepository repository,
         ReportingDbContext dbContext,

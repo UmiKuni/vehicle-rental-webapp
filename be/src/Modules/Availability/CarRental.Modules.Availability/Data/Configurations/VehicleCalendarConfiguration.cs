@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Availability.Data.Configurations;
 
-public sealed class VehicleCalendarConfiguration : IEntityTypeConfiguration<VehicleCalendar>
+internal sealed class VehicleCalendarConfiguration : IEntityTypeConfiguration<VehicleCalendar>
 {
     public void Configure(EntityTypeBuilder<VehicleCalendar> builder)
     {

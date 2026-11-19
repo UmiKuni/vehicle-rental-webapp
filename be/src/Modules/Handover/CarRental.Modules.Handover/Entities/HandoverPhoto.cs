@@ -3,7 +3,7 @@ using CarRental.Modules.Handover.Contracts.Enums;
 
 namespace CarRental.Modules.Handover.Entities;
 
-public class HandoverPhoto : Entity<Guid>
+internal class HandoverPhoto : Entity<Guid>
 {
     public HandoverId HandoverId { get; private set; }
     public PhotoCorner Corner { get; private set; }

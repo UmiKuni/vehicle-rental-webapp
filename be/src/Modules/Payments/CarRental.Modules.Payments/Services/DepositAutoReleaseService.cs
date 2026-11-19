@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CarRental.Modules.Payments.Services;
 
-public sealed class DepositAutoReleaseService : BackgroundService
+internal sealed class DepositAutoReleaseService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 

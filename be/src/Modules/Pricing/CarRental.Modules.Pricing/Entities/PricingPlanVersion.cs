@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public class PricingPlanVersion : Entity<Guid>
+internal class PricingPlanVersion : Entity<Guid>
 {
     public Guid VehicleId { get; private set; }
     public string Config { get; private set; } = string.Empty;

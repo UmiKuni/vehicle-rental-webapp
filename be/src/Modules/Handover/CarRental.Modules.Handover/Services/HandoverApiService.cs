@@ -17,7 +17,7 @@ using HandoverEntity = CarRental.Modules.Handover.Entities.Handover;
 
 namespace CarRental.Modules.Handover.Services;
 
-public sealed class HandoverApiService : IHandoverApi
+internal sealed class HandoverApiService : IHandoverApi
 {
     private readonly HandoverDbContext _dbContext;
     private readonly IHandoverRepository _repository;

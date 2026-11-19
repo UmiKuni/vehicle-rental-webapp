@@ -8,14 +8,14 @@ using Microsoft.Extensions.Options;
 
 namespace CarRental.Modules.Payments.Services.Gateways;
 
-public static class PaymentGatewayHttpClients
+internal static class PaymentGatewayHttpClients
 {
     public const string VnPay = "Payments.VNPay";
     public const string PayPal = "Payments.PayPal";
     public const string Stripe = "Payments.Stripe";
 }
 
-public sealed class PayPalAccessTokenProvider(
+internal sealed class PayPalAccessTokenProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<PayPalOptions> options,
     TimeProvider clock) : IDisposable

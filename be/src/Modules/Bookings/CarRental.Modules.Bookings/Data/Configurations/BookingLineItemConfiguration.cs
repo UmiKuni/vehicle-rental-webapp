@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Bookings.Data.Configurations;
 
-public sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<BookingLineItem>
+internal sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<BookingLineItem>
 {
     public void Configure(EntityTypeBuilder<BookingLineItem> builder)
     {

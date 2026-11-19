@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Bookings.Data.Configurations;
 
-public sealed class CancellationPolicySnapshotConfiguration : IEntityTypeConfiguration<CancellationPolicySnapshot>
+internal sealed class CancellationPolicySnapshotConfiguration : IEntityTypeConfiguration<CancellationPolicySnapshot>
 {
     public void Configure(EntityTypeBuilder<CancellationPolicySnapshot> builder)
     {

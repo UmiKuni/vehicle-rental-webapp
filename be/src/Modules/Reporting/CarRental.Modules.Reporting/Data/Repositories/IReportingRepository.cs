@@ -2,12 +2,12 @@ using CarRental.Modules.Reporting.Entities;
 
 namespace CarRental.Modules.Reporting.Data.Repositories;
 
-public sealed record DashboardProjectionMetrics(
+internal sealed record DashboardProjectionMetrics(
     int ActiveRentals,
     int PendingApprovalBookings,
     int CompletedTripsThisMonth);
 
-public interface IReportingRepository
+internal interface IReportingRepository
 {
     Task<bool> HasEventBeenProcessedAsync(Guid eventId, CancellationToken ct = default);
 

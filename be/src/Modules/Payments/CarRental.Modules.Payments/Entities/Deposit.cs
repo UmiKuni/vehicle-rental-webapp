@@ -6,7 +6,7 @@ using CarRental.Modules.Payments.Contracts.Enums;
 
 namespace CarRental.Modules.Payments.Entities;
 
-public class Deposit : AggregateRoot<DepositId>
+internal class Deposit : AggregateRoot<DepositId>
 {
     public Guid BookingId { get; private set; }
     public Money Amount { get; private set; } = null!;

@@ -1,6 +1,7 @@
 using CarRental.Modules.Payments.Contracts.Events;
 using CarRental.Modules.Reporting.Data;
 using CarRental.Modules.Reporting.Data.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine.Attributes;
 
 namespace CarRental.Modules.Reporting.EventHandlers;
@@ -11,7 +12,15 @@ namespace CarRental.Modules.Reporting.EventHandlers;
 [WolverineHandler]
 public sealed class PaymentSucceededConsumer
 {
-    public Task Handle(
+    public Task Handle(PaymentSucceeded message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    internal Task Handle(
         PaymentSucceeded message,
         IReportingRepository repository,
         ReportingDbContext dbContext,

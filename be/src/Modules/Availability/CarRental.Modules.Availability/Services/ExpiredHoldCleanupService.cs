@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CarRental.Modules.Availability.Services;
 
-public sealed class ExpiredHoldCleanupService : BackgroundService
+internal sealed class ExpiredHoldCleanupService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
 

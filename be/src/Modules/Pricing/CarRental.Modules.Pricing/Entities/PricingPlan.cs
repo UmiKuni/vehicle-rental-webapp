@@ -8,7 +8,7 @@ using CarRental.Modules.Pricing.Contracts.Events;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public class PricingPlan : AggregateRoot<Guid>
+internal class PricingPlan : AggregateRoot<Guid>
 {
     private readonly List<FeeRule> _feeRules = new();
 

@@ -9,7 +9,7 @@ using CarRental.Modules.Users.Contracts;
 
 namespace CarRental.Modules.Reporting.Services;
 
-public sealed class ReportingQueryService(
+internal sealed class ReportingQueryService(
     IReportingRepository repository,
     IUsersApi usersApi,
     IFleetApi fleetApi,

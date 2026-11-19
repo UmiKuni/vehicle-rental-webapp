@@ -20,4 +20,12 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CarRental.Api" />
+    <InternalsVisibleTo Include="CarRental.Modules.Tests" />
+    <InternalsVisibleTo Include="CarRental.IntegrationTests" />
+    <InternalsVisibleTo Include="CarRental.ArchitectureTests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
 </Project>

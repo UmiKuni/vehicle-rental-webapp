@@ -1,6 +1,7 @@
 using CarRental.Modules.Availability.Data;
 using CarRental.Modules.Availability.Data.Repositories;
 using CarRental.Modules.Bookings.Contracts.Events;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine.Attributes;
 
 namespace CarRental.Modules.Availability.EventHandlers;
@@ -8,7 +9,31 @@ namespace CarRental.Modules.Availability.EventHandlers;
 [WolverineHandler]
 public sealed class AvailabilityEventHandlers
 {
-    public Task Handle(
+    public Task Handle(BookingCancelled message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IVehicleCalendarRepository>(),
+            services.GetRequiredService<AvailabilityDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingRejected message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IVehicleCalendarRepository>(),
+            services.GetRequiredService<AvailabilityDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    public Task Handle(BookingExpired message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IVehicleCalendarRepository>(),
+            services.GetRequiredService<AvailabilityDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
+
+    internal Task Handle(
         BookingCancelled message,
         IVehicleCalendarRepository repository,
         AvailabilityDbContext dbContext,
@@ -16,7 +41,7 @@ public sealed class AvailabilityEventHandlers
         CancellationToken ct) =>
         ReleaseAsync(message.BookingId, repository, dbContext, clock, ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingRejected message,
         IVehicleCalendarRepository repository,
         AvailabilityDbContext dbContext,
@@ -24,7 +49,7 @@ public sealed class AvailabilityEventHandlers
         CancellationToken ct) =>
         ReleaseAsync(message.BookingId, repository, dbContext, clock, ct);
 
-    public Task Handle(
+    internal Task Handle(
         BookingExpired message,
         IVehicleCalendarRepository repository,
         AvailabilityDbContext dbContext,

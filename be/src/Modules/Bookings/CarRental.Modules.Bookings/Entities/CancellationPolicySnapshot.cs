@@ -4,7 +4,7 @@ using CarRental.BuildingBlocks.Domain.ValueObjects;
 
 namespace CarRental.Modules.Bookings.Entities;
 
-public class CancellationPolicySnapshot : Entity<BookingId>
+internal class CancellationPolicySnapshot : Entity<BookingId>
 {
     public BookingId BookingId { get; private set; }
     public string PolicyDetailsJson { get; private set; } = string.Empty;

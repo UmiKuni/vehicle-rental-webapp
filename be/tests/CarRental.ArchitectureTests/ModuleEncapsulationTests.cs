@@ -70,4 +70,34 @@ public class ModuleEncapsulationTests
                 $"Module '{moduleName}' violates isolation boundaries: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
+    [Fact]
+    public void ManagedModules_ImplementationTypes_ShouldBeInternal()
+    {
+        string[] managedModules = ["Pricing", "Availability", "Bookings", "Payments", "Handover", "Reporting"];
+        string[] internalNamespaceSuffixes = [".Entities", ".Data", ".Services", ".Validators", ".Options", ".Errors"];
+
+        var publicViolations = new List<string>();
+
+        foreach (var moduleName in managedModules)
+        {
+            var assembly = ArchitectureTestHelper.LoadAssembly($"CarRental.Modules.{moduleName}");
+            var prefix = $"CarRental.Modules.{moduleName}";
+
+            var offendingTypes = assembly.GetTypes()
+                .Where(t => !t.IsNested
+                            && t.IsPublic
+                            && !string.IsNullOrEmpty(t.Namespace)
+                            && !string.Equals(t.Namespace, $"{prefix}.Data.Migrations", StringComparison.Ordinal)
+                            && internalNamespaceSuffixes.Any(suffix =>
+                                string.Equals(t.Namespace, $"{prefix}{suffix}", StringComparison.Ordinal)
+                                || t.Namespace.StartsWith($"{prefix}{suffix}.", StringComparison.Ordinal)))
+                .Select(t => t.FullName!)
+                .ToList();
+
+            publicViolations.AddRange(offendingTypes);
+        }
+
+        publicViolations.Should().BeEmpty(
+            "Implementation types in managed modules (Entities, Data, Services, Validators, Options, Errors) must be internal.");
+    }
 }

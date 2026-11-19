@@ -6,7 +6,7 @@ namespace CarRental.Modules.Reporting.Entities;
 /// Pre-aggregated daily booking and revenue projection for platform analytics and executive dashboards.
 /// Uses UTC+7 date bucketing to align with local business days.
 /// </summary>
-public sealed class DailyBookingStats : Entity<DateOnly>
+internal sealed class DailyBookingStats : Entity<DateOnly>
 {
     public static readonly TimeSpan PlatformTimeZoneOffset = TimeSpan.FromHours(7);
 

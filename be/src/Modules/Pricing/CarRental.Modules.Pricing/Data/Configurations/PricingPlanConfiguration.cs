@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Pricing.Data.Configurations;
 
-public sealed class PricingPlanConfiguration : IEntityTypeConfiguration<PricingPlan>
+internal sealed class PricingPlanConfiguration : IEntityTypeConfiguration<PricingPlan>
 {
     public void Configure(EntityTypeBuilder<PricingPlan> builder)
     {

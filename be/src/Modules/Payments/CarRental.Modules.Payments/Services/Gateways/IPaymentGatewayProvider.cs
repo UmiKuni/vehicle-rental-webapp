@@ -7,7 +7,7 @@ namespace CarRental.Modules.Payments.Services;
 /// <summary>
 /// Gateway-specific provider contract for a single <see cref="PaymentMethod"/>.
 /// </summary>
-public interface IPaymentGatewayProvider
+internal interface IPaymentGatewayProvider
 {
     PaymentMethod Method { get; }
 
@@ -32,7 +32,7 @@ public interface IPaymentGatewayProvider
         CancellationToken ct = default);
 }
 
-public interface IPayPalOrderCaptureProvider
+internal interface IPayPalOrderCaptureProvider
 {
     Task<Result<GatewayWebhookNotification>> CaptureOrderAsync(
         string paypalOrderId,

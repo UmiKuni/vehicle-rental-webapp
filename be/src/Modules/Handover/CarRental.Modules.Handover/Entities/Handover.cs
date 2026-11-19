@@ -5,7 +5,7 @@ using CarRental.Modules.Handover.Contracts.Enums;
 
 namespace CarRental.Modules.Handover.Entities;
 
-public class Handover : AggregateRoot<HandoverId>
+internal class Handover : AggregateRoot<HandoverId>
 {
     private static readonly PhotoCorner[] MandatoryCorners =
     [

@@ -16,7 +16,7 @@ namespace CarRental.Modules.Payments.Services.Gateways;
 /// <summary>
 /// PayPal payment gateway integration (expects Payments:PayPal:* configuration: ClientId, ClientSecret, WebhookId, BaseUrl).
 /// </summary>
-public sealed class PayPalPaymentGateway(
+internal sealed class PayPalPaymentGateway(
     IOptions<PayPalOptions> options,
     IHttpClientFactory httpClientFactory,
     PayPalAccessTokenProvider tokenProvider,

@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Reporting.Entities;
 
-public static class BookingProjectionStatus
+internal static class BookingProjectionStatus
 {
     public const string Pending = "Pending";
     public const string Confirmed = "Confirmed";
@@ -18,7 +18,7 @@ public static class BookingProjectionStatus
 /// Read-model projection of a booking in the reporting schema so dashboard and owner revenue
 /// queries execute locally without cross-schema joins.
 /// </summary>
-public sealed class BookingReportProjection : Entity<Guid>
+internal sealed class BookingReportProjection : Entity<Guid>
 {
     public Guid OwnerId { get; private set; }
     public Guid VehicleId { get; private set; }

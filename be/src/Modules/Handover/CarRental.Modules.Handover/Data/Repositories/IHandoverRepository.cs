@@ -4,7 +4,7 @@ using HandoverEntity = CarRental.Modules.Handover.Entities.Handover;
 
 namespace CarRental.Modules.Handover.Data.Repositories;
 
-public interface IHandoverRepository
+internal interface IHandoverRepository
 {
     Task<HandoverEntity?> GetByIdAsync(HandoverId id, CancellationToken ct = default);
 

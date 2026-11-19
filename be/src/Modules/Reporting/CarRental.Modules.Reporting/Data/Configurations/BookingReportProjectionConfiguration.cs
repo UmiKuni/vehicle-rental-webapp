@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Reporting.Data.Configurations;
 
-public class BookingReportProjectionConfiguration : IEntityTypeConfiguration<BookingReportProjection>
+internal sealed class BookingReportProjectionConfiguration : IEntityTypeConfiguration<BookingReportProjection>
 {
     public void Configure(EntityTypeBuilder<BookingReportProjection> builder)
     {

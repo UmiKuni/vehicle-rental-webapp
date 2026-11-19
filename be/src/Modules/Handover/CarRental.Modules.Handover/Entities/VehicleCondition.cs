@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Handover.Entities;
 
-public class VehicleCondition : Entity<HandoverId>
+internal class VehicleCondition : Entity<HandoverId>
 {
     public HandoverId HandoverId { get; private set; }
     public int Odometer { get; private set; }

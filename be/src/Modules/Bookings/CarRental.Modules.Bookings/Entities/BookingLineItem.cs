@@ -4,7 +4,7 @@ using CarRental.Modules.Bookings.Contracts.Enums;
 
 namespace CarRental.Modules.Bookings.Entities;
 
-public class BookingLineItem : Entity<Guid>
+internal class BookingLineItem : Entity<Guid>
 {
     public BookingId BookingId { get; private set; }
     public BookingLineItemType Type { get; private set; }

@@ -13,7 +13,7 @@ using Npgsql;
 
 namespace CarRental.Modules.Availability.Services;
 
-public sealed class AvailabilityApiService : IAvailabilityApi
+internal sealed class AvailabilityApiService : IAvailabilityApi
 {
     private readonly AvailabilityDbContext _dbContext;
     private readonly IVehicleCalendarRepository _repository;

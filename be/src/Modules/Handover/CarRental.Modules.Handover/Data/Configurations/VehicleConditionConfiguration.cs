@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class VehicleConditionConfiguration : IEntityTypeConfiguration<VehicleCondition>
+internal sealed class VehicleConditionConfiguration : IEntityTypeConfiguration<VehicleCondition>
 {
     public void Configure(EntityTypeBuilder<VehicleCondition> builder)
     {

@@ -4,7 +4,7 @@ using CarRental.Modules.Availability.Contracts.Enums;
 
 namespace CarRental.Modules.Availability.Entities;
 
-public class CalendarEntry : Entity<Guid>
+internal class CalendarEntry : Entity<Guid>
 {
     public Guid VehicleId { get; private set; }
     public CalendarEntryType Type { get; private set; }

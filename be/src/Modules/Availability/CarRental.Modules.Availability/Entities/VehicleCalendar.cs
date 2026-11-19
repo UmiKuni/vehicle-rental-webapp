@@ -6,7 +6,7 @@ using CarRental.Modules.Availability.Contracts.Enums;
 
 namespace CarRental.Modules.Availability.Entities;
 
-public class VehicleCalendar : AggregateRoot<Guid>
+internal class VehicleCalendar : AggregateRoot<Guid>
 {
     private static readonly TimeSpan MaxHoldTtl = TimeSpan.FromHours(12);
     private readonly List<CalendarEntry> _entries = new();

@@ -3,7 +3,7 @@ using CarRental.Modules.Availability.Entities;
 
 namespace CarRental.Modules.Availability.Data.Repositories;
 
-public interface IVehicleCalendarRepository
+internal interface IVehicleCalendarRepository
 {
     Task<VehicleCalendar?> GetByVehicleIdAsync(Guid vehicleId, CancellationToken ct = default);
 

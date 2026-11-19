@@ -14,7 +14,7 @@ namespace CarRental.Modules.Payments.Services.Gateways;
 /// <summary>
 /// Stripe payment gateway integration (expects Payments:Stripe:* configuration: SecretKey, PublishableKey, WebhookSecret, ApiBaseUrl).
 /// </summary>
-public sealed class StripePaymentGateway(
+internal sealed class StripePaymentGateway(
     IOptions<StripeOptions> options,
     IHttpClientFactory httpClientFactory,
     TimeProvider clock,

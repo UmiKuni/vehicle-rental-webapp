@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Reporting.Data.Configurations;
 
-public class DailyBookingStatsConfiguration : IEntityTypeConfiguration<DailyBookingStats>
+internal sealed class DailyBookingStatsConfiguration : IEntityTypeConfiguration<DailyBookingStats>
 {
     public void Configure(EntityTypeBuilder<DailyBookingStats> builder)
     {

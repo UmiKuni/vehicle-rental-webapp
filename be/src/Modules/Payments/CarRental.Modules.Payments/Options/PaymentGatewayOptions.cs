@@ -1,6 +1,6 @@
 namespace CarRental.Modules.Payments.Options;
 
-public sealed class PaymentGatewayOptions
+internal sealed class PaymentGatewayOptions
 {
     public const string SectionName = "Payments";
 
@@ -13,7 +13,7 @@ public sealed class PaymentGatewayOptions
     public BankTransferOptions Transfer { get; set; } = new();
 }
 
-public sealed class VnPayOptions
+internal sealed class VnPayOptions
 {
     public const string SectionName = "Payments:VNPay";
 
@@ -29,7 +29,7 @@ public sealed class VnPayOptions
     public int CheckoutTtlMinutes { get; set; } = 15;
 }
 
-public sealed class PayPalOptions
+internal sealed class PayPalOptions
 {
     public const string SectionName = "Payments:PayPal";
 
@@ -43,7 +43,7 @@ public sealed class PayPalOptions
     public int CheckoutTtlMinutes { get; set; } = 15;
 }
 
-public sealed class StripeOptions
+internal sealed class StripeOptions
 {
     public const string SectionName = "Payments:Stripe";
 
@@ -56,7 +56,7 @@ public sealed class StripeOptions
     public int CheckoutTtlMinutes { get; set; } = 30;
 }
 
-public sealed class BankTransferOptions
+internal sealed class BankTransferOptions
 {
     public const string SectionName = "Payments:Transfer";
 

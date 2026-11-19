@@ -5,7 +5,7 @@ using FluentValidation;
 
 namespace CarRental.Modules.Availability.Validators;
 
-public sealed class BlockScheduleRequestValidator : AbstractValidator<BlockScheduleRequest>
+internal sealed class BlockScheduleRequestValidator : AbstractValidator<BlockScheduleRequest>
 {
     public BlockScheduleRequestValidator()
     {

@@ -9,7 +9,7 @@ namespace CarRental.Modules.Payments.Services.Gateways;
 /// Routes <see cref="IPaymentGateway"/> operations to the registered <see cref="IPaymentGatewayProvider"/>
 /// for the requested <see cref="PaymentMethod"/>.
 /// </summary>
-public sealed class RoutingPaymentGateway(
+internal sealed class RoutingPaymentGateway(
     IEnumerable<IPaymentGatewayProvider> providers,
     IPayPalOrderCaptureProvider? payPalCaptureProvider = null) : IPaymentGateway
 {

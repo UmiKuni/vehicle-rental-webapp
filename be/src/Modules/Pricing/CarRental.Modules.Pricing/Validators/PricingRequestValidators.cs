@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace CarRental.Modules.Pricing.Validators;
 
-public sealed class PricingQuoteRequestValidator : AbstractValidator<PricingQuoteRequest>
+internal sealed class PricingQuoteRequestValidator : AbstractValidator<PricingQuoteRequest>
 {
     public PricingQuoteRequestValidator()
     {
@@ -28,7 +28,7 @@ public sealed class PricingQuoteRequestValidator : AbstractValidator<PricingQuot
     }
 }
 
-public sealed class ConfigurePricingDtoValidator : AbstractValidator<ConfigurePricingDto>
+internal sealed class ConfigurePricingDtoValidator : AbstractValidator<ConfigurePricingDto>
 {
     public ConfigurePricingDtoValidator()
     {

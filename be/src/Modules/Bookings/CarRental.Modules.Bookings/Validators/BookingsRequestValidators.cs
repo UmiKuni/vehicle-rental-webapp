@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace CarRental.Modules.Bookings.Validators;
 
-public sealed class CreateBookingRequestValidator : AbstractValidator<CreateBookingRequest>
+internal sealed class CreateBookingRequestValidator : AbstractValidator<CreateBookingRequest>
 {
     public CreateBookingRequestValidator()
     {
@@ -34,7 +34,7 @@ public sealed class CreateBookingRequestValidator : AbstractValidator<CreateBook
     }
 }
 
-public sealed class RejectBookingRequestValidator : AbstractValidator<RejectBookingRequest>
+internal sealed class RejectBookingRequestValidator : AbstractValidator<RejectBookingRequest>
 {
     public RejectBookingRequestValidator()
     {
@@ -45,7 +45,7 @@ public sealed class RejectBookingRequestValidator : AbstractValidator<RejectBook
     }
 }
 
-public sealed class CancelBookingRequestValidator : AbstractValidator<CancelBookingRequest>
+internal sealed class CancelBookingRequestValidator : AbstractValidator<CancelBookingRequest>
 {
     public CancelBookingRequestValidator()
     {
@@ -56,7 +56,7 @@ public sealed class CancelBookingRequestValidator : AbstractValidator<CancelBook
     }
 }
 
-public sealed class AdminCancelBookingRequestValidator : AbstractValidator<AdminCancelBookingRequest>
+internal sealed class AdminCancelBookingRequestValidator : AbstractValidator<AdminCancelBookingRequest>
 {
     public AdminCancelBookingRequestValidator()
     {
