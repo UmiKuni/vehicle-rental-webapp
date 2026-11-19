@@ -4,28 +4,80 @@ using CarRental.Modules.Payments.Contracts.Enums;
 
 namespace CarRental.Modules.Payments.Services;
 
+public sealed record GatewayCheckoutRequest(
+    Guid PaymentId,
+    Guid BookingId,
+    decimal Amount,
+    string Currency,
+    PaymentMethod Method,
+    string ReturnUrl,
+    DateTimeOffset Now,
+    string? ClientIpAddress = null);
+
+public sealed record GatewayCheckoutResult(
+    string PaymentUrl,
+    string QrCodeUrl,
+    DateTimeOffset ExpiresAt,
+    string? GatewayReferenceId = null);
+
+public sealed record GatewayRefundRequest(
+    Guid PaymentId,
+    PaymentMethod Method,
+    string GatewayTransactionId,
+    decimal Amount,
+    decimal OriginalAmount,
+    string Currency,
+    string Reason,
+    DateTimeOffset? PaymentCompletedAt = null);
+
 public sealed record GatewayRefundResult(
     string RefundTransactionId,
     decimal RefundedAmount,
     DateTimeOffset ProcessedAt);
 
+public sealed record GatewayRawWebhook(
+    PaymentMethod Method,
+    string RawBody,
+    IReadOnlyDictionary<string, string> Headers,
+    IReadOnlyDictionary<string, string> QueryParameters);
+
+public sealed record GatewayWebhookNotification(
+    PaymentMethod Method,
+    string TransactionId,
+    string OrderId,
+    decimal Amount,
+    string Currency,
+    bool IsSuccess,
+    string ResponseCode,
+    string RawPayloadJson,
+    bool IsIgnored = false,
+    string? IgnoredReason = null,
+    string? OrderIdToCapture = null);
+
 public interface IPaymentGateway
 {
-    (string PaymentUrl, string QrCodeUrl, DateTimeOffset ExpiresAt) CreateCheckoutSession(
-        Guid paymentId,
-        Guid bookingId,
-        decimal amount,
-        PaymentMethod method,
-        string returnUrl,
-        DateTimeOffset now);
+    Task<Result<GatewayCheckoutResult>> CreateCheckoutSessionAsync(
+        GatewayCheckoutRequest request,
+        CancellationToken ct = default);
 
     bool VerifyWebhookSignature(PaymentWebhookRequest request);
 
-    Task<Result<GatewayRefundResult>> RefundAsync(
-        Guid paymentId,
+    Task<Result<GatewayWebhookNotification>> ParseAndVerifyWebhookAsync(
+        GatewayRawWebhook webhook,
+        CancellationToken ct = default);
+
+    Task<Result<GatewayWebhookNotification>> CapturePayPalOrderAsync(
+        string paypalOrderId,
+        CancellationToken ct = default);
+
+    bool IsWebhookAmountValid(
         PaymentMethod method,
-        string gatewayTransactionId,
-        decimal amount,
-        string reason,
+        decimal expectedPaymentAmount,
+        string expectedCurrency,
+        decimal webhookAmount,
+        string webhookCurrency);
+
+    Task<Result<GatewayRefundResult>> RefundAsync(
+        GatewayRefundRequest request,
         CancellationToken ct = default);
 }

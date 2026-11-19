@@ -11,6 +11,7 @@ using CarRental.Modules.Payments.Data;
 using CarRental.Modules.Payments.Data.Repositories;
 using CarRental.Modules.Payments.Entities;
 using CarRental.Modules.Payments.Errors;
+using Microsoft.AspNetCore.Http;
 
 namespace CarRental.Modules.Payments.Services;
 
@@ -22,6 +23,7 @@ public sealed class PaymentsApiService : IPaymentsApi
     private readonly IPaymentGateway _gateway;
     private readonly IEventOutbox _outbox;
     private readonly TimeProvider _clock;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
 
     public PaymentsApiService(
         PaymentsDbContext dbContext,
@@ -29,7 +31,8 @@ public sealed class PaymentsApiService : IPaymentsApi
         IBookingApi bookingApi,
         IPaymentGateway gateway,
         IEventOutbox outbox,
-        TimeProvider clock)
+        TimeProvider clock,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
         _dbContext = dbContext;
         _repository = repository;
@@ -37,6 +40,7 @@ public sealed class PaymentsApiService : IPaymentsApi
         _gateway = gateway;
         _outbox = outbox;
         _clock = clock;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<Result<PaymentCheckoutDto>> CreateCheckoutAsync(
@@ -70,22 +74,31 @@ public sealed class PaymentsApiService : IPaymentsApi
             return paymentResult.Error;
 
         var payment = paymentResult.Value;
-        var (paymentUrl, qrCodeUrl, expiresAt) = _gateway.CreateCheckoutSession(
-            payment.Id.Value,
-            payment.BookingId,
-            payment.Amount.Amount,
-            payment.Method,
-            returnUrl.Trim(),
-            now);
+        var clientIp = ExtractClientIp(_httpContextAccessor?.HttpContext);
 
+        var sessionResult = await _gateway.CreateCheckoutSessionAsync(
+            new GatewayCheckoutRequest(
+                payment.Id.Value,
+                payment.BookingId,
+                payment.Amount.Amount,
+                payment.Amount.Currency,
+                payment.Method,
+                returnUrl.Trim(),
+                now,
+                clientIp),
+            ct);
+        if (sessionResult.IsFailure)
+            return sessionResult.Error;
+
+        var session = sessionResult.Value;
         return new PaymentCheckoutDto(
             payment.Id.Value,
             payment.BookingId,
             payment.Amount.Amount,
             payment.Method,
-            paymentUrl,
-            qrCodeUrl,
-            expiresAt);
+            session.PaymentUrl,
+            session.QrCodeUrl,
+            session.ExpiresAt);
     }
 
     public async Task<Result<PaymentCheckoutDto>> InitiateCheckoutAsync(
@@ -193,6 +206,98 @@ public sealed class PaymentsApiService : IPaymentsApi
             : await HandleWebhookFailureAsync(payment, transactionId, request.ResponseCode, payloadJson, now, ct);
     }
 
+    public async Task<Result<PaymentWebhookResponseDto>> HandleGatewayWebhookAsync(
+        GatewayWebhookRequest request,
+        CancellationToken ct = default)
+    {
+        if (request is null)
+            return PaymentsErrors.WebhookPayloadInvalid("Webhook request is required.");
+
+        var parseResult = await _gateway.ParseAndVerifyWebhookAsync(
+            new GatewayRawWebhook(
+                request.Method,
+                request.RawBody,
+                request.Headers,
+                request.QueryParameters),
+            ct);
+
+        if (parseResult.IsFailure)
+            return parseResult.Error;
+
+        var notification = parseResult.Value;
+        if (notification.IsIgnored)
+            return new PaymentWebhookResponseDto(true, notification.IgnoredReason ?? "Webhook event ignored.");
+
+        if (!string.IsNullOrWhiteSpace(notification.OrderIdToCapture))
+        {
+            var captureResult = await _gateway.CapturePayPalOrderAsync(notification.OrderIdToCapture, ct);
+            if (captureResult.IsFailure)
+                return captureResult.Error;
+
+            notification = captureResult.Value;
+        }
+
+        return await ProcessGatewayNotificationAsync(notification, ct);
+    }
+
+    public async Task<Result<PaymentDetailDto>> CapturePayPalOrderAsync(
+        string paypalOrderId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(paypalOrderId))
+            return PaymentsErrors.InvalidPayPalOrderId;
+
+        var captureResult = await _gateway.CapturePayPalOrderAsync(paypalOrderId.Trim(), ct);
+        if (captureResult.IsFailure)
+            return captureResult.Error;
+
+        var notification = captureResult.Value;
+        if (string.IsNullOrWhiteSpace(notification.TransactionId))
+            return PaymentsErrors.InvalidTransactionId;
+
+        if (!Guid.TryParse(notification.OrderId, out var orderGuid) || orderGuid == Guid.Empty)
+            return PaymentsErrors.WebhookInvalidOrder;
+
+        var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
+                      ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
+
+        if (payment is null)
+            return PaymentsErrors.PaymentNotFound;
+
+        var authResult = await EnsureParticipantOrAdminAsync(payment.BookingId, actorId, isAdmin, ct);
+        if (authResult.IsFailure)
+            return authResult.Error;
+
+        var transactionId = notification.TransactionId.Trim();
+        if (await _repository.HasWebhookBeenProcessedAsync(transactionId, ct)
+            || payment.Status == PaymentStatus.Success)
+        {
+            return MapPaymentDetail(payment);
+        }
+
+        if (!_gateway.IsWebhookAmountValid(
+                payment.Method,
+                payment.Amount.Amount,
+                payment.Amount.Currency,
+                notification.Amount,
+                notification.Currency))
+        {
+            return PaymentsErrors.AmountMismatch;
+        }
+
+        var now = _clock.GetUtcNow();
+        var processResult = notification.IsSuccess
+            ? await HandleWebhookSuccessAsync(payment, transactionId, notification.RawPayloadJson, now, ct)
+            : await HandleWebhookFailureAsync(payment, transactionId, notification.ResponseCode, notification.RawPayloadJson, now, ct);
+
+        if (processResult.IsFailure)
+            return processResult.Error;
+
+        return MapPaymentDetail(payment);
+    }
+
     public async Task<Result<PaymentRefundDto>> RefundPaymentAsync(
         Guid paymentId,
         Guid actorId,
@@ -220,11 +325,15 @@ public sealed class PaymentsApiService : IPaymentsApi
             return validation.Error;
 
         var gatewayResult = await _gateway.RefundAsync(
-            payment.Id.Value,
-            payment.Method,
-            payment.GatewayTransactionId!,
-            refundMoneyResult.Value.Amount,
-            trimmedReason,
+            new GatewayRefundRequest(
+                payment.Id.Value,
+                payment.Method,
+                payment.GatewayTransactionId!,
+                refundMoneyResult.Value.Amount,
+                payment.Amount.Amount,
+                payment.Amount.Currency,
+                trimmedReason,
+                payment.CompletedAt),
             ct);
 
         if (gatewayResult.IsFailure)
@@ -375,6 +484,42 @@ public sealed class PaymentsApiService : IPaymentsApi
             deposit.IsFrozen,
             deposit.ReleaseAfter,
             deposit.SettledAt);
+    }
+
+    private async Task<Result<PaymentWebhookResponseDto>> ProcessGatewayNotificationAsync(
+        GatewayWebhookNotification notification,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(notification.TransactionId))
+            return PaymentsErrors.InvalidTransactionId;
+
+        var transactionId = notification.TransactionId.Trim();
+        if (await _repository.HasWebhookBeenProcessedAsync(transactionId, ct))
+            return new PaymentWebhookResponseDto(true, "Webhook already processed.");
+
+        if (!Guid.TryParse(notification.OrderId, out var orderGuid) || orderGuid == Guid.Empty)
+            return PaymentsErrors.WebhookInvalidOrder;
+
+        var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
+                      ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
+
+        if (payment is null)
+            return PaymentsErrors.PaymentNotFound;
+
+        if (!_gateway.IsWebhookAmountValid(
+                payment.Method,
+                payment.Amount.Amount,
+                payment.Amount.Currency,
+                notification.Amount,
+                notification.Currency))
+        {
+            return PaymentsErrors.AmountMismatch;
+        }
+
+        var now = _clock.GetUtcNow();
+        return notification.IsSuccess
+            ? await HandleWebhookSuccessAsync(payment, transactionId, notification.RawPayloadJson, now, ct)
+            : await HandleWebhookFailureAsync(payment, transactionId, notification.ResponseCode, notification.RawPayloadJson, now, ct);
     }
 
     private async Task<Result<Payment>> GetOrCreatePendingPaymentAsync(
@@ -537,6 +682,20 @@ public sealed class PaymentsApiService : IPaymentsApi
         return detailsResult.Value.OwnerId == actorId
             ? Result.Success()
             : PaymentsErrors.NotOwner;
+    }
+
+    private static string? ExtractClientIp(HttpContext? httpContext)
+    {
+        if (httpContext is null)
+            return null;
+
+        if (httpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor)
+            && !string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            return forwardedFor.ToString();
+        }
+
+        return httpContext.Connection.RemoteIpAddress?.ToString();
     }
 
     private static Result<Money> ToMoneyResult(

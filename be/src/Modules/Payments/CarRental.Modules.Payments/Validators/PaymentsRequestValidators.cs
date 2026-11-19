@@ -63,3 +63,14 @@ public sealed class DeductDepositRequestValidator : AbstractValidator<DeductDepo
             .WithMessage(PaymentsErrors.InvalidDeductAmount.Message);
     }
 }
+
+public sealed class CapturePayPalOrderRequestValidator : AbstractValidator<CapturePayPalOrderRequest>
+{
+    public CapturePayPalOrderRequestValidator()
+    {
+        RuleFor(x => x.OrderId)
+            .Must(id => !string.IsNullOrWhiteSpace(id))
+            .WithErrorCode(PaymentsErrors.InvalidPayPalOrderId.Code)
+            .WithMessage(PaymentsErrors.InvalidPayPalOrderId.Message);
+    }
+}

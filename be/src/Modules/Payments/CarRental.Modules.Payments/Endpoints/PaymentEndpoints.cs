@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using System.Text;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Payments.Contracts;
 using CarRental.Modules.Payments.Contracts.Dtos;
+using CarRental.Modules.Payments.Contracts.Enums;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -76,6 +78,103 @@ public static class PaymentEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
 
+        group.MapGet("/webhooks/vnpay", async (
+            HttpRequest httpRequest,
+            IPaymentsApi api,
+            CancellationToken ct) =>
+        {
+            var headers = ExtractHeaders(httpRequest);
+            var query = ExtractQuery(httpRequest);
+            var result = await api.HandleGatewayWebhookAsync(
+                new GatewayWebhookRequest(PaymentMethod.VNPay, string.Empty, headers, query),
+                ct);
+
+            if (result.IsSuccess)
+            {
+                return string.Equals(result.Value.Message, "Webhook already processed.", StringComparison.Ordinal)
+                    ? Results.Ok(new VnPayIpnResponseDto("02", "Order already confirmed"))
+                    : Results.Ok(new VnPayIpnResponseDto("00", "Confirm Success"));
+            }
+
+            var (rspCode, message) = result.Error.Code switch
+            {
+                "payment.invalid_signature" => ("97", "Invalid signature"),
+                "payment.amount_mismatch" => ("04", "Invalid amount"),
+                "payment.not_found" or "payment.invalid_order_id" => ("01", "Order not found"),
+                "payment.invalid_state" => ("02", "Order already confirmed"),
+                _ => ("99", result.Error.Message)
+            };
+
+            return Results.Ok(new VnPayIpnResponseDto(rspCode, message));
+        })
+        .WithName("HandleVnPayIpn")
+        .AllowAnonymous()
+        .WithSummary("VNPay IPN callback")
+        .WithDescription("Receives VNPay Instant Payment Notification (GET query string signed with HMAC-SHA512) and returns official VNPay RspCode JSON.")
+        .Produces<VnPayIpnResponseDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/webhooks/stripe", (
+            HttpRequest httpRequest,
+            IPaymentsApi api,
+            CancellationToken ct) =>
+            HandleRawBodyWebhookAsync(httpRequest, PaymentMethod.Stripe, api, ct))
+        .WithName("HandleStripeWebhook")
+        .AllowAnonymous()
+        .WithSummary("Stripe Webhook callback")
+        .WithDescription("Receives Stripe webhook events verified via Stripe-Signature HMAC-SHA256 against the raw request body.")
+        .Produces<PaymentWebhookResponseDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/webhooks/paypal", (
+            HttpRequest httpRequest,
+            IPaymentsApi api,
+            CancellationToken ct) =>
+            HandleRawBodyWebhookAsync(httpRequest, PaymentMethod.Paypal, api, ct))
+        .WithName("HandlePayPalWebhook")
+        .AllowAnonymous()
+        .WithSummary("PayPal Webhook callback")
+        .WithDescription("Receives PayPal webhook events verified via PayPal Verify Webhook Signature API.")
+        .Produces<PaymentWebhookResponseDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/webhooks/transfer", (
+            HttpRequest httpRequest,
+            IPaymentsApi api,
+            CancellationToken ct) =>
+            HandleRawBodyWebhookAsync(httpRequest, PaymentMethod.Transfer, api, ct))
+        .WithName("HandleBankTransferWebhook")
+        .AllowAnonymous()
+        .WithSummary("Bank Transfer / VietQR Webhook callback")
+        .WithDescription("Receives inbound bank transfer notifications (SePay/Casso/VietQR) verified via API key or HMAC-SHA256 signature.")
+        .Produces<PaymentWebhookResponseDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/paypal/capture", async (
+            CapturePayPalOrderRequest request,
+            ClaimsPrincipal principal,
+            IPaymentsApi api,
+            CancellationToken ct) =>
+            (await api.CapturePayPalOrderAsync(request.OrderId, GetUserId(principal), principal.IsInRole("Admin"), ct)).ToHttpResult())
+        .WithValidation<CapturePayPalOrderRequest>()
+        .WithName("CapturePayPalOrder")
+        .RequireAuthorization("AuthenticatedUser")
+        .WithSummary("Xác nhận & capture đơn PayPal sau khi người dùng duyệt thanh toán")
+        .WithDescription("Captures an approved PayPal order after customer redirect and finalizes payment and booking status.")
+        .Produces<PaymentDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
         group.MapPost("/{id:guid}/refund", async (
             Guid id,
             RefundPaymentRequest request,
@@ -146,6 +245,44 @@ public static class PaymentEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
+    }
+
+    private static async Task<IResult> HandleRawBodyWebhookAsync(
+        HttpRequest httpRequest,
+        PaymentMethod method,
+        IPaymentsApi api,
+        CancellationToken ct)
+    {
+        using var reader = new StreamReader(httpRequest.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync(ct);
+        var headers = ExtractHeaders(httpRequest);
+        var query = ExtractQuery(httpRequest);
+
+        return (await api.HandleGatewayWebhookAsync(
+            new GatewayWebhookRequest(method, rawBody, headers, query),
+            ct)).ToHttpResult();
+    }
+
+    private static Dictionary<string, string> ExtractHeaders(HttpRequest request)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in request.Headers)
+        {
+            headers[header.Key] = string.Join(",", header.Value.ToArray());
+        }
+
+        return headers;
+    }
+
+    private static Dictionary<string, string> ExtractQuery(HttpRequest request)
+    {
+        var query = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in request.Query)
+        {
+            query[pair.Key] = pair.Value.ToString();
+        }
+
+        return query;
     }
 
     private static Guid GetUserId(ClaimsPrincipal principal)

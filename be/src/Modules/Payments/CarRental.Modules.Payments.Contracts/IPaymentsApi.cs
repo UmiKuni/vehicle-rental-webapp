@@ -44,6 +44,16 @@ public interface IPaymentsApi
         PaymentWebhookRequest request,
         CancellationToken ct = default);
 
+    Task<Result<PaymentWebhookResponseDto>> HandleGatewayWebhookAsync(
+        GatewayWebhookRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentDetailDto>> CapturePayPalOrderAsync(
+        string paypalOrderId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default);
+
     Task<Result<PaymentRefundDto>> RefundPaymentAsync(
         Guid paymentId,
         Guid actorId,

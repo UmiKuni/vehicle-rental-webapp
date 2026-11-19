@@ -64,4 +64,19 @@ internal static class PaymentsErrors
     public static Error AmountMismatch => Error.Validation("payment.amount_mismatch", "Webhook payment amount does not match the pending payment amount.");
 
     public static Error GatewayFailure => Error.Failure("payment.gateway_failure", "Payment gateway rejected the checkout request.");
+
+    public static Error GatewayNotConfigured(string provider) =>
+        Error.Failure("payment.gateway_not_configured", $"Payment gateway '{provider}' is not configured.");
+
+    public static Error GatewayRequestFailed(string provider, string detail) =>
+        Error.Failure("payment.gateway_request_failed", $"Payment gateway '{provider}' request failed: {detail}");
+
+    public static Error WebhookPayloadInvalid(string detail) =>
+        Error.Validation("payment.webhook_payload_invalid", detail);
+
+    public static Error PayPalCaptureFailed(string detail) =>
+        Error.Failure("payment.paypal_capture_failed", $"PayPal order capture failed: {detail}");
+
+    public static Error InvalidPayPalOrderId =>
+        Error.Validation("payment.invalid_paypal_order_id", "PayPal order ID is required.");
 }

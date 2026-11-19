@@ -1,3 +1,5 @@
+using CarRental.Modules.Payments.Contracts.Enums;
+
 namespace CarRental.Modules.Payments.Contracts.Dtos;
 
 public sealed record InitiatePaymentRequest(
@@ -71,3 +73,13 @@ public sealed record DepositActionDto(
     decimal DeductedAmount,
     decimal RefundedAmount,
     DateTimeOffset Timestamp);
+
+public sealed record CapturePayPalOrderRequest(string OrderId);
+
+public sealed record VnPayIpnResponseDto(string RspCode, string Message);
+
+public sealed record GatewayWebhookRequest(
+    PaymentMethod Method,
+    string RawBody,
+    IReadOnlyDictionary<string, string> Headers,
+    IReadOnlyDictionary<string, string> QueryParameters);

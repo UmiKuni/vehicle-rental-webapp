@@ -11,19 +11,30 @@ public interface IPaymentGatewayProvider
 {
     PaymentMethod Method { get; }
 
-    (string PaymentUrl, string QrCodeUrl, DateTimeOffset ExpiresAt) CreateCheckoutSession(
-        Guid paymentId,
-        Guid bookingId,
-        decimal amount,
-        string returnUrl,
-        DateTimeOffset now);
+    Task<Result<GatewayCheckoutResult>> CreateCheckoutSessionAsync(
+        GatewayCheckoutRequest request,
+        CancellationToken ct = default);
 
     bool VerifyWebhookSignature(PaymentWebhookRequest request);
 
+    Task<Result<GatewayWebhookNotification>> ParseAndVerifyWebhookAsync(
+        GatewayRawWebhook webhook,
+        CancellationToken ct = default);
+
+    bool IsWebhookAmountValid(
+        decimal expectedPaymentAmount,
+        string expectedCurrency,
+        decimal webhookAmount,
+        string webhookCurrency);
+
     Task<Result<GatewayRefundResult>> RefundAsync(
-        Guid paymentId,
-        string gatewayTransactionId,
-        decimal amount,
-        string reason,
+        GatewayRefundRequest request,
+        CancellationToken ct = default);
+}
+
+public interface IPayPalOrderCaptureProvider
+{
+    Task<Result<GatewayWebhookNotification>> CaptureOrderAsync(
+        string paypalOrderId,
         CancellationToken ct = default);
 }
