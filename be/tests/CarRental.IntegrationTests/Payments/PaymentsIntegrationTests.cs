@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
@@ -19,6 +22,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Wolverine;
@@ -28,6 +32,11 @@ namespace CarRental.IntegrationTests.Payments;
 
 public class PaymentsIntegrationTests : IntegrationTestBase
 {
+    private const string VnPayTmnCode = "TESTTMN";
+    private const string VnPayHashSecret = "vnpay-test-hash-secret-value-123456";
+    private const string StripeWebhookSecret = "whsec_test_secret_123456";
+    private const string TransferWebhookSecret = "transfer-test-webhook-secret-123";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -46,6 +55,24 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         _stubBookingApi.Reset();
         _paymentsFactory ??= Factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Payments:UseMockGateway"] = "false",
+                    ["Payments:VNPay:TmnCode"] = VnPayTmnCode,
+                    ["Payments:VNPay:HashSecret"] = VnPayHashSecret,
+                    ["Payments:VNPay:BaseUrl"] = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                    ["Payments:Stripe:SecretKey"] = "sk_test_dummy_key_for_integration",
+                    ["Payments:Stripe:WebhookSecret"] = StripeWebhookSecret,
+                    ["Payments:Stripe:Currency"] = "vnd",
+                    ["Payments:Transfer:BankCode"] = "VCB",
+                    ["Payments:Transfer:AccountNumber"] = "0123456789",
+                    ["Payments:Transfer:AccountName"] = "CAR RENTAL TEST",
+                    ["Payments:Transfer:WebhookSecret"] = TransferWebhookSecret
+                });
+            });
+
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IBookingApi>();
@@ -98,7 +125,7 @@ public class PaymentsIntegrationTests : IntegrationTestBase
             1_700_000m,
             5_000_000m));
 
-        // 1. Initiate checkout
+        // 1. Initiate real VNPay checkout
         var checkoutResponse = await customerClient.PostAsJsonAsync(
             "/api/payments/checkout",
             new InitiatePaymentRequest(bookingId, "VNPay", "https://localhost:5173/payment/result"));
@@ -110,8 +137,12 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         checkout.Amount.Should().Be(6_700_000m);
         checkout.Method.Should().Be(PaymentMethod.VNPay);
         checkout.PaymentUrl.Should().Contain("vnpayment.vn");
+        checkout.PaymentUrl.Should().Contain($"vnp_TmnCode={VnPayTmnCode}");
+        checkout.PaymentUrl.Should().Contain("vnp_Amount=670000000");
+        checkout.PaymentUrl.Should().Contain($"vnp_TxnRef={checkout.PaymentId:N}");
+        checkout.PaymentUrl.Should().Contain("vnp_SecureHash=");
 
-        // 2. Invalid webhook signature returns 401 Unauthorized
+        // 2. Invalid webhook signatures are rejected
         var badSigResponse = await anonymousClient.PostAsJsonAsync(
             "/api/payments/webhook",
             new PaymentWebhookRequest(
@@ -122,35 +153,31 @@ public class PaymentsIntegrationTests : IntegrationTestBase
                 "INVALID"));
         badSigResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
-        // 3. Valid webhook IPN succeeds, marks booking paid, holds deposit, writes inbox
-        var webhookResponse = await anonymousClient.PostAsJsonAsync(
-            "/api/payments/webhook",
-            new PaymentWebhookRequest(
-                "VNP-TXN-001",
-                checkout.PaymentId.ToString(),
-                6_700_000m,
-                "00",
-                "valid-mock-signature"));
+        var badIpnResponse = await anonymousClient.GetAsync(
+            $"/api/payments/webhooks/vnpay?vnp_TmnCode={VnPayTmnCode}&vnp_Amount=670000000&vnp_TxnRef={checkout.PaymentId:N}&vnp_ResponseCode=00&vnp_TransactionStatus=00&vnp_TransactionNo=VNP-TXN-001&vnp_SecureHash=badhash");
+        badIpnResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var badIpnDto = await badIpnResponse.Content.ReadFromJsonAsync<VnPayIpnResponseDto>();
+        badIpnDto!.RspCode.Should().Be("97");
+
+        // 3. Valid HMAC-SHA512 signed VNPay IPN succeeds, marks booking paid, holds deposit, writes inbox
+        var ipnQuery = BuildSignedVnPayIpnQuery(
+            checkout.PaymentId,
+            6_700_000m,
+            "VNP-TXN-001",
+            "00");
+        var webhookResponse = await anonymousClient.GetAsync($"/api/payments/webhooks/vnpay?{ipnQuery}");
 
         webhookResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var webhookDto = await webhookResponse.Content.ReadFromJsonAsync<PaymentWebhookResponseDto>();
-        webhookDto!.Success.Should().BeTrue();
+        var webhookDto = await webhookResponse.Content.ReadFromJsonAsync<VnPayIpnResponseDto>();
+        webhookDto!.RspCode.Should().Be("00");
         _stubBookingApi.MarkPaidCallCount(bookingId).Should().Be(1);
 
-        // 4. Duplicate webhook with same TransactionId is idempotent
-        var duplicateResponse = await anonymousClient.PostAsJsonAsync(
-            "/api/payments/webhook",
-            new PaymentWebhookRequest(
-                "VNP-TXN-001",
-                checkout.PaymentId.ToString(),
-                6_700_000m,
-                "00",
-                "valid-mock-signature"));
+        // 4. Duplicate VNPay IPN with same TransactionId is idempotent (RspCode 02)
+        var duplicateResponse = await anonymousClient.GetAsync($"/api/payments/webhooks/vnpay?{ipnQuery}");
 
         duplicateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var duplicateDto = await duplicateResponse.Content.ReadFromJsonAsync<PaymentWebhookResponseDto>();
-        duplicateDto!.Success.Should().BeTrue();
-        duplicateDto.Message.Should().Be("Webhook already processed.");
+        var duplicateDto = await duplicateResponse.Content.ReadFromJsonAsync<VnPayIpnResponseDto>();
+        duplicateDto!.RspCode.Should().Be("02");
         _stubBookingApi.MarkPaidCallCount(bookingId).Should().Be(1);
 
         // 5. Verify persisted PostgreSQL state
@@ -182,6 +209,152 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         summary!.MainPayment.Should().NotBeNull();
         summary.Deposit.Should().NotBeNull();
         summary.Deposit!.Status.Should().Be("Held");
+    }
+
+    [Fact]
+    public async Task BankTransferCheckout_And_Webhook_ShouldPersistAndEnforceSignature()
+    {
+        var (customerAuthClient, customerId) = await CreateAuthenticatedCustomerClientAsync(
+            "cust_trf@example.com",
+            "0901110005");
+        var (_, ownerId) = await CreateAuthenticatedOwnerClientAsync(
+            "owner_trf@example.com",
+            "0901110006",
+            taxCode: "0102030903");
+
+        var customerClient = CreatePaymentsClient(customerAuthClient);
+        var anonymousClient = _paymentsFactory!.CreateClient();
+
+        var bookingId = Guid.NewGuid();
+        _stubBookingApi.SeedBooking(new BookingRentalDetailsDto(
+            bookingId,
+            customerId,
+            ownerId,
+            Guid.NewGuid(),
+            "Confirmed",
+            DateTimeOffset.UtcNow.AddDays(1),
+            DateTimeOffset.UtcNow.AddDays(3),
+            1_200_000m,
+            3_000_000m));
+
+        var checkoutResponse = await customerClient.PostAsJsonAsync(
+            "/api/payments/checkout",
+            new InitiatePaymentRequest(bookingId, "Transfer", "https://localhost:5173/payment/result"));
+
+        checkoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var checkout = await checkoutResponse.Content.ReadFromJsonAsync<PaymentCheckoutDto>(JsonOptions);
+        checkout!.PaymentUrl.Should().Contain("https://img.vietqr.io/image/VCB-0123456789-compact2.png");
+        checkout.PaymentUrl.Should().Contain("amount=4200000");
+        checkout.PaymentUrl.Should().Contain($"addInfo=CARRENTAL%20{checkout.PaymentId:N}");
+
+        var payloadJson = $$"""{"id":55001,"referenceCode":"FT263230099","transferType":"in","transferAmount":4200000,"content":"CARRENTAL {{checkout.PaymentId:N}}"}""";
+
+        // Wrong API key rejected with 401
+        using var badRequest = new HttpRequestMessage(HttpMethod.Post, "/api/payments/webhooks/transfer");
+        badRequest.Headers.Authorization = new AuthenticationHeaderValue("Apikey", "wrong-secret");
+        badRequest.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
+        var badResponse = await anonymousClient.SendAsync(badRequest);
+        badResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        // Valid API key accepted
+        using var validRequest = new HttpRequestMessage(HttpMethod.Post, "/api/payments/webhooks/transfer");
+        validRequest.Headers.Authorization = new AuthenticationHeaderValue("Apikey", TransferWebhookSecret);
+        validRequest.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
+        var okResponse = await anonymousClient.SendAsync(validRequest);
+        okResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        _stubBookingApi.MarkPaidCallCount(bookingId).Should().Be(1);
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var payment = await db.Payments.AsNoTracking().SingleAsync(p => p.Id == PaymentId.From(checkout.PaymentId));
+        payment.Status.Should().Be(PaymentStatus.Success);
+        payment.GatewayTransactionId.Should().Be("FT263230099");
+    }
+
+    [Fact]
+    public async Task StripeWebhook_ShouldVerifyHmacSha256AndMarkPaymentPaid()
+    {
+        var (customerAuthClient, customerId) = await CreateAuthenticatedCustomerClientAsync(
+            "cust_stripe@example.com",
+            "0901110007");
+        var (_, ownerId) = await CreateAuthenticatedOwnerClientAsync(
+            "owner_stripe@example.com",
+            "0901110008",
+            taxCode: "0102030904");
+        _ = customerAuthClient;
+
+        var anonymousClient = _paymentsFactory!.CreateClient();
+        var bookingId = Guid.NewGuid();
+        _stubBookingApi.SeedBooking(new BookingRentalDetailsDto(
+            bookingId,
+            customerId,
+            ownerId,
+            Guid.NewGuid(),
+            "Confirmed",
+            DateTimeOffset.UtcNow.AddDays(1),
+            DateTimeOffset.UtcNow.AddDays(2),
+            1_000_000m,
+            2_000_000m));
+
+        var pendingPayment = Payment.CreatePending(bookingId, Money.Of(3_000_000), Money.Of(2_000_000), DateTimeOffset.UtcNow).Value;
+        pendingPayment.SetPaymentMethod(PaymentMethod.Stripe);
+
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            db.Payments.Add(pendingPayment);
+            await db.SaveChangesAsync();
+        }
+
+        var stripePayload = $$"""
+            {
+              "id": "evt_test_001",
+              "type": "checkout.session.completed",
+              "data": {
+                "object": {
+                  "id": "cs_test_001",
+                  "payment_intent": "pi_test_123456",
+                  "payment_status": "paid",
+                  "amount_total": 3000000,
+                  "currency": "vnd",
+                  "metadata": {
+                    "payment_id": "{{pendingPayment.Id.Value}}"
+                  }
+                }
+              }
+            }
+            """;
+
+        // Invalid signature rejected with 401
+        using var badRequest = new HttpRequestMessage(HttpMethod.Post, "/api/payments/webhooks/stripe");
+        badRequest.Headers.TryAddWithoutValidation("Stripe-Signature", $"t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()},v1=invalid");
+        badRequest.Content = new StringContent(stripePayload, Encoding.UTF8, "application/json");
+        var badResponse = await anonymousClient.SendAsync(badRequest);
+        badResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        // Valid Stripe-Signature accepted
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var signedPayload = $"{timestamp.ToString(CultureInfo.InvariantCulture)}.{stripePayload}";
+        var sig = Convert.ToHexStringLower(
+            HMACSHA256.HashData(Encoding.UTF8.GetBytes(StripeWebhookSecret), Encoding.UTF8.GetBytes(signedPayload)));
+
+        using var validRequest = new HttpRequestMessage(HttpMethod.Post, "/api/payments/webhooks/stripe");
+        validRequest.Headers.TryAddWithoutValidation("Stripe-Signature", $"t={timestamp.ToString(CultureInfo.InvariantCulture)},v1={sig}");
+        validRequest.Content = new StringContent(stripePayload, Encoding.UTF8, "application/json");
+        var okResponse = await anonymousClient.SendAsync(validRequest);
+        okResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        _stubBookingApi.MarkPaidCallCount(bookingId).Should().Be(1);
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            var saved = await db.Payments.AsNoTracking().SingleAsync(p => p.Id == pendingPayment.Id);
+            saved.Status.Should().Be(PaymentStatus.Success);
+            saved.GatewayTransactionId.Should().Be("pi_test_123456");
+
+            var deposit = await db.Deposits.AsNoTracking().SingleAsync(d => d.BookingId == bookingId);
+            deposit.Status.Should().Be(DepositStatus.Held);
+        }
     }
 
     [Fact]
@@ -310,6 +483,33 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         }
 
         updated.Should().BeTrue();
+    }
+
+    private static string BuildSignedVnPayIpnQuery(
+        Guid paymentId,
+        decimal amountVnd,
+        string transactionNo,
+        string responseCode)
+    {
+        var amountMinor = ((long)Math.Round(amountVnd, MidpointRounding.AwayFromZero) * 100)
+            .ToString(CultureInfo.InvariantCulture);
+
+        var sorted = new SortedDictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["vnp_Amount"] = amountMinor,
+            ["vnp_CurrCode"] = "VND",
+            ["vnp_PayDate"] = "20261119170500",
+            ["vnp_ResponseCode"] = responseCode,
+            ["vnp_TmnCode"] = VnPayTmnCode,
+            ["vnp_TransactionNo"] = transactionNo,
+            ["vnp_TransactionStatus"] = responseCode,
+            ["vnp_TxnRef"] = paymentId.ToString("N")
+        };
+
+        var signData = string.Join('&', sorted.Select(kv => $"{WebUtility.UrlEncode(kv.Key)}={WebUtility.UrlEncode(kv.Value)}"));
+        var hash = Convert.ToHexStringLower(
+            HMACSHA512.HashData(Encoding.UTF8.GetBytes(VnPayHashSecret), Encoding.UTF8.GetBytes(signData)));
+        return $"{signData}&vnp_SecureHash={hash}";
     }
 
     private sealed class StubBookingApi : IBookingApi

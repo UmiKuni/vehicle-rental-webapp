@@ -345,6 +345,177 @@ public class PaymentsApiServiceTests
     }
 
     [Fact]
+    public async Task CreateCheckoutAsync_WhenGatewayFails_ShouldReturnGatewayError()
+    {
+        var bookingId = Guid.NewGuid();
+        var harness = CreateHarness(Guid.NewGuid(), Guid.NewGuid(), bookingId, "Confirmed", 2_000_000m, 1_000_000m);
+        harness.GatewayMock.Setup(g => g.CreateCheckoutSessionAsync(
+                It.IsAny<GatewayCheckoutRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure<GatewayCheckoutResult>(
+                Error.Failure("payment.gateway_not_configured", "Payment gateway 'Stripe' is not configured.")));
+
+        var result = await harness.Service.CreateCheckoutAsync(
+            bookingId,
+            3_000_000m,
+            1_000_000m,
+            PaymentMethod.Stripe,
+            "https://app.test/return");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("payment.gateway_not_configured");
+    }
+
+    [Fact]
+    public async Task HandleGatewayWebhookAsync_ShouldHandleIgnoredCaptureAndIdempotency()
+    {
+        var customerId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var bookingId = Guid.NewGuid();
+        var harness = CreateHarness(customerId, ownerId, bookingId, "Confirmed", 2_000_000m, 3_000_000m);
+
+        var checkout = await harness.Service.CreateCheckoutAsync(
+            bookingId,
+            5_000_000m,
+            3_000_000m,
+            PaymentMethod.Paypal,
+            "https://app.test/return");
+        checkout.IsSuccess.Should().BeTrue();
+
+        harness.GatewayMock.Setup(g => g.ParseAndVerifyWebhookAsync(
+                It.Is<GatewayRawWebhook>(w => w.RawBody == "ignored-event"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new GatewayWebhookNotification(
+                PaymentMethod.Paypal,
+                string.Empty,
+                string.Empty,
+                0m,
+                string.Empty,
+                false,
+                "PAYMENT.SALE.PENDING",
+                "ignored-event",
+                IsIgnored: true,
+                IgnoredReason: "Ignored PayPal webhook event.")));
+
+        var ignored = await harness.Service.HandleGatewayWebhookAsync(
+            new GatewayWebhookRequest(
+                PaymentMethod.Paypal,
+                "ignored-event",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()));
+        ignored.IsSuccess.Should().BeTrue();
+        ignored.Value.Message.Should().Be("Ignored PayPal webhook event.");
+
+        harness.GatewayMock.Setup(g => g.ParseAndVerifyWebhookAsync(
+                It.Is<GatewayRawWebhook>(w => w.RawBody == "approved-event"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new GatewayWebhookNotification(
+                PaymentMethod.Paypal,
+                "PP-ORDER-1",
+                string.Empty,
+                0m,
+                string.Empty,
+                false,
+                "CHECKOUT.ORDER.APPROVED",
+                "approved-event",
+                OrderIdToCapture: "PP-ORDER-1")));
+
+        harness.GatewayMock.Setup(g => g.CapturePayPalOrderAsync("PP-ORDER-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new GatewayWebhookNotification(
+                PaymentMethod.Paypal,
+                "PP-CAPTURE-1",
+                checkout.Value.PaymentId.ToString(),
+                200m,
+                "USD",
+                true,
+                "00",
+                """{"id":"PP-CAPTURE-1"}""")));
+
+        harness.GatewayMock.Setup(g => g.IsWebhookAmountValid(
+                PaymentMethod.Paypal,
+                5_000_000m,
+                "VND",
+                200m,
+                "USD"))
+            .Returns(true);
+
+        var captured = await harness.Service.HandleGatewayWebhookAsync(
+            new GatewayWebhookRequest(
+                PaymentMethod.Paypal,
+                "approved-event",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()));
+        captured.IsSuccess.Should().BeTrue();
+        captured.Value.Message.Should().Be("Payment processed successfully.");
+
+        var payment = harness.Payments.Single();
+        payment.Status.Should().Be(PaymentStatus.Success);
+        payment.GatewayTransactionId.Should().Be("PP-CAPTURE-1");
+
+        // Re-running with same capture ID is idempotent
+        var duplicate = await harness.Service.HandleGatewayWebhookAsync(
+            new GatewayWebhookRequest(
+                PaymentMethod.Paypal,
+                "approved-event",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()));
+        duplicate.IsSuccess.Should().BeTrue();
+        duplicate.Value.Message.Should().Be("Webhook already processed.");
+    }
+
+    [Fact]
+    public async Task CapturePayPalOrderAsync_ShouldEnforceAuthorizationAndCompletePayment()
+    {
+        var customerId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var bookingId = Guid.NewGuid();
+        var harness = CreateHarness(customerId, ownerId, bookingId, "Confirmed", 2_000_000m, 3_000_000m);
+
+        var checkout = await harness.Service.CreateCheckoutAsync(
+            bookingId,
+            5_000_000m,
+            3_000_000m,
+            PaymentMethod.Paypal,
+            "https://app.test/return");
+
+        harness.GatewayMock.Setup(g => g.CapturePayPalOrderAsync("PP-ORD-99", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new GatewayWebhookNotification(
+                PaymentMethod.Paypal,
+                "PP-CAP-99",
+                checkout.Value.PaymentId.ToString(),
+                200m,
+                "USD",
+                true,
+                "00",
+                """{"id":"PP-CAP-99"}""")));
+
+        harness.GatewayMock.Setup(g => g.IsWebhookAmountValid(
+                PaymentMethod.Paypal,
+                5_000_000m,
+                "VND",
+                200m,
+                "USD"))
+            .Returns(true);
+
+        var forbidden = await harness.Service.CapturePayPalOrderAsync("PP-ORD-99", Guid.NewGuid());
+        forbidden.IsFailure.Should().BeTrue();
+        forbidden.Error.Code.Should().Be("payment.not_participant");
+
+        var captured = await harness.Service.CapturePayPalOrderAsync("PP-ORD-99", customerId);
+        captured.IsSuccess.Should().BeTrue();
+        captured.Value.Status.Should().Be("Success");
+        captured.Value.GatewayTransactionId.Should().Be("PP-CAP-99");
+
+        // Second call returns already-succeeded payment idempotently
+        var repeated = await harness.Service.CapturePayPalOrderAsync("PP-ORD-99", customerId);
+        repeated.IsSuccess.Should().BeTrue();
+        repeated.Value.Status.Should().Be("Success");
+        harness.BookingApiMock.Verify(
+            b => b.MarkPaidAsync(bookingId, checkout.Value.PaymentId, Now, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public void RequestValidators_ShouldRejectInvalidInputsWithConformingErrorCodes()
     {
         var checkoutValidator = new InitiatePaymentRequestValidator();
@@ -378,7 +549,8 @@ public class PaymentsApiServiceTests
         List<Deposit> Deposits,
         List<WebhookInbox> WebhookInboxes,
         Mock<IBookingApi> BookingApiMock,
-        Mock<IEventOutbox> OutboxMock) CreateHarness(
+        Mock<IEventOutbox> OutboxMock,
+        Mock<IPaymentGateway> GatewayMock) CreateHarness(
         Guid customerId,
         Guid ownerId,
         Guid bookingId,
@@ -431,28 +603,30 @@ public class PaymentsApiServiceTests
             .ReturnsAsync(Result.Success());
 
         var gatewayMock = new Mock<IPaymentGateway>();
-        gatewayMock.Setup(g => g.CreateCheckoutSession(
-                It.IsAny<Guid>(),
-                It.IsAny<Guid>(),
-                It.IsAny<decimal>(),
-                It.IsAny<PaymentMethod>(),
-                It.IsAny<string>(),
-                It.IsAny<DateTimeOffset>()))
-            .Returns((Guid pId, Guid _, decimal amt, PaymentMethod m, string _, DateTimeOffset n) =>
-                ($"https://sandbox.gateway/{m}/{pId:N}?amount={amt}",
-                 $"https://qr.gateway/{pId:N}",
-                 n.AddMinutes(15)));
+        gatewayMock.Setup(g => g.CreateCheckoutSessionAsync(
+                It.IsAny<GatewayCheckoutRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GatewayCheckoutRequest req, CancellationToken _) =>
+                Result.Success(new GatewayCheckoutResult(
+                    $"https://sandbox.gateway/{req.Method}/{req.PaymentId:N}?amount={req.Amount}",
+                    $"https://qr.gateway/{req.PaymentId:N}",
+                    req.Now.AddMinutes(15),
+                    req.PaymentId.ToString("N"))));
         gatewayMock.Setup(g => g.VerifyWebhookSignature(It.IsAny<PaymentWebhookRequest>()))
             .Returns((PaymentWebhookRequest req) => !string.IsNullOrWhiteSpace(req.Signature) && req.Signature != "INVALID");
-        gatewayMock.Setup(g => g.RefundAsync(
-                It.IsAny<Guid>(),
+        gatewayMock.Setup(g => g.IsWebhookAmountValid(
                 It.IsAny<PaymentMethod>(),
-                It.IsAny<string>(),
                 It.IsAny<decimal>(),
                 It.IsAny<string>(),
+                It.IsAny<decimal>(),
+                It.IsAny<string>()))
+            .Returns((PaymentMethod _, decimal expectedAmt, string expectedCurr, decimal actualAmt, string actualCurr) =>
+                expectedAmt == actualAmt && string.Equals(expectedCurr, actualCurr, StringComparison.OrdinalIgnoreCase));
+        gatewayMock.Setup(g => g.RefundAsync(
+                It.IsAny<GatewayRefundRequest>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid pId, PaymentMethod m, string _, decimal amt, string _, CancellationToken _) =>
-                Result.Success(new GatewayRefundResult($"REF-{m}-{pId:N}", amt, Now)));
+            .ReturnsAsync((GatewayRefundRequest req, CancellationToken _) =>
+                Result.Success(new GatewayRefundResult($"REF-{req.Method}-{req.PaymentId:N}", req.Amount, Now)));
 
         var outboxMock = new Mock<IEventOutbox>();
         outboxMock.Setup(o => o.PublishAsync(It.IsAny<PaymentSucceeded>(), It.IsAny<CancellationToken>()))
@@ -470,6 +644,6 @@ public class PaymentsApiServiceTests
             outboxMock.Object,
             clockMock.Object);
 
-        return (service, payments, deposits, inboxes, bookingApiMock, outboxMock);
+        return (service, payments, deposits, inboxes, bookingApiMock, outboxMock, gatewayMock);
     }
 }
