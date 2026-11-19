@@ -28,7 +28,7 @@ Hệ thống chia tách rõ ràng thành **13 Modules nghiệp vụ độc lập
 | **Pricing** | `pricing` | Bảng giá cơ bản, phụ phí, giảm giá theo thời gian, tính giá dự kiến (Quote) |
 | **Availability** | `availability` | Quản lý lịch xe, chặn ngày bảo dưỡng, kiểm tra xe trống |
 | **Bookings** | `booking` | Đặt xe, xác nhận/hủy đơn đặt xe, trạng thái vòng đời chuyến đi |
-| **Payments** | `payments` | Cổng thanh toán (VNPay, MoMo), tiền cọc (Deposit), hoàn tiền, hóa đơn |
+| **Payments** | `payments` | Cổng thanh toán (VNPay, PayPal, Stripe, Bank Transfer / VietQR), tiền cọc (Deposit), hoàn tiền, webhook IPN |
 | **Handover** | `handover` | Biên bản bàn giao nhận/trả xe, kiểm tra ODO, tình trạng thân vỏ, ảnh check-in/out |
 | **Reviews** | `reviews` | Đánh giá & phản hồi về xe và khách thuê sau chuyến đi |
 | **Support** | `support` | Hỗ trợ sự cố, yêu cầu bồi thường, xử lý tranh chấp khiếu nại |
@@ -75,6 +75,14 @@ cp .env.example .env
 | `REDIS_PORT` | `6379` | Cổng map ra máy chủ host của Redis |
 | `APP_PORT` | `8080` | Cổng truy cập ứng dụng Backend API |
 | `ASPNETCORE_ENVIRONMENT` | `Development` | Môi trường ASP.NET Core (`Development` / `Production`) |
+| `PAYMENTS_USE_MOCK_GATEWAY` | `false` | Bật `true` để dùng `MockPaymentGateway` khi chạy offline không có credentials |
+| `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | _(trống)_ | Thông tin merchant & khóa ký HMAC-SHA512 của VNPay |
+| `VNPAY_BASE_URL`, `VNPAY_API_URL` | VNPay Sandbox | URL thanh toán & URL refund API của VNPay |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` | _(trống)_ | OAuth2 credentials & Webhook ID của PayPal REST API |
+| `PAYPAL_BASE_URL`, `PAYPAL_CURRENCY`, `PAYPAL_EXCHANGE_RATE` | Sandbox / `USD` / `25000` | URL API PayPal, tiền tệ đích và tỷ giá quy đổi từ VND |
+| `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | _(trống)_ | API keys & signing secret (`whsec_...`) của Stripe |
+| `STRIPE_API_BASE_URL`, `STRIPE_CURRENCY` | `https://api.stripe.com` / `vnd` | URL Stripe API & đơn vị tiền tệ thanh toán |
+| `TRANSFER_BANK_CODE`, `TRANSFER_ACCOUNT_NUMBER`, `TRANSFER_ACCOUNT_NAME`, `TRANSFER_WEBHOOK_SECRET` | _(trống)_ | Thông tin tài khoản nhận VietQR & khóa xác thực webhook ngân hàng (SePay/Casso) |
 
 > [!NOTE]
 > Khi `ASPNETCORE_ENVIRONMENT=Development`, ứng dụng sẽ **tự động áp dụng Migrations** cho toàn bộ 13 DbContexts khi khởi động và kích hoạt tài liệu API tương tác **Scalar**.
@@ -164,9 +172,16 @@ Khi container `carrental-api` đã khởi chạy thành công ở chế độ `D
   - `POST /api/bookings/{id}/reject` - Chủ xe từ chối đơn
   - `POST /api/bookings/{id}/cancel` - Người thuê hủy đơn đặt xe
 - **Payments (`/api/payments`)**:
-  - `POST /api/payments/checkout` - Khởi tạo phiên thanh toán (VNPay, MoMo)
-  - `GET /api/payments/deposit-status/{bookingId}` - Kiểm tra trạng thái giữ/hoàn cọc
-  - `POST /api/payments/webhook-mock` - Giả lập callback webhook từ cổng thanh toán
+  - `POST /api/payments/checkout` - Khởi tạo phiên thanh toán (VNPay, PayPal, Stripe, Transfer)
+  - `POST /api/payments/paypal/capture` - Xác nhận & capture đơn PayPal sau khi khách duyệt
+  - `GET /api/payments/{id}` & `GET /api/payments/booking/{bookingId}` - Xem giao dịch & trạng thái giữ/hoàn cọc
+  - `POST /api/payments/{id}/refund` - Hoàn tiền giao dịch (toàn phần hoặc một phần)
+  - `GET /api/payments/webhooks/vnpay` - IPN callback từ VNPay
+  - `POST /api/payments/webhooks/stripe` - Webhook callback từ Stripe
+  - `POST /api/payments/webhooks/paypal` - Webhook callback từ PayPal
+  - `POST /api/payments/webhooks/transfer` - Webhook callback từ chuyển khoản ngân hàng / VietQR
+  - `POST /api/payments/webhook` - Webhook chuẩn hóa dùng chung (HMAC-signed hoặc mock mode)
+  - `POST /api/payments/deposits/{depositId}/release` & `POST /api/payments/deposits/{depositId}/deduct` - Giải tỏa / khấu trừ cọc
 - **Handover (`/api/handover`)**:
   - `POST /api/handover/{bookingId}/check-in` - Ghi nhận nhận xe (ODO, xăng, trầy xước)
   - `POST /api/handover/{bookingId}/check-out` - Ghi nhận trả xe và phụ phí phát sinh
