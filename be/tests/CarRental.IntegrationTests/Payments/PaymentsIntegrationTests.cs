@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.IntegrationTests.Fixtures;
@@ -26,6 +28,11 @@ namespace CarRental.IntegrationTests.Payments;
 
 public class PaymentsIntegrationTests : IntegrationTestBase
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private readonly StubBookingApi _stubBookingApi = new();
     private WebApplicationFactory<Program>? _paymentsFactory;
 
@@ -97,7 +104,7 @@ public class PaymentsIntegrationTests : IntegrationTestBase
             new InitiatePaymentRequest(bookingId, "VNPay", "https://localhost:5173/payment/result"));
 
         checkoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var checkout = await checkoutResponse.Content.ReadFromJsonAsync<PaymentCheckoutDto>();
+        var checkout = await checkoutResponse.Content.ReadFromJsonAsync<PaymentCheckoutDto>(JsonOptions);
         checkout.Should().NotBeNull();
         checkout!.BookingId.Should().Be(bookingId);
         checkout.Amount.Should().Be(6_700_000m);
