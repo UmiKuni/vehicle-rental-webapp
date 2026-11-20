@@ -44,5 +44,9 @@ internal sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<Cale
             .HasColumnName("booking_id");
 
         builder.HasIndex(e => e.BookingId);
+
+        builder.Property(e => e.Reason)
+            .HasMaxLength(500)
+            .HasColumnName("reason");
     }
 }

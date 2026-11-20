@@ -176,7 +176,7 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         var now = _clock.GetUtcNow();
         var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
 
-        var blockResult = calendar.Block(type, range, now);
+        var blockResult = calendar.Block(type, range, now, reason);
         if (blockResult.IsFailure)
             return blockResult.Error;
 
@@ -187,7 +187,7 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
 
         return saveResult.IsFailure
             ? saveResult.Error
-            : ToEntryDto(blockResult.Value, reason);
+            : ToEntryDto(blockResult.Value);
     }
 
     public async Task<Result> UnblockAsync(
@@ -290,7 +290,7 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         return Result.Success();
     }
 
-    private static CalendarEntryDto ToEntryDto(CalendarEntry entry, string? note = null) =>
+    private static CalendarEntryDto ToEntryDto(CalendarEntry entry) =>
         new(
             entry.Id,
             entry.VehicleId,
@@ -299,7 +299,7 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
             entry.TimeRange.End,
             entry.ExpiresAt,
             entry.BookingId,
-            note);
+            entry.Reason);
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };

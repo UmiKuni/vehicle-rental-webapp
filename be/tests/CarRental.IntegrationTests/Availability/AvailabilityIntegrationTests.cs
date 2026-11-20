@@ -89,12 +89,15 @@ public class AvailabilityIntegrationTests : IntegrationTestBase
         checkResult!.IsAvailable.Should().BeFalse();
         checkResult.BusyPeriods.Should().HaveCount(1);
 
-        // 4. Calendar query returns the OwnerBlocked entry
+        // 4. Calendar query returns the OwnerBlocked entry with persisted Note
         var calendarUrl = $"/api/availability/vehicles/{vehicleId}/calendar?from={Uri.EscapeDataString(start.AddDays(-1).ToString("O"))}&to={Uri.EscapeDataString(end.AddDays(1).ToString("O"))}";
         var calendarResponse = await Client.GetAsync(calendarUrl);
         calendarResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var entries = await calendarResponse.Content.ReadFromJsonAsync<IReadOnlyList<CalendarEntryDto>>();
-        entries.Should().ContainSingle(e => e.Id == createdEntry.Id && e.Type == nameof(CalendarEntryType.OwnerBlocked));
+        entries.Should().ContainSingle(e =>
+            e.Id == createdEntry.Id
+            && e.Type == nameof(CalendarEntryType.OwnerBlocked)
+            && e.Note == "Personal trip");
 
         // 5. Unblock deletes the entry
         var unblockResponse = await ownerClient.DeleteAsync($"/api/availability/blocks/{createdEntry.Id}");

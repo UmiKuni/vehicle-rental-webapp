@@ -135,12 +135,15 @@ public class AvailabilityApiServiceTests
         filtered.IsSuccess.Should().BeTrue();
         filtered.Value.Should().HaveCount(1);
         filtered.Value[0].StartTime.Should().Be(Now.AddDays(4));
+        filtered.Value[0].Note.Should().Be("Earlier");
 
         var allActive = await harness.Service.GetCalendarAsync(vehicleId);
         allActive.IsSuccess.Should().BeTrue();
         allActive.Value.Should().HaveCount(2);
         allActive.Value[0].StartTime.Should().Be(Now.AddDays(4));
+        allActive.Value[0].Note.Should().Be("Earlier");
         allActive.Value[1].StartTime.Should().Be(Now.AddDays(10));
+        allActive.Value[1].Note.Should().Be("Later");
     }
 
     [Fact]

@@ -93,7 +93,11 @@ internal class VehicleCalendar : AggregateRoot<Guid>
         return Result.Success();
     }
 
-    public Result<CalendarEntry> Block(CalendarEntryType type, DateTimeRange range, DateTimeOffset now)
+    public Result<CalendarEntry> Block(
+        CalendarEntryType type,
+        DateTimeRange range,
+        DateTimeOffset now,
+        string? reason = null)
     {
         if (type != CalendarEntryType.OwnerBlocked && type != CalendarEntryType.Maintenance)
             return AvailabilityErrors.InvalidBlockType;
@@ -110,7 +114,8 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             type,
             range,
             null,
-            null);
+            null,
+            reason);
 
         _entries.Add(entry);
         LastSyncedAt = now;
