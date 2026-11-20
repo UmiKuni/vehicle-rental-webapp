@@ -17,9 +17,11 @@ using CarRental.Modules.Pricing.Endpoints;
 using CarRental.Modules.Reporting;
 using CarRental.Modules.Reporting.Endpoints;
 using CarRental.Modules.Reviews;
+using CarRental.Modules.Reviews.Endpoints;
 using CarRental.Modules.Search;
 using CarRental.Modules.Search.Endpoints;
 using CarRental.Modules.Support;
+using CarRental.Modules.Support.Endpoints;
 using CarRental.Modules.Users;
 using CarRental.Modules.Users.Endpoints;
 using Scalar.AspNetCore;
@@ -83,7 +85,41 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
-app.UseCors();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (app.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+{
+    app.UseCors();
+}
+else
+{
+    app.UseCors(policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
+}
+
+app.UseExceptionHandler(exceptionApp =>
+{
+    exceptionApp.Run(async context =>
+    {
+        var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("UnhandledException");
+        if (feature?.Error is not null)
+            logger.LogError(feature.Error, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            type = "about:blank",
+            title = "Internal Server Error",
+            status = StatusCodes.Status500InternalServerError,
+            errorCode = "server.unhandled_error"
+        }, context.RequestAborted);
+    });
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -110,6 +146,8 @@ app.MapAvailabilityEndpoints();
 app.MapBookingsEndpoints();
 app.MapPaymentsEndpoints();
 app.MapHandoverEndpoints();
+app.MapReviewsEndpoints();
+app.MapSupportEndpoints();
 app.MapReportingEndpoints();
 
 app.Run();

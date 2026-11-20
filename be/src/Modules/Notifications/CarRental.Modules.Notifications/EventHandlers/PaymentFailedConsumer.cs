@@ -1,26 +1,34 @@
 using CarRental.Modules.Payments.Contracts.Events;
+using CarRental.Modules.Bookings.Contracts;
+using CarRental.Modules.Notifications.Contracts.Enums;
+using CarRental.Modules.Notifications.Services;
 
 namespace CarRental.Modules.Notifications.EventHandlers;
 
 /// <summary>
 /// Wolverine consumer for <see cref="PaymentFailed"/>.
 /// </summary>
-public sealed class PaymentFailedConsumer
+public sealed class PaymentFailedConsumer(
+    NotificationDeliveryService notifications,
+    IBookingApi bookings)
 {
-    /*
-     * WHAT TO DO IN THIS FILE:
-     * ------------------------
-     * Triggered by: PaymentFailed event from Payments when gateway reports a declined/failed charge.
-     * 
-     * Responsibilities:
-     * 1. Target recipient: Customer attempting the payment.
-     * 2. Construct deduplication key: $"payment-failed:{event.EventId}:{event.PaymentId}".
-     * 3. Send Notification alert informing customer of failure reason (event.Reason) and providing a retry link.
-     * 4. Persist delivery record to NotificationsDbContext.
-     */
-    public Task Consume(PaymentFailed @event, CancellationToken cancellationToken = default)
+    public async Task Consume(PaymentFailed @event, CancellationToken cancellationToken = default)
     {
-        return Task.CompletedTask;
+        var booking = await bookings.GetByIdAsync(@event.BookingId, Guid.Empty, true, cancellationToken);
+        if (booking.IsFailure)
+        {
+            if (booking.Error.Code == "booking.not_found")
+                return;
+            throw new InvalidOperationException(booking.Error.Message);
+        }
+
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.Email,
+            $"Payment failed for booking {@event.BookingId}: {@event.Reason}",
+            $"payment-failed:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

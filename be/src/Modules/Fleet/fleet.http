@@ -116,3 +116,125 @@ Authorization: Bearer {{accessToken}}
 ### Show the first seeded vehicle
 POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/show
 Authorization: Bearer {{accessToken}}
+
+###
+
+### Upload an image to the first seeded vehicle
+# @name uploadVehicleImage
+POST {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/images
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----FleetImageBoundary
+
+------FleetImageBoundary
+Content-Disposition: form-data; name="file"; filename="hero.png"
+Content-Type: image/png
+
+< ../../../../fe/src/assets/hero.png
+------FleetImageBoundary--
+
+###
+
+@vehicleImageId = {{uploadVehicleImage.response.body.$.imageId}}
+
+### Delete the uploaded vehicle image
+DELETE {{baseUrl}}/api/fleet/vehicles/{{vehicleId}}/images/{{vehicleImageId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### ============================================================
+### Complete owner flow: login -> create -> submit -> get details
+### ============================================================
+
+@flowPlateNumber = 51K-FLO4-{{$randomInt}}
+
+### 1. Login as the seeded owner
+# @name fleetFlowLogin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedOwnerEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@fleetFlowOwnerId = {{fleetFlowLogin.response.body.$.userId}}
+@fleetFlowAccessToken = {{fleetFlowLogin.response.body.$.accessToken}}
+
+### 2. Create a new fleet vehicle
+# @name fleetFlowCreate
+POST {{baseUrl}}/api/fleet/vehicles
+Content-Type: application/json
+Authorization: Bearer {{fleetFlowAccessToken}}
+
+{
+    "ownerId": "{{fleetFlowOwnerId}}",
+    "plateNumber": "{{flowPlateNumber}}",
+    "brandId": "{{brandId}}",
+    "modelId": "{{modelId}}",
+    "transmission": "Auto",
+    "seats": 5,
+    "latitude": 10.7769,
+    "longitude": 106.7009,
+    "address": "25 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City"
+}
+
+###
+
+@fleetFlowVehicleId = {{fleetFlowCreate.response.body.$.vehicleId}}
+
+### 3. Upload an image as the vehicle's primary image
+# @name fleetFlowUploadImage
+POST {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}/images
+Authorization: Bearer {{fleetFlowAccessToken}}
+Content-Type: multipart/form-data; boundary=----FleetFlowImageBoundary
+
+------FleetFlowImageBoundary
+Content-Disposition: form-data; name="file"; filename="fleet-flow.png"
+Content-Type: image/png
+
+< ../../../../fe/src/assets/hero.png
+------FleetFlowImageBoundary--
+
+###
+
+### 4. Upload a second image
+POST {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}/images
+Authorization: Bearer {{fleetFlowAccessToken}}
+Content-Type: multipart/form-data; boundary=----FleetFlowImageBoundary
+
+------FleetFlowImageBoundary
+Content-Disposition: form-data; name="file"; filename="fleet-flow-2.png"
+Content-Type: image/png
+
+< ../../../../fe/src/assets/hero.png
+------FleetFlowImageBoundary--
+
+###
+
+### 5. Upload a third image
+POST {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}/images
+Authorization: Bearer {{fleetFlowAccessToken}}
+Content-Type: multipart/form-data; boundary=----FleetFlowImageBoundary
+
+------FleetFlowImageBoundary
+Content-Disposition: form-data; name="file"; filename="fleet-flow-3.png"
+Content-Type: image/png
+
+< ../../../../fe/src/assets/hero.png
+------FleetFlowImageBoundary--
+
+###
+
+### 6. Submit the newly created vehicle for approval
+POST {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}/submit
+Authorization: Bearer {{fleetFlowAccessToken}}
+
+###
+
+### 7. Get the submitted vehicle details
+GET {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}
+Accept: application/json
+Authorization: Bearer {{fleetFlowAccessToken}}

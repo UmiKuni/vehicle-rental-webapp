@@ -621,7 +621,7 @@ public static class DevelopmentDataSeeder
             if (submitResult.IsFailure)
                 throw new InvalidOperationException($"Could not submit seed vehicle {plateNumber}: {submitResult.Error.Message}");
 
-            var approveResult = vehicle.Approve(AdminId);
+            var approveResult = vehicle.Approve(AdminId, clock.GetUtcNow());
             if (approveResult.IsFailure)
                 throw new InvalidOperationException($"Could not approve seed vehicle {plateNumber}: {approveResult.Error.Message}");
 

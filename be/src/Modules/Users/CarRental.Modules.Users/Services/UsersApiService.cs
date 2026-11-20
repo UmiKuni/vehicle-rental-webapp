@@ -1,4 +1,5 @@
 using CarRental.Modules.Users.Errors;
+using CarRental.BuildingBlocks.Storage;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
@@ -17,17 +18,23 @@ public class UsersApiService : IUsersApi
     private readonly PasswordHasher<object> _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
+    private readonly TimeProvider _clock;
+    private readonly IImageStorage _imageStorage;
 
     public UsersApiService(
         UsersDbContext dbContext,
         PasswordHasher<object> passwordHasher,
         ITokenService tokenService,
-        IOptions<JwtOptions> jwtOptions)
+        IOptions<JwtOptions> jwtOptions,
+        TimeProvider clock,
+        IImageStorage imageStorage)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
+        _clock = clock;
+        _imageStorage = imageStorage;
     }
 
     public async Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default)
@@ -67,11 +74,11 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> RegisterAsync(RegisterUserDto dto, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Email))
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidEmail4D9514);
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidEmail);
         if (string.IsNullOrWhiteSpace(dto.Phone))
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPhone8199CF);
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPhone);
         if (string.IsNullOrWhiteSpace(dto.Password))
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPassword4BB6F3);
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidPassword);
 
         var exists = await _dbContext.Users.AnyAsync(u => u.Email == dto.Email || u.Phone == dto.Phone, ct);
         if (exists)
@@ -92,17 +99,17 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> LoginAsync(LoginUserDto dto, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(dto.Identifier) || string.IsNullOrWhiteSpace(dto.Password))
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentials2B2E58);
+            return Result.Failure<AuthResultDto>(UsersErrors.CredentialsRequired);
 
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == dto.Identifier || u.Phone == dto.Identifier, ct);
         if (user is null)
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentialsE41784);
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentials);
         if (user.Status == Contracts.Enums.UserStatus.Banned)
-            return Result.Failure<AuthResultDto>(UsersErrors.Banned3C3263);
+            return Result.Failure<AuthResultDto>(UsersErrors.BannedAccount);
 
         var verification = _passwordHasher.VerifyHashedPassword(new object(), user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentialsE41784);
+            return Result.Failure<AuthResultDto>(UsersErrors.InvalidCredentials);
 
         return await IssueTokensAsync(user, null, ct);
     }
@@ -110,16 +117,16 @@ public class UsersApiService : IUsersApi
     public async Task<Result<AuthResultDto>> RefreshAsync(string refreshToken, string? deviceInfo = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken7F376E);
+            return Result.Failure<AuthResultDto>(UsersErrors.RefreshTokenRequired);
 
         var hash = _tokenService.HashRefreshToken(refreshToken);
         var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
-        if (existing is null || !existing.IsActive)
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken339042);
+        if (existing is null || !existing.IsActiveAt(_clock.GetUtcNow()))
+            return Result.Failure<AuthResultDto>(UsersErrors.RefreshTokenExpired);
 
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == UserId.From(existing.UserId), ct);
         if (user is null || user.Status == Contracts.Enums.UserStatus.Banned)
-            return Result.Failure<AuthResultDto>(UsersErrors.InvalidRefreshToken0C6350);
+            return Result.Failure<AuthResultDto>(UsersErrors.RefreshTokenInvalid);
 
         return await IssueTokensAsync(user, existing, ct, deviceInfo);
     }
@@ -131,9 +138,9 @@ public class UsersApiService : IUsersApi
 
         var hash = _tokenService.HashRefreshToken(refreshToken);
         var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
-        if (existing is not null && existing.IsActive)
+        if (existing is not null && existing.IsActiveAt(_clock.GetUtcNow()))
         {
-            existing.Revoke();
+            existing.Revoke(null, _clock.GetUtcNow());
             await _dbContext.SaveChangesAsync(ct);
         }
 
@@ -154,10 +161,10 @@ public class UsersApiService : IUsersApi
             refresh.Hash,
             refresh.ExpiresAt,
             deviceInfo,
-            DateTimeOffset.UtcNow);
+            _clock.GetUtcNow());
 
         if (replacedToken is not null)
-            replacedToken.Revoke(refreshEntity.Id);
+            replacedToken.Revoke(refreshEntity.Id, _clock.GetUtcNow());
 
         await _dbContext.RefreshTokens.AddAsync(refreshEntity, ct);
         await _dbContext.SaveChangesAsync(ct);
@@ -226,9 +233,7 @@ public class UsersApiService : IUsersApi
         var normalizedPageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100);
 
         var dbUsers = await _dbContext.Users.AsNoTracking().ToListAsync(ct);
-        IEnumerable<AdminUserDto> source = dbUsers.Count > 0
-            ? dbUsers.Select(MapToAdminUserDto)
-            : GetMockAdminUsers();
+        IEnumerable<AdminUserDto> source = dbUsers.Select(MapToAdminUserDto);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -325,10 +330,58 @@ public class UsersApiService : IUsersApi
         return Result.Success(MapToVerificationStatusDto(user));
     }
 
-    private static IdentityDocumentDto MapToDocumentDto(IdentityDocument doc) =>
-        new(doc.Id, doc.Type, doc.StorageKey, doc.VerificationStatus, doc.RejectReason);
+    public async Task<Result<UserVerificationStatusDto>> UploadIdentityDocumentAsync(
+        Guid userId,
+        DocumentType type,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == UserId.From(userId), ct);
+        if (user is null)
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
 
-    private static UserVerificationStatusDto MapToVerificationStatusDto(User user) =>
+        var uploadResult = await _imageStorage.UploadAsync(
+            new UploadRequest(
+                content,
+                fileName,
+                contentType,
+                $"identity/{userId:N}",
+                StorageVisibility.Private,
+                AllowPdf: true),
+            ct);
+        if (uploadResult.IsFailure)
+            return Result.Failure<UserVerificationStatusDto>(uploadResult.Error);
+
+        var addResult = user.AddIdentityDocument(type, uploadResult.Value.StorageKey);
+        if (addResult.IsFailure)
+        {
+            await _imageStorage.DeleteAsync(uploadResult.Value.StorageKey, StorageVisibility.Private, ct);
+            return Result.Failure<UserVerificationStatusDto>(addResult.Error);
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    private IdentityDocumentDto MapToDocumentDto(IdentityDocument doc)
+    {
+        var urlResult = _imageStorage.GetUrl(
+            doc.StorageKey,
+            StorageVisibility.Private,
+            TimeSpan.FromMinutes(5));
+
+        return new(
+            doc.Id,
+            doc.Type,
+            doc.StorageKey,
+            doc.VerificationStatus,
+            doc.RejectReason,
+            urlResult.IsSuccess ? urlResult.Value : null);
+    }
+
+    private UserVerificationStatusDto MapToVerificationStatusDto(User user) =>
         new(
             user.Id.Value,
             user.IsIdVerified,
@@ -336,7 +389,7 @@ public class UsersApiService : IUsersApi
             user.IsVerified,
             user.IdentityDocuments.Select(MapToDocumentDto).ToList());
 
-    private static AdminUserDto MapToAdminUserDto(User user) =>
+    private AdminUserDto MapToAdminUserDto(User user) =>
         new(
             user.Id.Value,
             user.Email,
@@ -350,46 +403,4 @@ public class UsersApiService : IUsersApi
             user.IsVerified,
             user.IdentityDocuments.Select(MapToDocumentDto).ToList());
 
-    private static IReadOnlyList<AdminUserDto> GetMockAdminUsers() =>
-    [
-        new(
-            Guid.Parse("00000000-0000-0000-0000-000000000002"),
-            "admin.seed@example.com",
-            "0900000100",
-            "Platform Administrator",
-            "District 1, Ho Chi Minh City",
-            UserRole.Admin.ToString(),
-            UserStatus.Active.ToString(),
-            true,
-            true,
-            true,
-            []),
-        new(
-            Guid.Parse("00000000-0000-0000-0000-000000000101"),
-            "owner.seed@example.com",
-            "0900000101",
-            "Seed Vehicle Owner",
-            "1 Nguyen Hue, Ho Chi Minh City",
-            UserRole.Owner.ToString(),
-            UserStatus.Active.ToString(),
-            true,
-            true,
-            true,
-            [
-                new(Guid.Parse("10000000-0000-0000-0000-000000000001"), DocumentType.CCCD, "mock/cccd/seed-owner.jpg", DocumentVerificationStatus.Verified, null),
-                new(Guid.Parse("10000000-0000-0000-0000-000000000002"), DocumentType.GPLX, "mock/gplx/seed-owner.jpg", DocumentVerificationStatus.Verified, null)
-            ]),
-        new(
-            Guid.Parse("00000000-0000-0000-0000-000000000102"),
-            "customer.seed@example.com",
-            "0900000102",
-            "Seed Customer",
-            "2 Le Loi, Ho Chi Minh City",
-            UserRole.Customer.ToString(),
-            UserStatus.Active.ToString(),
-            false,
-            false,
-            false,
-            [])
-    ];
 }

@@ -74,7 +74,7 @@ public class Review : AggregateRoot<ReviewId>
     public Result Hide(Guid adminId, string reason)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(ReviewsErrors.InvalidAdmin4CF5BB);
+            return Result.Failure(ReviewsErrors.InvalidAdmin);
 
         if (string.IsNullOrWhiteSpace(reason))
             return Result.Failure(ReviewsErrors.MissingReason);
@@ -89,7 +89,7 @@ public class Review : AggregateRoot<ReviewId>
     public Result Restore(Guid adminId)
     {
         if (adminId == Guid.Empty)
-            return Result.Failure(ReviewsErrors.InvalidAdmin21FF89);
+            return Result.Failure(ReviewsErrors.InvalidAdmin);
 
         Status = ReviewStatus.Published;
         ModeratedBy = adminId;

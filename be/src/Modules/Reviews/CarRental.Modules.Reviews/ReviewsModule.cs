@@ -1,4 +1,6 @@
 using CarRental.Modules.Reviews.Data;
+using CarRental.Modules.Reviews.Contracts;
+using CarRental.Modules.Reviews.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class ReviewsModule
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", ReviewsDbContext.Schema)));
 
+        services.AddScoped<IReviewsApi, ReviewsApiService>();
         return services;
     }
 }

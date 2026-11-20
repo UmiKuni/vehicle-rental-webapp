@@ -48,7 +48,7 @@ public class BookingsIntegrationTests : IntegrationTestBase
             vehicle.AddImage("vehicles/img2.jpg");
             vehicle.AddImage("vehicles/img3.jpg");
             vehicle.SubmitForApproval().IsSuccess.Should().BeTrue();
-            vehicle.Approve(Guid.NewGuid()).IsSuccess.Should().BeTrue();
+            vehicle.Approve(Guid.NewGuid(), DateTimeOffset.UtcNow).IsSuccess.Should().BeTrue();
 
             fleetDb.VehicleBrands.Add(brand);
             fleetDb.VehicleModels.Add(model);

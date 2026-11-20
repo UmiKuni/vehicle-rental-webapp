@@ -1,5 +1,6 @@
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts.Dtos;
+using CarRental.Modules.Users.Contracts.Enums;
 
 namespace CarRental.Modules.Users.Contracts;
 
@@ -25,4 +26,11 @@ public interface IUsersApi
     Task<Result<UserVerificationStatusDto>> GetVerificationStatusAsync(Guid userId, CancellationToken ct = default);
     Task<Result<UserVerificationStatusDto>> VerifyIdAsync(Guid userId, VerifyIdDocumentDto? dto = null, CancellationToken ct = default);
     Task<Result<UserVerificationStatusDto>> VerifyDriverLicenseAsync(Guid userId, VerifyDriverLicenseDto? dto = null, CancellationToken ct = default);
+    Task<Result<UserVerificationStatusDto>> UploadIdentityDocumentAsync(
+        Guid userId,
+        DocumentType type,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default);
 }
