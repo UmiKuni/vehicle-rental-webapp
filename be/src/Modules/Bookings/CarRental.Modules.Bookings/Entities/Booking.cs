@@ -204,7 +204,11 @@ internal class Booking : AggregateRoot<BookingId>
         return new CancellationOutcome(penalty, refundable);
     }
 
-    public Result AdminCancel(Guid adminId, string reason, DateTimeOffset now)
+    public Result<CancellationOutcome> AdminCancel(
+        Guid adminId,
+        string reason,
+        DateTimeOffset now,
+        string? penaltyParty = null)
     {
         if (adminId == Guid.Empty)
             return BookingsErrors.InvalidAdmin;
@@ -212,14 +216,59 @@ internal class Booking : AggregateRoot<BookingId>
         if (string.IsNullOrWhiteSpace(reason))
             return BookingsErrors.ReasonRequired;
 
+        var normalizedParty = penaltyParty?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedParty)
+            && !string.Equals(normalizedParty, "Customer", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(normalizedParty, "Owner", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(normalizedParty, "None", StringComparison.OrdinalIgnoreCase))
+        {
+            return BookingsErrors.InvalidPenaltyParty;
+        }
+
         if (IsTerminalState(Status))
             return BookingsErrors.TerminalState(Status);
+
+        var penalty = Money.Zero();
+        var refundable = Money.Zero();
+
+        if (Status is BookingStatus.Paid or BookingStatus.InProgress)
+        {
+            var rentAndFees = SumLineItems(BookingLineItemType.Rent)
+                .Add(SumLineItems(BookingLineItemType.CleaningFee));
+            var depositTotal = SumLineItems(BookingLineItemType.Deposit);
+
+            if (string.Equals(normalizedParty, "Customer", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Status == BookingStatus.InProgress)
+                {
+                    penalty = rentAndFees;
+                    refundable = depositTotal;
+                }
+                else if (PolicySnapshot != null)
+                {
+                    var timeUntilStart = StartTime > now ? StartTime - now : TimeSpan.Zero;
+                    var outcome = PolicySnapshot.Calculate(rentAndFees, depositTotal, timeUntilStart);
+                    penalty = outcome.PenaltyAmount;
+                    refundable = outcome.RefundableAmount;
+                }
+                else
+                {
+                    penalty = rentAndFees;
+                    refundable = depositTotal;
+                }
+            }
+            else
+            {
+                penalty = Money.Zero();
+                refundable = rentAndFees.Add(depositTotal);
+            }
+        }
 
         Status = BookingStatus.Cancelled;
         UpdatedAt = now;
 
         _statusHistory.Add(new BookingStatusHistory(Guid.CreateVersion7(), Id, BookingStatus.Cancelled, now, $"Admin cancel: {reason.Trim()}"));
-        return Result.Success();
+        return new CancellationOutcome(penalty, refundable);
     }
 
     public Result Expire(string reason, DateTimeOffset now)

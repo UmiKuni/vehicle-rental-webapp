@@ -51,6 +51,8 @@ internal static class BookingsErrors
 
     public static Error InvalidStatusFilter => Error.Validation("booking.invalid_status_filter", "The specified booking status filter is invalid.");
 
+    public static Error InvalidPenaltyParty => Error.Validation("booking.invalid_penalty_party", "Penalty party must be 'Customer', 'Owner', or 'None'.");
+
     public static Error CustomerNotEligible(string reason) =>
         Error.Validation(
             "booking.customer_not_eligible",

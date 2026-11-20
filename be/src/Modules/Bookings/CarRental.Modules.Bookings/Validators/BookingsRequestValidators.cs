@@ -64,5 +64,19 @@ internal sealed class AdminCancelBookingRequestValidator : AbstractValidator<Adm
             .Must(r => !string.IsNullOrWhiteSpace(r))
             .WithErrorCode(BookingsErrors.ReasonRequired.Code)
             .WithMessage(BookingsErrors.ReasonRequired.Message);
+
+        RuleFor(x => x.PenaltyParty)
+            .Must(IsValidPenaltyParty)
+            .When(x => !string.IsNullOrWhiteSpace(x.PenaltyParty))
+            .WithErrorCode(BookingsErrors.InvalidPenaltyParty.Code)
+            .WithMessage(BookingsErrors.InvalidPenaltyParty.Message);
+    }
+
+    private static bool IsValidPenaltyParty(string? penaltyParty)
+    {
+        var trimmed = penaltyParty?.Trim();
+        return string.Equals(trimmed, "Customer", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Owner", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "None", StringComparison.OrdinalIgnoreCase);
     }
 }

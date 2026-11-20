@@ -290,19 +290,17 @@ internal sealed class BookingApiService : IBookingApi
             return bookingResult.Error;
 
         var booking = bookingResult.Value;
-        var refundableAmount = booking.Status is BookingStatus.Paid or BookingStatus.InProgress
-            ? SumLineItems(booking, l => l.Type is BookingLineItemType.Rent or BookingLineItemType.Deposit)
-            : Money.Zero();
-
         var now = _clock.GetUtcNow();
         var trimmedReason = reason?.Trim() ?? string.Empty;
         var effectiveReason = string.IsNullOrWhiteSpace(trimmedReason) || string.IsNullOrWhiteSpace(penaltyParty)
             ? trimmedReason
             : $"{trimmedReason} (PenaltyParty: {penaltyParty.Trim()})";
 
-        var cancelResult = booking.AdminCancel(adminId, effectiveReason, now);
+        var cancelResult = booking.AdminCancel(adminId, effectiveReason, now, penaltyParty);
         if (cancelResult.IsFailure)
             return cancelResult.Error;
+
+        var outcome = cancelResult.Value;
 
         await _dbContext.SaveChangesAsync(ct);
         await _availabilityApi.ReleaseHoldAsync(booking.VehicleId, booking.Id.Value, ct);
@@ -313,8 +311,8 @@ internal sealed class BookingApiService : IBookingApi
                 now,
                 booking.Id.Value,
                 booking.CustomerId,
-                Money.Zero(),
-                refundableAmount,
+                outcome.PenaltyAmount,
+                outcome.RefundableAmount,
                 effectiveReason),
             ct);
 

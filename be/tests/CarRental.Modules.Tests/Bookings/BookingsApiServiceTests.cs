@@ -410,6 +410,61 @@ public class BookingsApiServiceTests
     }
 
     [Fact]
+    public async Task AdminCancelAsync_ShouldApplyPenaltyPartyCalculationAndValidatePenaltyParty()
+    {
+        var harness = CreateHarness();
+        var customerId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        // Start is 30 hours after Now -> matches 24h tier (PenaltyPercent = 30)
+        var start = Now.AddHours(30);
+        var end = start.AddDays(2);
+
+        // 1. PenaltyParty = Customer -> applies cancellation policy split
+        var booking1 = (await harness.Service.CreateAsync(
+            customerId,
+            new CreateBookingRequest(vehicleId, start, end, "HCMC", false, null))).Value;
+        (await harness.Service.ApproveAsync(booking1.Id, harness.OwnerId)).IsSuccess.Should().BeTrue();
+        (await harness.Service.MarkPaidAsync(booking1.Id, Guid.NewGuid(), Now)).IsSuccess.Should().BeTrue();
+
+        var invalidParty = await harness.Service.AdminCancelAsync(booking1.Id, adminId, "Policy breach", "InvalidParty");
+        invalidParty.IsFailure.Should().BeTrue();
+        invalidParty.Error.Code.Should().Be("booking.invalid_penalty_party");
+        invalidParty.Error.Type.Should().Be(ErrorType.Validation);
+
+        var customerFault = await harness.Service.AdminCancelAsync(booking1.Id, adminId, "Customer no-show", "Customer");
+        customerFault.IsSuccess.Should().BeTrue();
+        customerFault.Value.Status.Should().Be(nameof(BookingStatus.Cancelled));
+        harness.OutboxMock.Verify(
+            x => x.PublishAsync(
+                It.Is<BookingCancelled>(e =>
+                    e.BookingId == booking1.Id
+                    && e.PenaltyAmount.Amount == 600_000
+                    && e.RefundableAmount.Amount == 6_400_000),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // 2. PenaltyParty = Owner -> zero penalty, full refund (rent + deposit = 7,000,000)
+        var booking2 = (await harness.Service.CreateAsync(
+            customerId,
+            new CreateBookingRequest(vehicleId, start.AddDays(5), end.AddDays(5), "HCMC", false, null))).Value;
+        (await harness.Service.ApproveAsync(booking2.Id, harness.OwnerId)).IsSuccess.Should().BeTrue();
+        (await harness.Service.MarkPaidAsync(booking2.Id, Guid.NewGuid(), Now)).IsSuccess.Should().BeTrue();
+
+        var ownerFault = await harness.Service.AdminCancelAsync(booking2.Id, adminId, "Owner unavailable", "Owner");
+        ownerFault.IsSuccess.Should().BeTrue();
+        harness.OutboxMock.Verify(
+            x => x.PublishAsync(
+                It.Is<BookingCancelled>(e =>
+                    e.BookingId == booking2.Id
+                    && e.PenaltyAmount.Amount == 0
+                    && e.RefundableAmount.Amount == 7_000_000),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public void RequestValidators_ShouldRejectInvalidInputsWithConformingErrorCodes()
     {
         var createValidator = new CreateBookingRequestValidator();
@@ -451,6 +506,11 @@ public class BookingsApiServiceTests
 
         var adminCancelValidator = new AdminCancelBookingRequestValidator();
         adminCancelValidator.Validate(new AdminCancelBookingRequest("Policy violation", string.Empty)).IsValid.Should().BeTrue();
+        adminCancelValidator.Validate(new AdminCancelBookingRequest("Policy violation", "Owner")).IsValid.Should().BeTrue();
+        adminCancelValidator.Validate(new AdminCancelBookingRequest("Policy violation", "None")).IsValid.Should().BeTrue();
+        var badPenaltyParty = adminCancelValidator.Validate(new AdminCancelBookingRequest("Policy violation", "Driver"));
+        badPenaltyParty.IsValid.Should().BeFalse();
+        badPenaltyParty.Errors.Should().Contain(e => e.ErrorCode == "booking.invalid_penalty_party");
         var badAdminCancel = adminCancelValidator.Validate(new AdminCancelBookingRequest("  ", "Owner"));
         badAdminCancel.IsValid.Should().BeFalse();
         badAdminCancel.Errors.Should().Contain(e => e.ErrorCode == "booking.reason_required");
