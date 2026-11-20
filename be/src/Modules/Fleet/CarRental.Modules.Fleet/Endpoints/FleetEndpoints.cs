@@ -161,6 +161,7 @@ public static class FleetEndpoints
                 ct);
             return result.ToHttpResult();
         })
+        .DisableAntiforgery()
         .RequireAuthorization("OwnerOnly")
         .Produces<VehicleImageDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)

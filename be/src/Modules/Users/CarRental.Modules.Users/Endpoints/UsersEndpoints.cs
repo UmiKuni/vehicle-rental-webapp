@@ -228,6 +228,7 @@ public static class UsersEndpoints
             ct);
         return result.ToHttpResult();
         })
+        .DisableAntiforgery()
         .WithName("UploadMyIdentityDocument")
         .WithSummary("Upload a private citizen ID or driver's license document.")
         .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
