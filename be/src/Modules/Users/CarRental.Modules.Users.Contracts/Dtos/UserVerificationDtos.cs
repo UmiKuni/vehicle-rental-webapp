@@ -23,7 +23,8 @@ public sealed record IdentityDocumentDto(
     DocumentType Type,
     string StorageKey,
     DocumentVerificationStatus VerificationStatus,
-    string? RejectReason);
+    string? RejectReason,
+    string? AccessUrl = null);
 
 /// <summary>Verification status across citizen ID and driver's license for a user.</summary>
 public sealed record UserVerificationStatusDto(

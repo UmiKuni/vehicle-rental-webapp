@@ -382,7 +382,7 @@ public class UsersModuleTests
             "Firefox / macOS",
             now);
 
-        token.IsActive.Should().BeTrue();
+        token.IsActiveAt(now).Should().BeTrue();
         token.RevokedAt.Should().BeNull();
         token.ReplacedByTokenId.Should().BeNull();
         token.DeviceInfo.Should().Be("Firefox / macOS");
@@ -400,7 +400,7 @@ public class UsersModuleTests
             "Chrome / Windows",
             now.AddDays(-7));
 
-        token.IsActive.Should().BeFalse();
+        token.IsActiveAt(now).Should().BeFalse();
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public class UsersModuleTests
         var revokeTime = now.AddHours(2);
         token.Revoke(replacedById, revokeTime);
 
-        token.IsActive.Should().BeFalse();
+        token.IsActiveAt(revokeTime).Should().BeFalse();
         token.RevokedAt.Should().Be(revokeTime);
         token.ReplacedByTokenId.Should().Be(replacedById);
     }
@@ -440,7 +440,7 @@ public class UsersModuleTests
             RefreshTokenDays = 7
         });
 
-        var tokenService = new TokenService(options);
+        var tokenService = new TokenService(options, TimeProvider.System);
         var user = User.Register("testjwt@example.com", "0901112222", "pwd").Value;
 
         var (tokenString, expiresAt) = tokenService.CreateAccessToken(user);
@@ -470,7 +470,7 @@ public class UsersModuleTests
             RefreshTokenDays = 14
         });
 
-        var tokenService = new TokenService(options);
+        var tokenService = new TokenService(options, TimeProvider.System);
 
         var (rawToken, hash, expiresAt) = tokenService.CreateRefreshToken();
 
@@ -495,7 +495,7 @@ public class UsersModuleTests
             RefreshTokenDays = 7
         });
 
-        var tokenService = new TokenService(options);
+        var tokenService = new TokenService(options, TimeProvider.System);
 
         var hash1 = tokenService.HashRefreshToken("sample-refresh-token");
         var hash2 = tokenService.HashRefreshToken("sample-refresh-token");

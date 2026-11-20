@@ -62,7 +62,7 @@ public class SupportTicket : AggregateRoot<TicketId>
             return Result.Failure<SupportTicket>(SupportErrors.InvalidReporter);
 
         if (string.IsNullOrWhiteSpace(firstMessage))
-            return Result.Failure<SupportTicket>(SupportErrors.EmptyMessage98E994);
+            return Result.Failure<SupportTicket>(SupportErrors.EmptyMessage);
 
         var ticket = new SupportTicket(
             TicketId.New(),
@@ -91,7 +91,7 @@ public class SupportTicket : AggregateRoot<TicketId>
             return Result.Failure(SupportErrors.InvalidSender);
 
         if (string.IsNullOrWhiteSpace(content))
-            return Result.Failure(SupportErrors.EmptyMessageE27D76);
+            return Result.Failure(SupportErrors.EmptyMessage);
 
         _messages.Add(new TicketMessage(
             Guid.CreateVersion7(),

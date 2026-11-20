@@ -144,6 +144,39 @@ public static class FleetEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapPost("/vehicles/{vehicleId:guid}/images", async (
+            Guid vehicleId,
+            IFormFile file,
+            ClaimsPrincipal principal,
+            IFleetApi api,
+            CancellationToken ct) =>
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await api.UploadImageAsync(
+                vehicleId,
+                GetUserId(principal),
+                stream,
+                file.FileName,
+                file.ContentType,
+                ct);
+            return result.ToHttpResult();
+        })
+        .RequireAuthorization("OwnerOnly")
+        .Produces<VehicleImageDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/vehicles/{vehicleId:guid}/images/{imageId:guid}", async (
+            Guid vehicleId,
+            Guid imageId,
+            ClaimsPrincipal principal,
+            IFleetApi api,
+            CancellationToken ct) =>
+            (await api.RemoveImageAsync(vehicleId, GetUserId(principal), imageId, ct)).ToHttpResult())
+            .RequireAuthorization("OwnerOnly")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return app;
     }
 

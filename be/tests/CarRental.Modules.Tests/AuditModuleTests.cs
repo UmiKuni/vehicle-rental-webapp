@@ -38,21 +38,19 @@ public class AuditModuleTests
     }
 
     [Fact]
-    public void Record_WithEmptyIdAndTimestamp_ShouldAssignDefaults()
+    public void Record_WithEmptyId_ShouldFail()
     {
         var result = AuditLogEntry.Record(
             Guid.Empty,
-            default,
+            Now,
             ActorId,
             "192.168.1.1",
             "UpdateVehicle",
             "Vehicle",
             "veh_999");
 
-        result.IsSuccess.Should().BeTrue();
-        var entry = result.Value;
-        entry.Id.Should().NotBeEmpty();
-        entry.Timestamp.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("audit.empty_event_id");
     }
 
     [Fact]
@@ -103,7 +101,7 @@ public class AuditModuleTests
             "veh_123");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Audit.EmptyActorId");
+        result.Error.Code.Should().Be("audit.empty_actor_id");
     }
 
     [Fact]
@@ -119,7 +117,7 @@ public class AuditModuleTests
             "veh_123");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Audit.EmptyAction");
+        result.Error.Code.Should().Be("audit.empty_action");
     }
 
     [Fact]
@@ -135,7 +133,7 @@ public class AuditModuleTests
             "veh_123");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Audit.EmptyEntityName");
+        result.Error.Code.Should().Be("audit.empty_entity_name");
     }
 
     [Fact]
@@ -151,7 +149,7 @@ public class AuditModuleTests
             "   ");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Audit.EmptyEntityId");
+        result.Error.Code.Should().Be("audit.empty_entity_id");
     }
 
     [Fact]

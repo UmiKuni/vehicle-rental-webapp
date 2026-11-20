@@ -4,6 +4,7 @@ using CarRental.Modules.Audit.Data;
 using CarRental.Modules.Audit.Data.Repositories;
 using CarRental.Modules.Audit.Entities;
 using Microsoft.EntityFrameworkCore;
+using CarRental.Modules.Audit.Errors;
 
 namespace CarRental.Modules.Audit.EventHandlers;
 
@@ -16,7 +17,9 @@ public sealed class AuditCommandHandlers
         CancellationToken ct)
     {
         if (command.EventId == Guid.Empty)
-            throw new DomainException("Audit.EmptyEventId", "Audit event ID must not be empty.");
+            throw new DomainException(
+                AuditErrors.EmptyEventId.Code,
+                AuditErrors.EmptyEventId.Message);
 
         // The event ID is the entry ID, making retries safe and preventing duplicate records.
         if (await dbContext.AuditLogEntries.AnyAsync(entry => entry.Id == command.EventId, ct))

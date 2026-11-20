@@ -27,6 +27,12 @@ public sealed record RejectVehicleDto(string Reason);
 
 public sealed record UnpublishVehicleDto(string Reason);
 
+public sealed record VehicleImageDto(
+    Guid ImageId,
+    string StorageKey,
+    string Url,
+    bool IsPrimary);
+
 public sealed record CreateBrandDto(string Name);
 
 public sealed record UpdateBrandDto(string Name);
