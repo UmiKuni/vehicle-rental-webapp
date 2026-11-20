@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Availability.Data;
 
-public class AvailabilityDbContext : DbContext
+internal class AvailabilityDbContext : DbContext
 {
     public const string Schema = "availability";
 

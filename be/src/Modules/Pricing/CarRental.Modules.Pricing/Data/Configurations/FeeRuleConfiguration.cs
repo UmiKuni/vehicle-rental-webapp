@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Pricing.Data.Configurations;
 
-public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
+internal sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
 {
     public void Configure(EntityTypeBuilder<FeeRule> builder)
     {
@@ -12,6 +12,7 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
 
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(f => f.PricingPlanId)

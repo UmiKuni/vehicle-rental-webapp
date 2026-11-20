@@ -20,6 +20,8 @@ internal static class PricingErrors
 
     public static Error InvalidPeriod => Error.Validation("pricing.invalid_period", "Rental period is required.");
 
-    public static Error OwnerRequired => Error.Validation("pricing.owner_required", "Only the vehicle owner can configure pricing.");
+    public static Error OwnerRequired => Error.Forbidden("pricing.owner_required", "Only the vehicle owner can configure pricing.");
+
+    public static Error NotFound => Error.NotFound("pricing.not_found", "Pricing plan was not found for the vehicle.");
 
 }

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<HandoverPhoto>
+internal sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<HandoverPhoto>
 {
     public void Configure(EntityTypeBuilder<HandoverPhoto> builder)
     {
@@ -12,6 +12,7 @@ public sealed class HandoverPhotoConfiguration : IEntityTypeConfiguration<Handov
 
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(p => p.HandoverId)

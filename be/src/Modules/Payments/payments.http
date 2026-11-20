@@ -28,7 +28,7 @@ Accept: application/json
 
 ###
 
-### Process payment webhook
+### Process unified payment webhook (HMAC-signed or mock mode)
 POST {{baseUrl}}/api/payments/webhook
 Content-Type: application/json
 
@@ -37,7 +37,95 @@ Content-Type: application/json
   "orderId": "{{bookingId}}",
   "amount": 3950000,
   "responseCode": "00",
-  "signature": "development-signature"
+  "signature": "replace-with-hmac-signature"
+}
+
+###
+
+### VNPay IPN callback
+GET {{baseUrl}}/api/payments/webhooks/vnpay?vnp_TmnCode=TMNCODE&vnp_Amount=395000000&vnp_TxnRef={{paymentId}}&vnp_ResponseCode=00&vnp_TransactionStatus=00&vnp_TransactionNo=14550001&vnp_SecureHash=replace-with-hmac-sha512
+
+###
+
+### Stripe Webhook callback
+POST {{baseUrl}}/api/payments/webhooks/stripe
+Content-Type: application/json
+Stripe-Signature: t=1700000000,v1=replace-with-hmac-sha256
+
+{
+  "id": "evt_example",
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "cs_test_example",
+      "payment_intent": "pi_example",
+      "payment_status": "paid",
+      "amount_total": 3950000,
+      "currency": "vnd",
+      "metadata": {
+        "payment_id": "{{paymentId}}"
+      }
+    }
+  }
+}
+
+###
+
+### PayPal Webhook callback
+POST {{baseUrl}}/api/payments/webhooks/paypal
+Content-Type: application/json
+PAYPAL-TRANSMISSION-ID: trans-id-example
+PAYPAL-TRANSMISSION-TIME: 2026-11-19T10:00:00Z
+PAYPAL-CERT-URL: https://api.sandbox.paypal.com/v1/notifications/certs/CERT-example
+PAYPAL-AUTH-ALGO: SHA256withRSA
+PAYPAL-TRANSMISSION-SIG: replace-with-paypal-sig
+
+{
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "resource": {
+    "id": "CAPTURE-EXAMPLE-001",
+    "custom_id": "{{paymentId}}",
+    "amount": {
+      "currency_code": "USD",
+      "value": "158.00"
+    }
+  }
+}
+
+###
+
+### Capture approved PayPal Order
+POST {{baseUrl}}/api/payments/paypal/capture
+Content-Type: application/json
+
+{
+  "orderId": "PAYPAL-ORDER-ID"
+}
+
+###
+
+### Bank Transfer / VietQR Webhook callback (SePay / Casso compatible)
+POST {{baseUrl}}/api/payments/webhooks/transfer
+Content-Type: application/json
+Authorization: Apikey replace-with-transfer-webhook-secret
+
+{
+  "id": 99001,
+  "referenceCode": "FT263230001",
+  "transferType": "in",
+  "transferAmount": 3950000,
+  "content": "CARRENTAL {{paymentId}}"
+}
+
+###
+
+### Refund payment (full or partial)
+POST {{baseUrl}}/api/payments/{{paymentId}}/refund
+Content-Type: application/json
+
+{
+  "amount": 1000000,
+  "reason": "Early return partial refund"
 }
 
 ###

@@ -1,7 +1,12 @@
+using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Reporting.Contracts;
 using CarRental.Modules.Reporting.Data;
+using CarRental.Modules.Reporting.Data.Repositories;
+using CarRental.Modules.Reporting.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CarRental.Modules.Reporting;
 
@@ -17,6 +22,11 @@ public static class ReportingModule
         services.AddDbContext<ReportingDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", ReportingDbContext.Schema)));
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddValidatorsFromAssembly(typeof(ReportingModule).Assembly);
+        services.AddScoped<IReportingRepository, ReportingRepository>();
+        services.AddScoped<IReportingQueries, ReportingQueryService>();
 
         return services;
     }

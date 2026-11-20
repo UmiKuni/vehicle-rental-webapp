@@ -1,29 +1,39 @@
 using CarRental.Modules.Payments.Contracts.Events;
+using CarRental.Modules.Reporting.Data;
+using CarRental.Modules.Reporting.Data.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+using Wolverine.Attributes;
 
 namespace CarRental.Modules.Reporting.EventHandlers;
 
 /// <summary>
 /// Wolverine consumer for <see cref="PaymentSucceeded"/>.
 /// </summary>
+[WolverineHandler]
 public sealed class PaymentSucceededConsumer
 {
-    /*
-     * WHAT TO DO IN THIS FILE:
-     * ------------------------
-     * Triggered by: PaymentSucceeded event from the Payments module when checkout transaction completes.
-     * 
-     * Responsibilities:
-     * 1. Check idempotency: Query ProcessedEvents table in ReportingDbContext by event.EventId.
-     *    - If already processed, exit early.
-     * 2. Compute the UTC+7 business date bucket from event.OccurredAt via DailyBookingStats.ToBucketDate().
-     * 3. Query existing DailyBookingStats for the date bucket or initialize a new one via DailyBookingStats.Create(date).
-     * 4. Call stats.ApplyPaymentSucceeded(event.Amount.Amount, event.OccurredAt) to accumulate TotalRevenue.
-     * 5. Record event.EventId in ProcessedEvents table.
-     * 6. Persist changes to ReportingDbContext.
-     */
-    public Task Consume(PaymentSucceeded @event, CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
-}
+    public Task Handle(PaymentSucceeded message, IServiceProvider services, CancellationToken ct = default) =>
+        Handle(
+            message,
+            services.GetRequiredService<IReportingRepository>(),
+            services.GetRequiredService<ReportingDbContext>(),
+            services.GetRequiredService<TimeProvider>(),
+            ct);
 
+    internal Task Handle(
+        PaymentSucceeded message,
+        IReportingRepository repository,
+        ReportingDbContext dbContext,
+        TimeProvider clock,
+        CancellationToken ct = default) =>
+        ReportingEventHelpers.HandleStatsAndProjectionAsync(
+            message.EventId,
+            message.BookingId,
+            message.OccurredAt,
+            repository,
+            dbContext,
+            clock,
+            stats => stats.ApplyPaymentSucceeded(message.Amount.Amount, message.OccurredAt),
+            projection => projection.RecordPayment(message.Amount.Amount, message.OccurredAt),
+            ct);
+}

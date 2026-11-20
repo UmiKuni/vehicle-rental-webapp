@@ -16,7 +16,7 @@ public abstract record DomainEvent : IDomainEvent
 
     protected DomainEvent()
     {
-        EventId = Guid.NewGuid();
+        EventId = Guid.CreateVersion7();
         OccurredAt = DateTimeOffset.UtcNow;
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Availability.Data.Configurations;
 
-public sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<CalendarEntry>
+internal sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<CalendarEntry>
 {
     public void Configure(EntityTypeBuilder<CalendarEntry> builder)
     {
@@ -12,6 +12,7 @@ public sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<Calend
 
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(e => e.VehicleId)
@@ -43,5 +44,9 @@ public sealed class CalendarEntryConfiguration : IEntityTypeConfiguration<Calend
             .HasColumnName("booking_id");
 
         builder.HasIndex(e => e.BookingId);
+
+        builder.Property(e => e.Reason)
+            .HasMaxLength(500)
+            .HasColumnName("reason");
     }
 }

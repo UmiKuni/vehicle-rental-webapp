@@ -5,7 +5,7 @@ namespace CarRental.Modules.Reporting.Entities;
 /// <summary>
 /// Tracks processed integration events to guarantee idempotent projections in the reporting read model.
 /// </summary>
-public sealed class ProcessedEvent : Entity<Guid>
+internal sealed class ProcessedEvent : Entity<Guid>
 {
     public Guid EventId => Id;
     public DateTimeOffset ProcessedAt { get; private set; }
@@ -19,8 +19,8 @@ public sealed class ProcessedEvent : Entity<Guid>
         ProcessedAt = processedAt;
     }
 
-    public static ProcessedEvent Create(Guid eventId, DateTimeOffset? processedAt = null)
+    public static ProcessedEvent Create(Guid eventId, DateTimeOffset processedAt)
     {
-        return new ProcessedEvent(eventId, processedAt ?? DateTimeOffset.UtcNow);
+        return new ProcessedEvent(eventId, processedAt);
     }
 }

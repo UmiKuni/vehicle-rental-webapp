@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Handover.Entities;
 
-public class VehicleCondition : Entity<HandoverId>
+internal class VehicleCondition : Entity<HandoverId>
 {
     public HandoverId HandoverId { get; private set; }
     public int Odometer { get; private set; }
@@ -15,6 +15,13 @@ public class VehicleCondition : Entity<HandoverId>
     {
         Id = handoverId;
         HandoverId = handoverId;
+        Odometer = odometer;
+        FuelLevel = fuelLevel;
+        DamageNotes = damageNotes;
+    }
+
+    internal void Update(int odometer, int fuelLevel, string? damageNotes)
+    {
         Odometer = odometer;
         FuelLevel = fuelLevel;
         DamageNotes = damageNotes;

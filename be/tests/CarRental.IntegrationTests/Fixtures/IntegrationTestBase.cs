@@ -59,6 +59,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
             if (verified)
             {
+                if (user.CustomerProfile is null || string.IsNullOrWhiteSpace(user.CustomerProfile.FullName))
+                {
+                    user.UpdateProfile("Verified Customer", "123 Test Street");
+                }
+
                 user.VerifyDocumentByTypeMock(DocumentType.CCCD);
                 user.VerifyDocumentByTypeMock(DocumentType.GPLX);
                 await usersDb.SaveChangesAsync();

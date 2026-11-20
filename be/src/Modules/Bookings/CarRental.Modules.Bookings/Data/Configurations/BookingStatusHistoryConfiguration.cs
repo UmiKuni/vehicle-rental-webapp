@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Bookings.Data.Configurations;
 
-public sealed class BookingStatusHistoryConfiguration : IEntityTypeConfiguration<BookingStatusHistory>
+internal sealed class BookingStatusHistoryConfiguration : IEntityTypeConfiguration<BookingStatusHistory>
 {
     public void Configure(EntityTypeBuilder<BookingStatusHistory> builder)
     {
@@ -12,6 +12,7 @@ public sealed class BookingStatusHistoryConfiguration : IEntityTypeConfiguration
 
         builder.HasKey(h => h.Id);
         builder.Property(h => h.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(h => h.BookingId)

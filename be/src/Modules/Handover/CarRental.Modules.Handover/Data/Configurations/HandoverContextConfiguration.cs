@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class HandoverContextConfiguration : IEntityTypeConfiguration<HandoverContext>
+internal sealed class HandoverContextConfiguration : IEntityTypeConfiguration<HandoverContext>
 {
     public void Configure(EntityTypeBuilder<HandoverContext> builder)
     {
@@ -12,6 +12,7 @@ public sealed class HandoverContextConfiguration : IEntityTypeConfiguration<Hand
 
         builder.HasKey(c => c.BookingId);
         builder.Property(c => c.BookingId)
+            .ValueGeneratedNever()
             .HasColumnName("booking_id");
 
         builder.Ignore(c => c.Id);

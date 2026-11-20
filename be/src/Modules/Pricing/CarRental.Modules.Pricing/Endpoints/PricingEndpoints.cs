@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -36,6 +38,7 @@ public static class PricingEndpoints
 
             return (await api.GetQuoteAsync(request.VehicleId, periodResult.Value, ct)).ToHttpResult();
         })
+        .WithValidation<PricingQuoteRequest>()
         .WithName("GetPricingQuote")
         .WithSummary("Calculate a rental quote for a vehicle and period")
         .Produces<QuoteDto>(StatusCodes.Status200OK)
@@ -45,16 +48,30 @@ public static class PricingEndpoints
         group.MapPut("/vehicles/{vehicleId:guid}", async (
             Guid vehicleId,
             ConfigurePricingDto request,
+            ClaimsPrincipal principal,
             IPricingApi api,
             CancellationToken ct) =>
-            (await api.ConfigurePricingAsync(vehicleId, request, ct)).ToHttpResult())
+        {
+            var dto = request with { OwnerId = GetUserId(principal) };
+            return (await api.ConfigurePricingAsync(vehicleId, dto, ct)).ToHttpResult();
+        })
+            .WithValidation<ConfigurePricingDto>()
             .WithName("ConfigureVehiclePricing")
             .WithSummary("Configure hourly/daily rental pricing, deposit, fees, kilometre limit, and conditions")
             .Produces<PricingPlanDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireAuthorization("OwnerOnly");
 
         return app;
+    }
+
+    private static Guid GetUserId(ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(claim, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
     }
 }

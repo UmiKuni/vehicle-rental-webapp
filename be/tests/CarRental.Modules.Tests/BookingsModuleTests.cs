@@ -145,7 +145,7 @@ public class BookingsModuleTests
         var approveResult = booking.Approve(Guid.NewGuid(), Now);
 
         approveResult.IsSuccess.Should().BeFalse();
-        approveResult.Error.Code.Should().Be("booking.unauthorized");
+        approveResult.Error.Code.Should().Be("booking.not_owner");
         booking.Status.Should().Be(BookingStatus.Pending);
     }
 

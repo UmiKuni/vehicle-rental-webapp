@@ -1,6 +1,6 @@
 namespace CarRental.Modules.Payments.Entities;
 
-public readonly record struct PaymentId(Guid Value)
+internal readonly record struct PaymentId(Guid Value)
 {
     public static PaymentId New() => new(Guid.CreateVersion7());
     public static PaymentId From(Guid value) => new(value);
