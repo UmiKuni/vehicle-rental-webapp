@@ -16,7 +16,11 @@ public sealed class BookingExpiredConsumer(
     {
         var booking = await bookings.GetByIdAsync(@event.BookingId, Guid.Empty, true, cancellationToken);
         if (booking.IsFailure)
+        {
+            if (booking.Error.Code == "booking.not_found")
+                return;
             throw new InvalidOperationException(booking.Error.Message);
+        }
 
         await notifications.CreateAndDeliverAsync(
             booking.Value.CustomerId,
