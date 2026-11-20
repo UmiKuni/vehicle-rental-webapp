@@ -89,6 +89,9 @@ services:
       Payments__Transfer__AccountNumber: ${TRANSFER_ACCOUNT_NUMBER:-}
       Payments__Transfer__AccountName: ${TRANSFER_ACCOUNT_NAME:-}
       Payments__Transfer__WebhookSecret: ${TRANSFER_WEBHOOK_SECRET:-}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:

@@ -37,6 +37,12 @@ public interface IHandoverApi
         UploadHandoverPhotoRequest request,
         CancellationToken ct = default);
 
+    Task<Result<HandoverPhotoDto>> UploadPhotoFileAsync(
+        Guid handoverId,
+        Guid actorId,
+        UploadHandoverPhotoFileRequest request,
+        CancellationToken ct = default);
+
     Task<Result<HandoverDetailDto>> ConfirmAsync(
         Guid handoverId,
         Guid actorId,

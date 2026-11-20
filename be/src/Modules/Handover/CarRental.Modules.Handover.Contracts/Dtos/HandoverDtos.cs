@@ -21,6 +21,13 @@ public sealed record UploadHandoverPhotoRequest(
     string FileHash,
     DateTimeOffset ClientCapturedAt);
 
+public sealed record UploadHandoverPhotoFileRequest(
+    string Corner,
+    Stream Content,
+    string FileName,
+    string ContentType,
+    DateTimeOffset? ClientCapturedAt = null);
+
 public sealed record HandoverPhotoDto(
     Guid Id,
     Guid HandoverId,

@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Handover.Contracts;
 using CarRental.Modules.Handover.Contracts.Dtos;
+using FluentValidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -88,19 +91,106 @@ public static class HandoverEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
 
-        // 5. Upload vehicle handover photo
+        // 5. Upload vehicle handover photo (supports multipart/form-data file upload and application/json metadata)
         group.MapPost("/{id:guid}/photos", async (
             Guid id,
-            UploadHandoverPhotoRequest request,
+            HttpContext httpContext,
             ClaimsPrincipal principal,
             IHandoverApi api,
+            IValidator<UploadHandoverPhotoRequest> jsonValidator,
             CancellationToken ct) =>
-            (await api.AddPhotoAsync(id, GetUserId(principal), request, ct))
-                .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}"))
-        .WithValidation<UploadHandoverPhotoRequest>()
+        {
+            var actorId = GetUserId(principal);
+
+            if (httpContext.Request.HasFormContentType)
+            {
+                var form = await httpContext.Request.ReadFormAsync(ct);
+                var corner = form["corner"].ToString();
+                var capturedAtRaw = form["clientCapturedAt"].ToString();
+                DateTimeOffset? capturedAt = DateTimeOffset.TryParse(
+                    capturedAtRaw,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out var parsedAt)
+                    ? parsedAt
+                    : null;
+
+                var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+                if (file is null)
+                {
+                    return (await api.UploadPhotoFileAsync(
+                            id,
+                            actorId,
+                            new UploadHandoverPhotoFileRequest(
+                                corner,
+                                Stream.Null,
+                                string.Empty,
+                                string.Empty,
+                                capturedAt),
+                            ct))
+                        .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
+                }
+
+                await using var stream = file.OpenReadStream();
+                return (await api.UploadPhotoFileAsync(
+                        id,
+                        actorId,
+                        new UploadHandoverPhotoFileRequest(
+                            corner,
+                            stream,
+                            file.FileName,
+                            file.ContentType ?? string.Empty,
+                            capturedAt),
+                        ct))
+                    .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
+            }
+
+            UploadHandoverPhotoRequest? request;
+            try
+            {
+                request = await httpContext.Request.ReadFromJsonAsync<UploadHandoverPhotoRequest>(ct);
+            }
+            catch (JsonException)
+            {
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: "Invalid JSON payload.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["errorCode"] = "validation.invalid_json" });
+            }
+
+            if (request is null)
+            {
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: "Request body is required.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["errorCode"] = "validation.null_request" });
+            }
+
+            var validationResult = await jsonValidator.ValidateAsync(request, ct);
+            if (!validationResult.IsValid)
+            {
+                var first = validationResult.Errors[0];
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: first.ErrorMessage,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["errorCode"] = string.IsNullOrWhiteSpace(first.ErrorCode) ? "validation.failed" : first.ErrorCode,
+                        ["errors"] = validationResult.Errors
+                            .GroupBy(e => e.PropertyName)
+                            .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())
+                    });
+            }
+
+            return (await api.AddPhotoAsync(id, actorId, request, ct))
+                .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
+        })
         .WithName("UploadHandoverPhoto")
         .WithSummary("Ghi nhận ảnh góc xe, đồng hồ Odo")
-        .WithDescription("Registers an inspected vehicle photo (FrontLeft, FrontRight, RearLeft, RearRight, Dash) with metadata and storage key.")
+        .WithDescription("Uploads or registers an inspected vehicle photo (FrontLeft, FrontRight, RearLeft, RearRight, Dash) with SHA-256 tamper-verification hash.")
         .Produces<HandoverPhotoDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)

@@ -1,7 +1,9 @@
 using System.Reflection;
+using System.Security.Cryptography;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Messaging;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Storage;
 using CarRental.Modules.Bookings.Contracts;
 using CarRental.Modules.Bookings.Contracts.Dtos;
 using CarRental.Modules.Handover.Contracts.Dtos;
@@ -178,7 +180,8 @@ public class HandoverApiServiceTests
             harness.CustomerId,
             new UploadHandoverPhotoRequest("FrontLeft", "photos/fl1.jpg", "HASH1", Now));
         photo1.IsSuccess.Should().BeTrue();
-        photo1.Value.ViewUrl.Should().Be("https://storage.carrental.vn/handovers/photos/fl1.jpg");
+        photo1.Value.ViewUrl.Should().StartWith("https://storage.carrental.vn/private/photos/fl1.jpg?exp=")
+            .And.Contain("&sig=");
 
         var photo2 = await harness.Service.AddPhotoAsync(
             handover.Id,
@@ -190,6 +193,38 @@ public class HandoverApiServiceTests
         var detail = await harness.Service.GetByIdAsync(handover.Id, harness.CustomerId);
         detail.IsSuccess.Should().BeTrue();
         detail.Value.Photos.Should().ContainSingle(p => p.Corner == "FrontLeft" && p.StorageKey == "photos/fl2.jpg");
+    }
+
+    [Fact]
+    public async Task UploadPhotoFileAsync_ShouldUploadToStorageComputeSha256AndReturnSignedPrivateUrl()
+    {
+        var harness = CreateHarness();
+        var handover = (await harness.Service.CreateAsync(harness.OwnerId, new CreateHandoverRequest(harness.BookingId, "Pickup"))).Value;
+
+        var imageBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x11, 0x22, 0x33, 0x44 };
+        var expectedHash = Convert.ToHexStringLower(SHA256.HashData(imageBytes));
+
+        await using var stream = new MemoryStream(imageBytes);
+        var uploadResult = await harness.Service.UploadPhotoFileAsync(
+            handover.Id,
+            harness.CustomerId,
+            new UploadHandoverPhotoFileRequest("FrontRight", stream, "front-right.jpg", "image/jpeg", Now));
+
+        uploadResult.IsSuccess.Should().BeTrue();
+        uploadResult.Value.Corner.Should().Be("FrontRight");
+        uploadResult.Value.StorageKey.Should().StartWith($"handover/{harness.BookingId:N}/");
+        uploadResult.Value.FileHash.Should().Be(expectedHash);
+        uploadResult.Value.ViewUrl.Should().StartWith($"https://storage.carrental.vn/private/{uploadResult.Value.StorageKey}?exp=")
+            .And.Contain("&sig=");
+        harness.ImageStorage.Contains(uploadResult.Value.StorageKey).Should().BeTrue();
+
+        await using var invalidStream = new MemoryStream([1, 2, 3]);
+        var invalidType = await harness.Service.UploadPhotoFileAsync(
+            handover.Id,
+            harness.CustomerId,
+            new UploadHandoverPhotoFileRequest("Dash", invalidStream, "doc.pdf", "application/pdf", Now));
+        invalidType.IsFailure.Should().BeTrue();
+        invalidType.Error.Code.Should().Be("storage.unsupported_content_type");
     }
 
     [Fact]
@@ -377,6 +412,7 @@ public class HandoverApiServiceTests
     private sealed class TestHarness
     {
         public required HandoverApiService Service { get; init; }
+        public required InMemoryImageStorage ImageStorage { get; init; }
         public required Mock<IBookingApi> BookingApiMock { get; init; }
         public required Mock<IEventOutbox> OutboxMock { get; init; }
         public required Dictionary<Guid, HandoverContext> Contexts { get; init; }
@@ -459,17 +495,21 @@ public class HandoverApiServiceTests
         outboxMock.Setup(x => x.PublishAsync(It.IsAny<HandoverConfirmed>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var imageStorage = new InMemoryImageStorage(clockMock.Object);
+
         var service = new HandoverApiService(
             dbContextMock.Object,
             repoMock.Object,
             bookingApiMock.Object,
             pricingApiMock.Object,
             outboxMock.Object,
-            clockMock.Object);
+            clockMock.Object,
+            imageStorage);
 
         return new TestHarness
         {
             Service = service,
+            ImageStorage = imageStorage,
             BookingApiMock = bookingApiMock,
             OutboxMock = outboxMock,
             Contexts = contexts,

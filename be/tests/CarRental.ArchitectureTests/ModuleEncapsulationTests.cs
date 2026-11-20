@@ -70,6 +70,59 @@ public class ModuleEncapsulationTests
                 $"Module '{moduleName}' violates isolation boundaries: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
+
+    [Fact]
+    public void ModuleProjects_MustNotReference_CloudinaryDotNet_Or_Host()
+    {
+        var solutionRoot = ArchitectureTestHelper.FindSolutionRoot();
+        var modulesDir = Path.Combine(solutionRoot, "src", "Modules");
+
+        var moduleCsprojFiles = Directory.GetFiles(modulesDir, "CarRental.Modules.*.csproj", SearchOption.AllDirectories)
+            .ToList();
+
+        moduleCsprojFiles.Should().NotBeEmpty();
+
+        var violations = new List<string>();
+
+        foreach (var csprojFile in moduleCsprojFiles)
+        {
+            var doc = XDocument.Load(csprojFile);
+
+            var forbiddenPackages = doc.Descendants("PackageReference")
+                .Select(pr => pr.Attribute("Include")?.Value)
+                .Where(v => string.Equals(v, "CloudinaryDotNet", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var pkg in forbiddenPackages)
+            {
+                violations.Add($"{Path.GetFileName(csprojFile)} references forbidden package '{pkg}'.");
+            }
+
+            var forbiddenProjects = doc.Descendants("ProjectReference")
+                .Select(pr => pr.Attribute("Include")?.Value)
+                .Where(v => !string.IsNullOrEmpty(v) && v.Contains("CarRental.Api.csproj", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var pr in forbiddenProjects)
+            {
+                violations.Add($"{Path.GetFileName(csprojFile)} references forbidden host project '{pr}'.");
+            }
+        }
+
+        foreach (var moduleAssembly in ArchitectureTestHelper.GetModuleAssemblies().Concat(ArchitectureTestHelper.GetContractsAssemblies()))
+        {
+            var referencedAssemblies = moduleAssembly.GetReferencedAssemblies()
+                .Select(a => a.Name)
+                .Where(n => string.Equals(n, "CloudinaryDotNet", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(n, "CarRental.Api", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var refName in referencedAssemblies)
+            {
+                violations.Add($"{moduleAssembly.GetName().Name} references forbidden assembly '{refName}'.");
+            }
+        }
+
+        violations.Should().BeEmpty("Feature modules must not depend on CloudinaryDotNet or the Host assembly.");
+    }
+
     [Fact]
     public void ManagedModules_ImplementationTypes_ShouldBeInternal()
     {

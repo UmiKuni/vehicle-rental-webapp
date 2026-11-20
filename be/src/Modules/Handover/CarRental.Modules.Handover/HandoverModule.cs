@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Storage;
 using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Handover.Contracts;
 using CarRental.Modules.Handover.Data;
@@ -24,6 +25,7 @@ public static class HandoverModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", HandoverDbContext.Schema)));
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IImageStorage, InMemoryImageStorage>();
         services.AddValidatorsFromAssembly(typeof(HandoverModule).Assembly);
         services.AddScoped<IHandoverRepository, HandoverRepository>();
         services.AddScoped<IHandoverApi, HandoverApiService>();

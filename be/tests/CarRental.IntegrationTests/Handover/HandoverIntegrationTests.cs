@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.IntegrationTests.Fixtures;
@@ -298,6 +299,74 @@ public class HandoverIntegrationTests : IntegrationTestBase
         // Unknown ID -> 404
         var notFoundResp = await ownerClient.GetAsync($"/api/handovers/{Guid.NewGuid()}");
         notFoundResp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task UploadHandoverPhoto_MultipartFile_ShouldStoreInImageStorageAndReturnSignedPrivateUrl()
+    {
+        var (ownerAuthClient, ownerId) = await CreateAuthenticatedOwnerClientAsync(
+            "owner_upload_ho@example.com",
+            "0906668899",
+            taxCode: "0102030422");
+        var (_, customerId) = await CreateAuthenticatedCustomerClientAsync(
+            "cust_upload_ho@example.com",
+            "0907779900");
+
+        var bookingId = Guid.NewGuid();
+        var bookingState = new FakeBookingState();
+        bookingState.Bookings[bookingId] = new FakeBookingRecord(
+            bookingId,
+            customerId,
+            ownerId,
+            Guid.NewGuid(),
+            "Paid",
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddDays(1),
+            500_000m,
+            2_000_000m);
+
+        using var customFactory = Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton(bookingState);
+                services.RemoveAll<IBookingApi>();
+                services.AddScoped<IBookingApi, FakeBookingApi>();
+            }));
+
+        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => customFactory.CreateClient());
+
+        var createResp = await ownerClient.PostAsJsonAsync(
+            "/api/handovers/",
+            new CreateHandoverRequest(bookingId, "Pickup"));
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var handover = (await createResp.Content.ReadFromJsonAsync<HandoverDetailDto>())!;
+
+        var jpegBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46 };
+        var expectedHash = Convert.ToHexStringLower(SHA256.HashData(jpegBytes));
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("FrontLeft"), "corner");
+        var fileContent = new ByteArrayContent(jpegBytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(fileContent, "file", "front-left.jpg");
+
+        var uploadResp = await ownerClient.PostAsync($"/api/handovers/{handover.Id}/photos", form);
+        uploadResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var photo = await uploadResp.Content.ReadFromJsonAsync<HandoverPhotoDto>();
+        photo.Should().NotBeNull();
+        photo!.Corner.Should().Be("FrontLeft");
+        photo.StorageKey.Should().StartWith($"handover/{bookingId:N}/");
+        photo.FileHash.Should().Be(expectedHash);
+        photo.ViewUrl.Should().StartWith($"https://storage.carrental.vn/private/{photo.StorageKey}?exp=")
+            .And.Contain("&sig=");
+
+        var detailResp = await ownerClient.GetAsync($"/api/handovers/{handover.Id}");
+        detailResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var detail = await detailResp.Content.ReadFromJsonAsync<HandoverDetailDto>();
+        detail!.Photos.Should().ContainSingle(p =>
+            p.StorageKey == photo.StorageKey
+            && p.FileHash == expectedHash
+            && p.ViewUrl.Contains("exp="));
     }
 
     private sealed class FakeBookingRecord

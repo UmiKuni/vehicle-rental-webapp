@@ -1,5 +1,6 @@
 using CarRental.BuildingBlocks.Messaging;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Storage;
 using CarRental.Modules.Bookings.Contracts;
 using CarRental.Modules.Bookings.Contracts.Dtos;
 using CarRental.Modules.Handover.Contracts;
@@ -25,6 +26,7 @@ internal sealed class HandoverApiService : IHandoverApi
     private readonly IPricingApi _pricingApi;
     private readonly IEventOutbox _eventOutbox;
     private readonly TimeProvider _clock;
+    private readonly IImageStorage _imageStorage;
 
     public HandoverApiService(
         HandoverDbContext dbContext,
@@ -32,7 +34,8 @@ internal sealed class HandoverApiService : IHandoverApi
         IBookingApi bookingApi,
         IPricingApi pricingApi,
         IEventOutbox eventOutbox,
-        TimeProvider clock)
+        TimeProvider clock,
+        IImageStorage? imageStorage = null)
     {
         _dbContext = dbContext;
         _repository = repository;
@@ -40,6 +43,7 @@ internal sealed class HandoverApiService : IHandoverApi
         _pricingApi = pricingApi;
         _eventOutbox = eventOutbox;
         _clock = clock;
+        _imageStorage = imageStorage ?? new InMemoryImageStorage(clock);
     }
 
     public async Task<Result<HandoverDetailDto>> CreateAsync(
@@ -166,6 +170,53 @@ internal sealed class HandoverApiService : IHandoverApi
         var result = handover.AddPhoto(corner, request.StorageKey, request.FileHash, request.ClientCapturedAt);
         if (result.IsFailure)
             return result.Error;
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        var photo = handover.Photos.Single(p => p.Corner == corner);
+        return ToPhotoDto(photo);
+    }
+
+    public async Task<Result<HandoverPhotoDto>> UploadPhotoFileAsync(
+        Guid handoverId,
+        Guid actorId,
+        UploadHandoverPhotoFileRequest request,
+        CancellationToken ct = default)
+    {
+        if (!TryParseEnum(request.Corner, out PhotoCorner corner))
+            return HandoverErrors.InvalidCorner;
+
+        var handoverResult = await GetHandoverOrFailAsync(handoverId, ct);
+        if (handoverResult.IsFailure)
+            return handoverResult.Error;
+
+        var handover = handoverResult.Value;
+        var authResult = await EnsureParticipantAsync(handover.BookingId, actorId, isAdmin: false, ct);
+        if (authResult.IsFailure)
+            return authResult.Error;
+
+        if (handover.Status != HandoverStatus.Draft)
+            return HandoverErrors.Immutable;
+
+        var uploadResult = await _imageStorage.UploadAsync(
+            new UploadRequest(
+                request.Content,
+                request.FileName,
+                request.ContentType,
+                $"handover/{handover.BookingId:N}",
+                StorageVisibility.Private),
+            ct);
+        if (uploadResult.IsFailure)
+            return uploadResult.Error;
+
+        var uploaded = uploadResult.Value;
+        var capturedAt = request.ClientCapturedAt ?? _clock.GetUtcNow();
+        var addResult = handover.AddPhoto(corner, uploaded.StorageKey, uploaded.FileHash, capturedAt);
+        if (addResult.IsFailure)
+        {
+            await _imageStorage.DeleteAsync(uploaded.StorageKey, StorageVisibility.Private, CancellationToken.None);
+            return addResult.Error;
+        }
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -359,7 +410,7 @@ internal sealed class HandoverApiService : IHandoverApi
         return string.Equals(trimmed, "Owner", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static HandoverDetailDto ToDetailDto(HandoverEntity handover) =>
+    private HandoverDetailDto ToDetailDto(HandoverEntity handover) =>
         new(
             handover.Id.Value,
             handover.BookingId,
@@ -394,16 +445,23 @@ internal sealed class HandoverApiService : IHandoverApi
             condition.FuelLevel,
             condition.DamageNotes);
 
-    private static HandoverPhotoDto ToPhotoDto(HandoverPhoto photo) =>
-        new(
+    private HandoverPhotoDto ToPhotoDto(HandoverPhoto photo)
+    {
+        var urlResult = _imageStorage.GetUrl(
+            photo.StorageKey,
+            StorageVisibility.Private,
+            TimeSpan.FromMinutes(10));
+
+        return new HandoverPhotoDto(
             photo.Id,
             photo.HandoverId.Value,
             photo.Corner.ToString(),
             photo.StorageKey,
             photo.FileHash,
-            $"https://storage.carrental.vn/handovers/{photo.StorageKey}",
+            urlResult.IsSuccess ? urlResult.Value : string.Empty,
             photo.ClientCapturedAt,
             photo.ClientCapturedAt);
+    }
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
