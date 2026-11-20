@@ -190,6 +190,27 @@ public class ReportingIntegrationTests : IntegrationTestBase
             t.BookingId == paidBookingId
             && t.VehiclePlate == "51K-889.99"
             && t.VehicleModel == "Mazda CX-5");
+
+        // 4. PaymentRefunded deducts revenue & paid amount
+        using (var scope = CreateScope())
+        {
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(new PaymentRefunded(
+                Guid.NewGuid(),
+                now,
+                paidBookingId,
+                Guid.NewGuid(),
+                new Money(1_000_000L, "VND"),
+                IsFullRefund: false,
+                "Partial refund test"));
+        }
+
+        await WaitForConditionAsync(async db =>
+        {
+            var proj = await db.BookingReportProjections.AsNoTracking().SingleAsync(p => p.Id == paidBookingId);
+            var stat = await db.DailyBookingStats.AsNoTracking().SingleAsync(s => s.Id == todayBucket);
+            return proj.PaidAmount == 2_000_000m && stat.TotalRevenue == 2_000_000m;
+        });
     }
 
     [Fact]

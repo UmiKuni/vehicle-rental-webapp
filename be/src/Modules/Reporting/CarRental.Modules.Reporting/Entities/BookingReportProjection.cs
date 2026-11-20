@@ -115,6 +115,14 @@ internal sealed class BookingReportProjection : Entity<Guid>
             Status = BookingProjectionStatus.Paid;
     }
 
+    public void ApplyRefund(decimal amount)
+    {
+        if (amount <= 0m)
+            return;
+
+        PaidAmount = Math.Max(0m, PaidAmount - amount);
+    }
+
     public void MarkInProgress()
     {
         if (Status is BookingProjectionStatus.Pending or BookingProjectionStatus.Confirmed or BookingProjectionStatus.Paid)

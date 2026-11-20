@@ -74,4 +74,15 @@ internal sealed class DailyBookingStats : Entity<DateOnly>
         TotalRevenue += amount;
         return true;
     }
+
+    public bool ApplyPaymentRefunded(decimal amount, DateTimeOffset occurredAt)
+    {
+        if (ToBucketDate(occurredAt) != Id || amount <= 0m)
+        {
+            return false;
+        }
+
+        TotalRevenue = Math.Max(0m, TotalRevenue - amount);
+        return true;
+    }
 }

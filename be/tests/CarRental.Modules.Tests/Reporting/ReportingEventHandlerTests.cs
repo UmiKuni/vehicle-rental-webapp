@@ -186,6 +186,63 @@ public class ReportingEventHandlerTests
     }
 
     [Fact]
+    public async Task PaymentRefundedConsumer_ShouldDeductRevenueAndPaidAmountAndEnforceIdempotency()
+    {
+        var harness = CreateHarness();
+        var bookingId = Guid.NewGuid();
+        var stats = DailyBookingStats.Create(ExpectedBucketDate);
+        stats.ApplyPaymentSucceeded(2_500_000m, LateNightUtc);
+        harness.Stats[ExpectedBucketDate] = stats;
+
+        var projection = BookingReportProjection.Create(
+            bookingId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "51A-12345",
+            "Toyota Camry",
+            LateNightUtc.AddDays(1),
+            LateNightUtc.AddDays(3),
+            2_500_000m,
+            LateNightUtc);
+        projection.RecordPayment(2_500_000m, LateNightUtc);
+        harness.Projections[bookingId] = projection;
+
+        var consumer = new PaymentRefundedConsumer();
+        var eventId = Guid.NewGuid();
+        var message = new PaymentRefunded(
+            eventId,
+            LateNightUtc.AddMinutes(30),
+            bookingId,
+            Guid.NewGuid(),
+            new Money(1_000_000L, "VND"),
+            IsFullRefund: false,
+            "Partial refund");
+
+        await consumer.Handle(
+            message,
+            harness.RepositoryMock.Object,
+            harness.DbContextMock.Object,
+            harness.ClockMock.Object,
+            CancellationToken.None);
+
+        harness.Stats[ExpectedBucketDate].TotalRevenue.Should().Be(1_500_000m);
+        projection.PaidAmount.Should().Be(1_500_000m);
+        harness.DbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        // Replay -> idempotent
+        await consumer.Handle(
+            message,
+            harness.RepositoryMock.Object,
+            harness.DbContextMock.Object,
+            harness.ClockMock.Object,
+            CancellationToken.None);
+
+        harness.Stats[ExpectedBucketDate].TotalRevenue.Should().Be(1_500_000m);
+        projection.PaidAmount.Should().Be(1_500_000m);
+        harness.DbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task BookingCancelledConsumer_ShouldIncrementCancellationsMarkCancelledAndEnforceIdempotency()
     {
         var harness = CreateHarness();
