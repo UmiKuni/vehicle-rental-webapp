@@ -485,6 +485,71 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         updated.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task EventDriven_BookingExpired_And_PaidBookingCancelled_ShouldCancelPendingAndRefundPaid()
+    {
+        var expiredBookingId = Guid.NewGuid();
+        var paidCancelledBookingId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var expiredPendingPayment = Payment.CreatePending(
+            expiredBookingId, Money.Of(3_000_000), Money.Of(2_000_000), now).Value;
+
+        var paidPayment = Payment.CreatePending(
+            paidCancelledBookingId, Money.Of(4_000_000), Money.Of(2_000_000), now).Value;
+        paidPayment.SetPaymentMethod(PaymentMethod.Transfer);
+        paidPayment.MarkSuccess("TRF-PAID-001", now);
+        var heldDeposit = Deposit.Hold(paidCancelledBookingId, Money.Of(2_000_000), now).Value;
+
+        using (var scope = _paymentsFactory!.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            db.Payments.AddRange(expiredPendingPayment, paidPayment);
+            db.Deposits.Add(heldDeposit);
+            await db.SaveChangesAsync();
+
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(new BookingExpired(
+                Guid.NewGuid(),
+                now,
+                expiredBookingId,
+                "Payment deadline expired"));
+
+            await bus.PublishAsync(new BookingCancelled(
+                Guid.NewGuid(),
+                now,
+                paidCancelledBookingId,
+                Guid.NewGuid(),
+                Money.Zero(),
+                Money.Of(4_000_000),
+                "Admin full refund"));
+        }
+
+        var updated = false;
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using var scope = _paymentsFactory!.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+            var expiredSaved = await db.Payments.AsNoTracking().SingleAsync(p => p.Id == expiredPendingPayment.Id);
+            var refundedSaved = await db.Payments.AsNoTracking().SingleAsync(p => p.Id == paidPayment.Id);
+            var depositSaved = await db.Deposits.AsNoTracking().SingleAsync(d => d.Id == heldDeposit.Id);
+
+            if (expiredSaved.Status == PaymentStatus.Failed
+                && refundedSaved.Status == PaymentStatus.Refunded
+                && refundedSaved.RefundedAmount.Amount == 4_000_000
+                && depositSaved.Status == DepositStatus.Released)
+            {
+                updated = true;
+                break;
+            }
+
+            await Task.Delay(150);
+        }
+
+        updated.Should().BeTrue();
+    }
+
     private static string BuildSignedVnPayIpnQuery(
         Guid paymentId,
         decimal amountVnd,
