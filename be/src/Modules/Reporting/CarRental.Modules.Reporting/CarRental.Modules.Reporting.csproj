@@ -5,6 +5,9 @@
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
     <ProjectReference Include="..\..\Payments\CarRental.Modules.Payments.Contracts\CarRental.Modules.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\..\Handover\CarRental.Modules.Handover.Contracts\CarRental.Modules.Handover.Contracts.csproj" />
+    <ProjectReference Include="..\..\Fleet\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
+    <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14,6 +17,14 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CarRental.Api" />
+    <InternalsVisibleTo Include="CarRental.Modules.Tests" />
+    <InternalsVisibleTo Include="CarRental.IntegrationTests" />
+    <InternalsVisibleTo Include="CarRental.ArchitectureTests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
 </Project>

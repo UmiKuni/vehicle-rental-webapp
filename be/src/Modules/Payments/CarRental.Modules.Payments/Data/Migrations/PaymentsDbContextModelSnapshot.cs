@@ -37,6 +37,11 @@ namespace CarRental.Modules.Payments.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_frozen");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
                     b.Property<DateTimeOffset?>("ReleaseAfter")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("release_after");
@@ -97,6 +102,20 @@ namespace CarRental.Modules.Payments.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("method");
+
+                    b.Property<string>("RefundReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("refund_reason");
+
+                    b.Property<string>("RefundTransactionId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("refund_transaction_id");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refunded_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -245,10 +264,40 @@ namespace CarRental.Modules.Payments.Data.Migrations
                                 .HasForeignKey("PaymentId");
                         });
 
+                    b.OwnsOne("CarRental.BuildingBlocks.Domain.ValueObjects.Money", "RefundedAmount", b1 =>
+                        {
+                            b1.Property<Guid>("PaymentId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<long>("Amount")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("bigint")
+                                .HasDefaultValue(0L)
+                                .HasColumnName("refunded_amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(8)
+                                .HasColumnType("character varying(8)")
+                                .HasDefaultValue("VND")
+                                .HasColumnName("refunded_currency");
+
+                            b1.HasKey("PaymentId");
+
+                            b1.ToTable("payments", "payments");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PaymentId");
+                        });
+
                     b.Navigation("Amount")
                         .IsRequired();
 
                     b.Navigation("DepositPortion")
+                        .IsRequired();
+
+                    b.Navigation("RefundedAmount")
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

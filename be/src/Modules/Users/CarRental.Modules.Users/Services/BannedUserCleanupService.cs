@@ -5,9 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CarRental.Modules.Users.Services
 {
@@ -15,26 +12,31 @@ namespace CarRental.Modules.Users.Services
     {
         private readonly ILogger<BannedUserCleanupService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TimeProvider _clock;
         private readonly TimeSpan _interval = TimeSpan.FromHours(1);
 
-        public BannedUserCleanupService(ILogger<BannedUserCleanupService> logger, IServiceScopeFactory scopeFactory)
+        public BannedUserCleanupService(
+            ILogger<BannedUserCleanupService> logger,
+            IServiceScopeFactory scopeFactory,
+            TimeProvider clock)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _clock = clock;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("BannedUserCleanupService started.");
 
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
+                    using var scope = _scopeFactory.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
                     // Placeholder logic: fetch banned users older than 30 days and log.
-                    var cutoff = DateTimeOffset.UtcNow.AddDays(-30);
+                    var cutoff = _clock.GetUtcNow().AddDays(-30);
                     var oldBanned = await db.Users
                         .Where(u => u.Status == UserStatus.Banned)
                         .ToListAsync(stoppingToken);

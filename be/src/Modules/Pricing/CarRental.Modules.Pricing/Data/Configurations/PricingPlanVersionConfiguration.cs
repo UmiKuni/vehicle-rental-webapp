@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Pricing.Data.Configurations;
 
-public sealed class PricingPlanVersionConfiguration : IEntityTypeConfiguration<PricingPlanVersion>
+internal sealed class PricingPlanVersionConfiguration : IEntityTypeConfiguration<PricingPlanVersion>
 {
     public void Configure(EntityTypeBuilder<PricingPlanVersion> builder)
     {
@@ -12,6 +12,7 @@ public sealed class PricingPlanVersionConfiguration : IEntityTypeConfiguration<P
 
         builder.HasKey(v => v.Id);
         builder.Property(v => v.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(v => v.VehicleId)

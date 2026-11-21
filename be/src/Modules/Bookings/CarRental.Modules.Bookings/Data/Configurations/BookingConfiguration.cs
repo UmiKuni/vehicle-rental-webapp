@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Bookings.Data.Configurations;
 
-public sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
+internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
 {
     public void Configure(EntityTypeBuilder<Booking> builder)
     {
@@ -13,6 +13,7 @@ public sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasKey(b => b.Id);
         builder.Property(b => b.Id)
             .HasConversion(id => id.Value, val => new BookingId(val))
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(b => b.CustomerId)
@@ -82,8 +83,10 @@ public sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .HasForeignKey(h => h.BookingId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Navigation(b => b.LineItems).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(b => b.LineItems).AutoInclude();
         builder.Navigation(b => b.PolicySnapshot).AutoInclude();
+        builder.Navigation(b => b.StatusHistory).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(b => b.StatusHistory).AutoInclude();
     }
 }

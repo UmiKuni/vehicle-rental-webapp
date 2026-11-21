@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class VehicleConditionConfiguration : IEntityTypeConfiguration<VehicleCondition>
+internal sealed class VehicleConditionConfiguration : IEntityTypeConfiguration<VehicleCondition>
 {
     public void Configure(EntityTypeBuilder<VehicleCondition> builder)
     {
@@ -13,6 +13,7 @@ public sealed class VehicleConditionConfiguration : IEntityTypeConfiguration<Veh
         builder.HasKey(c => c.HandoverId);
         builder.Property(c => c.HandoverId)
             .HasConversion(id => id.Value, val => new HandoverId(val))
+            .ValueGeneratedNever()
             .HasColumnName("handover_id");
 
         builder.Ignore(c => c.Id);

@@ -16,13 +16,14 @@ public interface ITokenService
     string HashRefreshToken(string token);
 }
 
-public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
+public sealed class TokenService(IOptions<JwtOptions> options, TimeProvider clock) : ITokenService
 {
     private readonly JwtOptions _options = options.Value;
+    private readonly TimeProvider _clock = clock;
 
     public (string Token, DateTimeOffset ExpiresAt) CreateAccessToken(User user)
     {
-        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_options.AccessTokenMinutes);
+        var expiresAt = _clock.GetUtcNow().AddMinutes(_options.AccessTokenMinutes);
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.Value.ToString()),
@@ -33,7 +34,7 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
             new Claim("id_verified", user.IsIdVerified ? "true" : "false"),
             new Claim("driver_license_verified", user.IsDriverLicenseVerified ? "true" : "false"),
             new Claim("verified_user", user.IsVerified ? "true" : "false"),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString())
         };
 
         var credentials = new SigningCredentials(
@@ -52,7 +53,7 @@ public sealed class TokenService(IOptions<JwtOptions> options) : ITokenService
     public (string Token, string Hash, DateTimeOffset ExpiresAt) CreateRefreshToken()
     {
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
-        return (token, HashRefreshToken(token), DateTimeOffset.UtcNow.AddDays(_options.RefreshTokenDays));
+        return (token, HashRefreshToken(token), _clock.GetUtcNow().AddDays(_options.RefreshTokenDays));
     }
 
     public string HashRefreshToken(string token)

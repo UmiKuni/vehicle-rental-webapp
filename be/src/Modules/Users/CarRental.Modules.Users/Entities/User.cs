@@ -43,13 +43,13 @@ public class User : AggregateRoot<UserId>
     public static Result<User> Register(string email, string phone, string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(email))
-            return Result.Failure<User>(UsersErrors.InvalidEmail2D5974);
+            return Result.Failure<User>(UsersErrors.InvalidEmail);
 
         if (string.IsNullOrWhiteSpace(phone))
-            return Result.Failure<User>(UsersErrors.InvalidPhoneA912AF);
+            return Result.Failure<User>(UsersErrors.InvalidPhone);
 
         if (string.IsNullOrWhiteSpace(passwordHash))
-            return Result.Failure<User>(UsersErrors.InvalidPassword87B027);
+            return Result.Failure<User>(UsersErrors.InvalidPassword);
 
         return Result.Success(new User(UserId.New(), email, phone, passwordHash));
     }
@@ -67,7 +67,7 @@ public class User : AggregateRoot<UserId>
     public Result UpdateProfile(string fullName, string address)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned152FB7);
+            return Result.Failure(UsersErrors.BannedProfile);
 
         if (string.IsNullOrWhiteSpace(fullName))
             return Result.Failure(UsersErrors.InvalidFullname);
@@ -87,7 +87,7 @@ public class User : AggregateRoot<UserId>
     public Result AddIdentityDocument(DocumentType type, string storageKey)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned3E03B5);
+            return Result.Failure(UsersErrors.BannedDocuments);
 
         if (string.IsNullOrWhiteSpace(storageKey))
             return Result.Failure(UsersErrors.InvalidDocument);
@@ -108,7 +108,7 @@ public class User : AggregateRoot<UserId>
     public Result VerifyDocumentByTypeMock(DocumentType type, string? storageKey = null)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned3E03B5);
+            return Result.Failure(UsersErrors.BannedDocuments);
 
         var effectiveKey = string.IsNullOrWhiteSpace(storageKey)
             ? $"mock/{type.ToString().ToLowerInvariant()}/{Id.Value:N}.jpg"
@@ -133,7 +133,7 @@ public class User : AggregateRoot<UserId>
     public Result SubmitOwnerOnboarding(string taxCode, IEnumerable<string>? businessDocKeys = null)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned7B690E);
+            return Result.Failure(UsersErrors.BannedOwnerOnboarding);
 
         if (string.IsNullOrWhiteSpace(taxCode))
             return Result.Failure(UsersErrors.InvalidTaxCode);
@@ -153,7 +153,7 @@ public class User : AggregateRoot<UserId>
     public Result ApproveOwner(Guid adminId)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned29AEB1);
+            return Result.Failure(UsersErrors.BannedOwnerApproval);
 
         if (OwnerProfile == null || OwnerProfile.ApprovalStatus != OwnerApprovalStatus.Pending)
             return Result.Failure(UsersErrors.NoPendingOwnerRequest);
@@ -167,7 +167,7 @@ public class User : AggregateRoot<UserId>
     public Result RejectOwner(Guid adminId, string reason)
     {
         if (Status == UserStatus.Banned)
-            return Result.Failure(UsersErrors.Banned29AEB1);
+            return Result.Failure(UsersErrors.BannedOwnerApproval);
 
         if (OwnerProfile == null || OwnerProfile.ApprovalStatus != OwnerApprovalStatus.Pending)
             return Result.Failure(UsersErrors.NoPendingOwnerRequest);

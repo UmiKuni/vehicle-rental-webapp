@@ -1,6 +1,6 @@
 namespace CarRental.Modules.Handover.Entities;
 
-public readonly record struct HandoverId(Guid Value)
+internal readonly record struct HandoverId(Guid Value)
 {
     public static HandoverId New() => new(Guid.CreateVersion7());
     public static HandoverId From(Guid value) => new(value);

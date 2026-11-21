@@ -4,7 +4,7 @@ using CarRental.Modules.Pricing.Contracts.Dtos;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public sealed record Quote : ValueObject
+internal sealed record Quote : ValueObject
 {
     public Guid VehicleId { get; init; }
     public Money Total { get; init; } = Money.Zero();

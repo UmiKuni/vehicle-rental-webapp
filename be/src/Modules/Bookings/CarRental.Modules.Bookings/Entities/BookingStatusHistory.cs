@@ -3,7 +3,7 @@ using CarRental.Modules.Bookings.Contracts.Enums;
 
 namespace CarRental.Modules.Bookings.Entities;
 
-public class BookingStatusHistory : Entity<Guid>
+internal class BookingStatusHistory : Entity<Guid>
 {
     public BookingId BookingId { get; private set; }
     public BookingStatus Status { get; private set; }

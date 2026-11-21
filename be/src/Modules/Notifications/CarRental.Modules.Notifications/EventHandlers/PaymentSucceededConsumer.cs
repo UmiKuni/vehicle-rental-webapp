@@ -1,27 +1,41 @@
 using CarRental.Modules.Payments.Contracts.Events;
+using CarRental.Modules.Bookings.Contracts;
+using CarRental.Modules.Notifications.Contracts.Enums;
+using CarRental.Modules.Notifications.Services;
 
 namespace CarRental.Modules.Notifications.EventHandlers;
 
 /// <summary>
 /// Wolverine consumer for <see cref="PaymentSucceeded"/>.
 /// </summary>
-public sealed class PaymentSucceededConsumer
+public sealed class PaymentSucceededConsumer(
+    NotificationDeliveryService notifications,
+    IBookingApi bookings)
 {
-    /*
-     * WHAT TO DO IN THIS FILE:
-     * ------------------------
-     * Triggered by: PaymentSucceeded event from Payments when transaction is settled via VNPay/MoMo/gateway.
-     * 
-     * Responsibilities:
-     * 1. Target recipients: Both Customer and Owner.
-     * 2. Construct deduplication keys for each recipient.
-     * 3. Customer notification: Payment receipt with transaction reference, amount paid, and deposit held.
-     * 4. Owner notification: Confirmation that rental fee and deposit have been secured, preparing for vehicle handover.
-     * 5. Dispatch multi-channel notifications (Email & SMS) and record in NotificationsDbContext.
-     */
-    public Task Consume(PaymentSucceeded @event, CancellationToken cancellationToken = default)
+    public async Task Consume(PaymentSucceeded @event, CancellationToken cancellationToken = default)
     {
-        return Task.CompletedTask;
+        var booking = await bookings.GetByIdAsync(@event.BookingId, Guid.Empty, true, cancellationToken);
+        if (booking.IsFailure)
+        {
+            if (booking.Error.Code == "booking.not_found")
+                return;
+            throw new InvalidOperationException(booking.Error.Message);
+        }
+
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.Email,
+            $"Payment succeeded for booking {@event.BookingId}: {@event.Amount}.",
+            $"payment-succeeded:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.OwnerId,
+            NotificationType.Push,
+            $"Payment secured for booking {@event.BookingId}.",
+            $"payment-succeeded:{@event.EventId}:{booking.Value.OwnerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

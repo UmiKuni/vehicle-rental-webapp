@@ -1,7 +1,12 @@
+using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Data;
+using CarRental.Modules.Availability.Data.Repositories;
+using CarRental.Modules.Availability.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CarRental.Modules.Availability;
 
@@ -20,6 +25,12 @@ public static class AvailabilityModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", AvailabilityDbContext.Schema);
                 o.UseNetTopologySuite();
             }));
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddValidatorsFromAssembly(typeof(AvailabilityModule).Assembly);
+        services.AddScoped<IVehicleCalendarRepository, VehicleCalendarRepository>();
+        services.AddScoped<IAvailabilityApi, AvailabilityApiService>();
+        services.AddHostedService<ExpiredHoldCleanupService>();
 
         return services;
     }

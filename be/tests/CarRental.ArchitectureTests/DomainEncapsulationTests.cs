@@ -27,11 +27,15 @@ public class DomainEncapsulationTests
             {
                 try
                 {
-                    return a.GetExportedTypes();
+                    return a.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    return ex.Types.OfType<Type>();
                 }
                 catch
                 {
-                    return Array.Empty<Type>();
+                    return a.GetExportedTypes();
                 }
             })
             .Where(t => t.IsClass && !t.IsAbstract && IsEntityOrAggregateRoot(t))

@@ -1,9 +1,12 @@
 using CarRental.Modules.Fleet.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Messaging;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Storage;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
 using CarRental.Modules.Fleet.Contracts.Enums;
+using CarRental.Modules.Fleet.Contracts.Events;
 using CarRental.Modules.Fleet.Data;
 using CarRental.Modules.Fleet.Entities;
 using CarRental.Modules.Users.Contracts;
@@ -16,11 +19,22 @@ public sealed class FleetApiService : IFleetApi
 {
     private readonly FleetDbContext _dbContext;
     private readonly IUsersApi _usersApi;
+    private readonly IImageStorage _imageStorage;
+    private readonly IEventOutbox _eventOutbox;
+    private readonly TimeProvider _clock;
 
-    public FleetApiService(FleetDbContext dbContext, IUsersApi usersApi)
+    public FleetApiService(
+        FleetDbContext dbContext,
+        IUsersApi usersApi,
+        IImageStorage imageStorage,
+        IEventOutbox eventOutbox,
+        TimeProvider clock)
     {
         _dbContext = dbContext;
         _usersApi = usersApi;
+        _imageStorage = imageStorage;
+        _eventOutbox = eventOutbox;
+        _clock = clock;
     }
 
     public async Task<Result<VehicleSummaryDto>> GetVehicleSummaryAsync(Guid vehicleId, CancellationToken ct = default)
@@ -144,11 +158,23 @@ public sealed class FleetApiService : IFleetApi
     public Task<Result> SubmitForApprovalAsync(Guid vehicleId, CancellationToken ct = default) =>
         ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.SubmitForApproval(), ct);
 
-    public Task<Result> ApproveAsync(Guid vehicleId, Guid adminId, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Approve(adminId), ct);
+    public async Task<Result> ApproveAsync(Guid vehicleId, Guid adminId, CancellationToken ct = default)
+    {
+        var vehicle = await FindVehicleAsync(vehicleId, ct);
+        if (vehicle is null)
+            return Result.Failure(NotFound());
+
+        var result = vehicle.Approve(adminId, _clock.GetUtcNow());
+        if (result.IsFailure)
+            return result;
+
+        await _dbContext.SaveChangesAsync(ct);
+        await PublishVehiclePublishedAsync(vehicle, ct);
+        return Result.Success();
+    }
 
     public Task<Result> RejectAsync(Guid vehicleId, Guid adminId, RejectVehicleDto dto, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Reject(adminId, dto.Reason), ct);
+        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Reject(adminId, dto.Reason, _clock.GetUtcNow()), ct);
 
     public Task<Result> HideAsync(Guid vehicleId, CancellationToken ct = default) =>
         ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Hide(), ct);
@@ -156,8 +182,95 @@ public sealed class FleetApiService : IFleetApi
     public Task<Result> ShowAsync(Guid vehicleId, CancellationToken ct = default) =>
         ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Show(), ct);
 
-    public Task<Result> UnpublishAsync(Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Unpublish(adminId, dto.Reason), ct);
+    public async Task<Result> UnpublishAsync(Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, CancellationToken ct = default)
+    {
+        var vehicle = await FindVehicleAsync(vehicleId, ct);
+        if (vehicle is null)
+            return Result.Failure(NotFound());
+
+        var result = vehicle.Unpublish(adminId, dto.Reason, _clock.GetUtcNow());
+        if (result.IsFailure)
+            return result;
+
+        await _dbContext.SaveChangesAsync(ct);
+        await _eventOutbox.PublishAsync(
+            new VehicleUnpublished(
+                Guid.CreateVersion7(),
+                _clock.GetUtcNow(),
+                vehicle.Id.Value,
+                vehicle.OwnerId,
+                dto.Reason),
+            ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<VehicleImageDto>> UploadImageAsync(
+        Guid vehicleId,
+        Guid ownerId,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default)
+    {
+        var vehicle = await FindVehicleAsync(vehicleId, ct);
+        if (vehicle is null)
+            return Result.Failure<VehicleImageDto>(NotFound());
+        if (vehicle.OwnerId != ownerId)
+            return Result.Failure<VehicleImageDto>(FleetErrors.OwnerRequired);
+
+        var uploadResult = await _imageStorage.UploadAsync(
+            new UploadRequest(
+                content,
+                fileName,
+                contentType,
+                $"vehicles/{vehicleId:N}",
+                StorageVisibility.Public),
+            ct);
+        if (uploadResult.IsFailure)
+            return Result.Failure<VehicleImageDto>(uploadResult.Error);
+
+        var addResult = vehicle.AddImage(uploadResult.Value.StorageKey);
+        if (addResult.IsFailure)
+        {
+            await _imageStorage.DeleteAsync(uploadResult.Value.StorageKey, StorageVisibility.Public, ct);
+            return Result.Failure<VehicleImageDto>(addResult.Error);
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+        var urlResult = _imageStorage.GetUrl(uploadResult.Value.StorageKey, StorageVisibility.Public);
+        if (urlResult.IsFailure)
+            return Result.Failure<VehicleImageDto>(urlResult.Error);
+
+        return Result.Success(new VehicleImageDto(
+            addResult.Value,
+            uploadResult.Value.StorageKey,
+            urlResult.Value,
+            vehicle.Images.Single(image => image.Id == addResult.Value).IsPrimary));
+    }
+
+    public async Task<Result> RemoveImageAsync(
+        Guid vehicleId,
+        Guid ownerId,
+        Guid imageId,
+        CancellationToken ct = default)
+    {
+        var vehicle = await FindVehicleAsync(vehicleId, ct);
+        if (vehicle is null)
+            return Result.Failure(NotFound());
+        if (vehicle.OwnerId != ownerId)
+            return Result.Failure(FleetErrors.OwnerRequired);
+
+        var image = vehicle.Images.FirstOrDefault(item => item.Id == imageId);
+        if (image is null)
+            return Result.Failure(FleetErrors.ImageNotFound);
+
+        var result = vehicle.RemoveImage(imageId);
+        if (result.IsFailure)
+            return result;
+
+        await _dbContext.SaveChangesAsync(ct);
+        return await _imageStorage.DeleteAsync(image.StorageKey, StorageVisibility.Public, ct);
+    }
 
     public async Task<Result<IReadOnlyList<BrandDto>>> GetBrandsAsync(CancellationToken ct = default)
     {
@@ -220,9 +333,9 @@ public sealed class FleetApiService : IFleetApi
             return Result.Failure(BrandNotFound());
 
         if (await _dbContext.VehicleModels.AnyAsync(model => model.BrandId == brandId, ct))
-            return Result.Failure(FleetErrors.BrandInUse018A61);
+            return Result.Failure(FleetErrors.BrandHasModels);
         if (await _dbContext.Vehicles.AnyAsync(vehicle => vehicle.BrandId == brandId, ct))
-            return Result.Failure(FleetErrors.BrandInUseAA1F56);
+            return Result.Failure(FleetErrors.BrandHasVehicles);
 
         _dbContext.VehicleBrands.Remove(brand);
         await _dbContext.SaveChangesAsync(ct);
@@ -328,6 +441,28 @@ public sealed class FleetApiService : IFleetApi
 
         await _dbContext.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    private async Task PublishVehiclePublishedAsync(Vehicle vehicle, CancellationToken ct)
+    {
+        var brand = await _dbContext.VehicleBrands.AsNoTracking()
+            .SingleAsync(item => item.Id == vehicle.BrandId, ct);
+        var model = await _dbContext.VehicleModels.AsNoTracking()
+            .SingleAsync(item => item.Id == vehicle.ModelId, ct);
+
+        await _eventOutbox.PublishAsync(
+            new VehiclePublished(
+                Guid.CreateVersion7(),
+                _clock.GetUtcNow(),
+                vehicle.Id.Value,
+                vehicle.OwnerId,
+                brand.Name,
+                model.Name,
+                vehicle.Seats,
+                vehicle.Transmission.ToString(),
+                vehicle.Location,
+                vehicle.Address),
+            ct);
     }
 
     private Task<Vehicle?> FindVehicleAsync(Guid vehicleId, CancellationToken ct) =>

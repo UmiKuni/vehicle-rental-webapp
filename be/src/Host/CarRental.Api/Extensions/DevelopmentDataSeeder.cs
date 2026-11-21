@@ -81,22 +81,23 @@ public static class DevelopmentDataSeeder
             var audit = services.GetRequiredService<AuditDbContext>();
             var reporting = services.GetRequiredService<ReportingDbContext>();
             var passwordHasher = services.GetRequiredService<PasswordHasher<object>>();
+            var clock = services.GetRequiredService<TimeProvider>();
 
             await SeedAdminAsync(users, passwordHasher);
             var owner = await SeedOwnerAsync(users, passwordHasher);
             var customer = await SeedCustomerAsync(users, passwordHasher);
-            await SeedFleetAsync(fleet, pricing, owner.Id.Value);
-            await RebuildSearchProjectionAsync(fleet, pricing, search);
+            await SeedFleetAsync(fleet, pricing, owner.Id.Value, clock);
+            await RebuildSearchProjectionAsync(fleet, pricing, search, clock);
             var vehicle = await fleet.Vehicles.OrderBy(item => item.PlateNumber).FirstAsync();
-            var booking = await SeedBookingAsync(bookings, owner.Id.Value, customer.Id.Value, vehicle.Id.Value);
-            await SeedAvailabilityAsync(availability, booking, vehicle.Id.Value);
-            await SeedPaymentsAsync(payments, bookings, booking);
+            var booking = await SeedBookingAsync(bookings, owner.Id.Value, customer.Id.Value, vehicle.Id.Value, clock);
+            await SeedAvailabilityAsync(availability, booking, vehicle.Id.Value, clock);
+            await SeedPaymentsAsync(payments, bookings, booking, clock);
             await SeedHandoverAsync(handover, booking, vehicle.Id.Value, customer.Id.Value, owner.Id.Value);
-            await SeedReviewsAsync(reviews, booking, vehicle.Id.Value, customer.Id.Value);
-            await SeedSupportAsync(support, booking, customer.Id.Value);
-            await SeedNotificationsAsync(notifications, customer.Id.Value);
-            await SeedAuditAsync(audit, owner.Id.Value, booking.Id.Value);
-            await SeedReportingAsync(reporting, booking);
+            await SeedReviewsAsync(reviews, booking, vehicle.Id.Value, customer.Id.Value, clock);
+            await SeedSupportAsync(support, booking, customer.Id.Value, clock);
+            await SeedNotificationsAsync(notifications, customer.Id.Value, clock);
+            await SeedAuditAsync(audit, owner.Id.Value, booking.Id.Value, clock);
+            await SeedReportingAsync(reporting, booking, vehicle);
 
             logger.LogInformation(
                 "Development data seed completed. Admin login: {AdminEmail}; Owner login: {OwnerEmail}; customer login: {CustomerEmail}",
@@ -211,7 +212,8 @@ public static class DevelopmentDataSeeder
         BookingDbContext db,
         Guid ownerId,
         Guid customerId,
-        Guid vehicleId)
+        Guid vehicleId,
+        TimeProvider clock)
     {
         var existing = await db.Bookings
             .Include(item => item.LineItems)
@@ -219,7 +221,7 @@ public static class DevelopmentDataSeeder
         if (existing is not null)
             return existing;
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         var period = new DateTimeRange(now.AddDays(2), now.AddDays(5));
         var policy = new CancellationPolicySnapshot(
             BookingId.From(SeedBookingId),
@@ -256,7 +258,8 @@ public static class DevelopmentDataSeeder
     private static async Task SeedAvailabilityAsync(
         AvailabilityDbContext db,
         Booking booking,
-        Guid vehicleId)
+        Guid vehicleId,
+        TimeProvider clock)
     {
         var calendar = await db.VehicleCalendars
             .Include(item => item.Entries)
@@ -264,7 +267,7 @@ public static class DevelopmentDataSeeder
         if (calendar is not null)
             return;
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         calendar = VehicleCalendar.Create(vehicleId, now);
         var result = calendar.PlaceHold(
             booking.Id.Value,
@@ -284,12 +287,13 @@ public static class DevelopmentDataSeeder
     private static async Task SeedPaymentsAsync(
         PaymentsDbContext db,
         BookingDbContext bookingDb,
-        Booking booking)
+        Booking booking,
+        TimeProvider clock)
     {
         if (await db.Payments.AnyAsync(item => item.BookingId == booking.Id.Value))
             return;
 
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         var paymentResult = Payment.CreatePending(
             booking.Id.Value, Money.Of(3_950_000), Money.Of(2_000_000), now);
         if (paymentResult.IsFailure)
@@ -335,15 +339,17 @@ public static class DevelopmentDataSeeder
         ReviewsDbContext db,
         Booking booking,
         Guid vehicleId,
-        Guid customerId)
+        Guid customerId,
+        TimeProvider clock)
     {
         if (await db.ReviewableBookings.AnyAsync(item => item.BookingId == booking.Id.Value))
             return;
 
+        var now = clock.GetUtcNow();
         var reviewable = new ReviewableBooking(
-            booking.Id.Value, vehicleId, customerId, DateTimeOffset.UtcNow.AddDays(-1));
+            booking.Id.Value, vehicleId, customerId, now.AddDays(-1));
         var reviewResult = Review.Create(
-            reviewable, customerId, 5, "Seed review: smooth pickup and clean vehicle.", DateTimeOffset.UtcNow);
+            reviewable, customerId, 5, "Seed review: smooth pickup and clean vehicle.", now);
         if (reviewResult.IsFailure)
             throw new InvalidOperationException($"Could not create seed review: {reviewResult.Error.Message}");
 
@@ -358,7 +364,8 @@ public static class DevelopmentDataSeeder
     private static async Task SeedSupportAsync(
         SupportDbContext db,
         Booking booking,
-        Guid customerId)
+        Guid customerId,
+        TimeProvider clock)
     {
         if (await db.SupportTickets.AnyAsync(item => item.BookingId == booking.Id.Value))
             return;
@@ -368,7 +375,7 @@ public static class DevelopmentDataSeeder
             customerId,
             "Seed support ticket for the sample booking.",
             null,
-            DateTimeOffset.UtcNow);
+            clock.GetUtcNow());
         if (result.IsFailure)
             throw new InvalidOperationException($"Could not create seed support ticket: {result.Error.Message}");
 
@@ -376,7 +383,7 @@ public static class DevelopmentDataSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedNotificationsAsync(NotificationsDbContext db, Guid customerId)
+    private static async Task SeedNotificationsAsync(NotificationsDbContext db, Guid customerId, TimeProvider clock)
     {
         if (await db.Notifications.AnyAsync(item => item.DedupKey == "seed.booking.confirmed"))
             return;
@@ -386,7 +393,7 @@ public static class DevelopmentDataSeeder
             NotificationType.Email,
             """{"message":"Your seed booking has been confirmed."}""",
             "seed.booking.confirmed",
-            DateTimeOffset.UtcNow);
+            clock.GetUtcNow());
         if (result.IsFailure)
             throw new InvalidOperationException($"Could not create seed notification: {result.Error.Message}");
 
@@ -394,14 +401,14 @@ public static class DevelopmentDataSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedAuditAsync(AuditDbContext db, Guid actorId, Guid bookingId)
+    private static async Task SeedAuditAsync(AuditDbContext db, Guid actorId, Guid bookingId, TimeProvider clock)
     {
         if (await db.AuditLogEntries.AnyAsync(item => item.EntityId == bookingId.ToString()))
             return;
 
         var result = AuditLogEntry.Record(
             Guid.Empty,
-            DateTimeOffset.UtcNow,
+            clock.GetUtcNow(),
             actorId,
             "127.0.0.1",
             "SeedBookingCreated",
@@ -416,23 +423,54 @@ public static class DevelopmentDataSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedReportingAsync(ReportingDbContext db, Booking booking)
+    private static async Task SeedReportingAsync(
+        ReportingDbContext db,
+        Booking booking,
+        Vehicle vehicle)
     {
+        var changed = false;
         var date = DailyBookingStats.ToBucketDate(booking.CreatedAt);
-        if (await db.DailyBookingStats.AnyAsync(item => item.Id == date))
-            return;
+        if (!await db.DailyBookingStats.AnyAsync(item => item.Id == date))
+        {
+            var stats = DailyBookingStats.Create(date);
+            stats.ApplyBookingRequested(booking.CreatedAt);
+            stats.ApplyPaymentSucceeded(1_950_000m, booking.CreatedAt);
+            db.DailyBookingStats.Add(stats);
+            changed = true;
+        }
 
-        var stats = DailyBookingStats.Create(date);
-        stats.ApplyBookingRequested(booking.CreatedAt);
-        stats.ApplyPaymentSucceeded(1_950_000m, booking.CreatedAt);
-        db.DailyBookingStats.Add(stats);
-        await db.SaveChangesAsync();
+        if (!await db.BookingReportProjections.AnyAsync(item => item.Id == booking.Id.Value))
+        {
+            var brandName = Brands.FirstOrDefault(b => b.Id == vehicle.BrandId).Name ?? string.Empty;
+            var modelName = Models.FirstOrDefault(m => m.Id == vehicle.ModelId).Name ?? string.Empty;
+            var vehicleModel = $"{brandName} {modelName}".Trim();
+
+            var projection = BookingReportProjection.Create(
+                booking.Id.Value,
+                booking.OwnerId,
+                booking.VehicleId,
+                vehicle.PlateNumber,
+                vehicleModel,
+                booking.StartTime,
+                booking.EndTime,
+                1_950_000m,
+                booking.CreatedAt);
+            projection.MarkConfirmed();
+            projection.RecordPayment(3_950_000m, booking.UpdatedAt);
+
+            db.BookingReportProjections.Add(projection);
+            changed = true;
+        }
+
+        if (changed)
+            await db.SaveChangesAsync();
     }
 
     private static async Task SeedFleetAsync(
         FleetDbContext fleet,
         PricingDbContext pricing,
-        Guid ownerId)
+        Guid ownerId,
+        TimeProvider clock)
     {
         foreach (var brand in Brands)
         {
@@ -460,7 +498,8 @@ public static class DevelopmentDataSeeder
             new GeoPoint(10.7769, 106.7009),
             "1 Nguyen Hue, District 1, Ho Chi Minh City",
             550_000,
-            650_000);
+            650_000,
+            clock);
 
         await SeedVehicleAsync(
             fleet,
@@ -474,7 +513,8 @@ public static class DevelopmentDataSeeder
             new GeoPoint(10.7829, 106.6997),
             "15 Le Thanh Ton, District 1, Ho Chi Minh City",
             900_000,
-            1_050_000);
+            1_050_000,
+            clock);
 
         await SeedVehicleAsync(
             fleet,
@@ -488,13 +528,15 @@ public static class DevelopmentDataSeeder
             new GeoPoint(10.8014, 106.6522),
             "208 Nguyen Van Cu, District 5, Ho Chi Minh City",
             1_200_000,
-            1_400_000);
+            1_400_000,
+            clock);
     }
 
     private static async Task RebuildSearchProjectionAsync(
         FleetDbContext fleet,
         PricingDbContext pricing,
-        SearchDbContext search)
+        SearchDbContext search,
+        TimeProvider clock)
     {
         var vehicles = await fleet.Vehicles
             .AsNoTracking()
@@ -523,7 +565,7 @@ public static class DevelopmentDataSeeder
                 search.VehicleSearchDocuments.Add(document);
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = clock.GetUtcNow();
             document.ApplyPublished(
                 brandNames[vehicle.BrandId],
                 modelNames[vehicle.ModelId],
@@ -552,7 +594,8 @@ public static class DevelopmentDataSeeder
         GeoPoint location,
         string address,
         long weekdayRate,
-        long weekendRate)
+        long weekendRate,
+        TimeProvider clock)
     {
         var vehicle = await fleet.Vehicles.FirstOrDefaultAsync(item => item.PlateNumber == plateNumber);
         if (vehicle is null)
@@ -578,7 +621,7 @@ public static class DevelopmentDataSeeder
             if (submitResult.IsFailure)
                 throw new InvalidOperationException($"Could not submit seed vehicle {plateNumber}: {submitResult.Error.Message}");
 
-            var approveResult = vehicle.Approve(AdminId);
+            var approveResult = vehicle.Approve(AdminId, clock.GetUtcNow());
             if (approveResult.IsFailure)
                 throw new InvalidOperationException($"Could not approve seed vehicle {plateNumber}: {approveResult.Error.Message}");
 
@@ -594,7 +637,7 @@ public static class DevelopmentDataSeeder
                 Money.Of(weekendRate),
                 Money.Of(2_000_000),
                 300,
-                DateTimeOffset.UtcNow,
+                clock.GetUtcNow(),
                 Money.Of(80_000));
             if (result.IsFailure)
                 throw new InvalidOperationException($"Could not create pricing for seed vehicle {plateNumber}: {result.Error.Message}");

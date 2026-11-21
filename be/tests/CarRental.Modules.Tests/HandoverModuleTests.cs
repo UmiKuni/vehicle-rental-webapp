@@ -1,4 +1,5 @@
 using HandoverEntity = CarRental.Modules.Handover.Entities.Handover;
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Handover.Contracts.Enums;
 using CarRental.Modules.Handover.Entities;
 using FluentAssertions;
@@ -119,6 +120,35 @@ public class HandoverModuleTests
         var postPhoto = handover.AddPhoto(PhotoCorner.Dash, "photos/dash2.jpg", "HASH_NEW", Now);
         postPhoto.IsSuccess.Should().BeFalse();
         postPhoto.Error.Code.Should().Be("handover.immutable");
+        postPhoto.Error.Type.Should().Be(ErrorType.Conflict);
+    }
+
+    [Fact]
+    public void Start_WhenNotParticipant_ShouldFailWithForbidden()
+    {
+        var ctx = CreateTestContext();
+
+        var result = HandoverEntity.Start(ctx, HandoverType.Pickup, Guid.NewGuid(), Now);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Code.Should().Be("handover.not_participant");
+        result.Error.Type.Should().Be(ErrorType.Forbidden);
+    }
+
+    [Fact]
+    public void SetCondition_Twice_ShouldUpdateExistingConditionInPlace()
+    {
+        var ctx = CreateTestContext();
+        var handover = HandoverEntity.Start(ctx, HandoverType.Pickup, CustomerId, Now).Value;
+
+        handover.SetCondition(15000, 80, "Initial").IsSuccess.Should().BeTrue();
+        var originalCondition = handover.Condition;
+
+        handover.SetCondition(15010, 75, "Updated").IsSuccess.Should().BeTrue();
+        handover.Condition.Should().BeSameAs(originalCondition);
+        handover.Condition!.Odometer.Should().Be(15010);
+        handover.Condition.FuelLevel.Should().Be(75);
+        handover.Condition.DamageNotes.Should().Be("Updated");
     }
 
     [Fact]

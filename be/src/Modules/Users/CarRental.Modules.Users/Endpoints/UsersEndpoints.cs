@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
+using CarRental.Modules.Users.Contracts.Enums;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -209,6 +210,30 @@ public static class UsersEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict);
+
+        unverifiedAllowed.MapPost("/me/documents/{type}", async (
+        DocumentType type,
+        IFormFile file,
+        ClaimsPrincipal principal,
+        IUsersApi api,
+        CancellationToken ct) =>
+        {
+        await using var stream = file.OpenReadStream();
+        var result = await api.UploadIdentityDocumentAsync(
+            GetUserId(principal),
+            type,
+            stream,
+            file.FileName,
+            file.ContentType,
+            ct);
+        return result.ToHttpResult();
+        })
+        .DisableAntiforgery()
+        .WithName("UploadMyIdentityDocument")
+        .WithSummary("Upload a private citizen ID or driver's license document.")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         unverifiedAllowed.MapPost("/{userId:guid}/verify-driver-license", async (
             Guid userId,

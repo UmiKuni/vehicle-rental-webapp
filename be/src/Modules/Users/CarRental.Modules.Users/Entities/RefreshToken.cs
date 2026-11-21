@@ -12,7 +12,7 @@ public class RefreshToken : Entity<Guid>
     public string? DeviceInfo { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public bool IsActive => RevokedAt == null && DateTimeOffset.UtcNow < ExpiresAt;
+    public bool IsActiveAt(DateTimeOffset now) => RevokedAt == null && now < ExpiresAt;
 
     private RefreshToken() { }
 
@@ -34,9 +34,9 @@ public class RefreshToken : Entity<Guid>
         ReplacedByTokenId = null;
     }
 
-    public void Revoke(Guid? replacedByTokenId = null, DateTimeOffset? revokedAt = null)
+    public void Revoke(Guid? replacedByTokenId, DateTimeOffset revokedAt)
     {
-        RevokedAt = revokedAt ?? DateTimeOffset.UtcNow;
+        RevokedAt = revokedAt;
         ReplacedByTokenId = replacedByTokenId;
     }
 }

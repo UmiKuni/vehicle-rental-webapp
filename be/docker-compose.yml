@@ -69,6 +69,29 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-carrental};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Include Error Detail=true;
       ConnectionStrings__Redis: redis:6379
+      Payments__UseMockGateway: ${PAYMENTS_USE_MOCK_GATEWAY:-false}
+      Payments__VNPay__TmnCode: ${VNPAY_TMN_CODE:-}
+      Payments__VNPay__HashSecret: ${VNPAY_HASH_SECRET:-}
+      Payments__VNPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      Payments__VNPay__ApiUrl: ${VNPAY_API_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+      Payments__PayPal__ClientId: ${PAYPAL_CLIENT_ID:-}
+      Payments__PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET:-}
+      Payments__PayPal__WebhookId: ${PAYPAL_WEBHOOK_ID:-}
+      Payments__PayPal__BaseUrl: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      Payments__PayPal__Currency: ${PAYPAL_CURRENCY:-USD}
+      Payments__PayPal__ExchangeRate: ${PAYPAL_EXCHANGE_RATE:-25000}
+      Payments__Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
+      Payments__Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
+      Payments__Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
+      Payments__Stripe__ApiBaseUrl: ${STRIPE_API_BASE_URL:-https://api.stripe.com}
+      Payments__Stripe__Currency: ${STRIPE_CURRENCY:-vnd}
+      Payments__Transfer__BankCode: ${TRANSFER_BANK_CODE:-}
+      Payments__Transfer__AccountNumber: ${TRANSFER_ACCOUNT_NUMBER:-}
+      Payments__Transfer__AccountName: ${TRANSFER_ACCOUNT_NAME:-}
+      Payments__Transfer__WebhookSecret: ${TRANSFER_WEBHOOK_SECRET:-}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:

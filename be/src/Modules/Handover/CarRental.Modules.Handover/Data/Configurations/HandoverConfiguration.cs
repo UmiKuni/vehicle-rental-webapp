@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Handover.Data.Configurations;
 
-public sealed class HandoverConfiguration : IEntityTypeConfiguration<HandoverEntity>
+internal sealed class HandoverConfiguration : IEntityTypeConfiguration<HandoverEntity>
 {
     public void Configure(EntityTypeBuilder<HandoverEntity> builder)
     {
@@ -14,6 +14,7 @@ public sealed class HandoverConfiguration : IEntityTypeConfiguration<HandoverEnt
         builder.HasKey(h => h.Id);
         builder.Property(h => h.Id)
             .HasConversion(id => id.Value, val => new HandoverId(val))
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(h => h.BookingId)
@@ -59,7 +60,9 @@ public sealed class HandoverConfiguration : IEntityTypeConfiguration<HandoverEnt
             .HasForeignKey<VehicleCondition>(c => c.HandoverId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Navigation(h => h.Photos).AutoInclude();
+        builder.Navigation(h => h.Photos)
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
         builder.Navigation(h => h.Condition).AutoInclude();
     }
 }

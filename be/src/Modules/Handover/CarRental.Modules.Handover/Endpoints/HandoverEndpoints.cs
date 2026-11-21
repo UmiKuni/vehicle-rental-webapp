@@ -1,4 +1,11 @@
+using System.Globalization;
+using System.Security.Claims;
+using System.Text.Json;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Handover.Contracts;
+using CarRental.Modules.Handover.Contracts.Dtos;
+using FluentValidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -14,237 +21,208 @@ public static class HandoverEndpoints
             .RequireAuthorization("AuthenticatedUser");
 
         // 1. Create a new handover inspection record
-        group.MapPost("/", (CreateHandoverRequest request) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.Type) ||
-                (!string.Equals(request.Type, "Pickup", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(request.Type, "Return", StringComparison.OrdinalIgnoreCase)))
-            {
-                return Error.Validation("handover.invalid_type", "Type must be either 'Pickup' or 'Return'.").ToProblemResult();
-            }
-
-            var handoverId = Guid.NewGuid();
-            var condition = new VehicleConditionDto(
-                HandoverId: handoverId,
-                Odo: 15420,
-                FuelLevel: 100,
-                DamageNote: null);
-
-            var detail = new HandoverDetailDto(
-                Id: handoverId,
-                BookingId: request.BookingId,
-                Type: request.Type,
-                Status: "Draft",
-                ServerReceivedAt: DateTimeOffset.UtcNow,
-                Condition: condition,
-                Photos: [],
-                IsConfirmedByOwner: false,
-                IsConfirmedByCustomer: false,
-                FinalizedAt: null);
-
-            return Results.Created($"/api/handovers/{handoverId}", detail);
-        })
+        group.MapPost("/", async (
+            CreateHandoverRequest request,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            CancellationToken ct) =>
+            (await api.CreateAsync(GetUserId(principal), request, ct))
+                .ToCreatedHttpResult(dto => $"/api/handovers/{dto.Id}"))
+        .WithValidation<CreateHandoverRequest>()
         .WithName("CreateHandover")
         .WithSummary("Tạo biên bản giao nhận xe (Pickup / Return)")
         .WithDescription("Initializes a vehicle handover protocol draft for vehicle pickup or return.")
         .Produces<HandoverDetailDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
         // 2. Get all handovers for a booking
-        group.MapGet("/booking/{bookingId:guid}", (Guid bookingId) =>
-        {
-            var handovers = new[]
-            {
-                new HandoverSummaryDto(
-                    Id: Guid.Parse("c1111111-0000-0000-0000-000000000001"),
-                    BookingId: bookingId,
-                    Type: "Pickup",
-                    Status: "Confirmed",
-                    ServerReceivedAt: DateTimeOffset.UtcNow.AddDays(-3)),
-                new HandoverSummaryDto(
-                    Id: Guid.Parse("c1111111-0000-0000-0000-000000000002"),
-                    BookingId: bookingId,
-                    Type: "Return",
-                    Status: "Draft",
-                    ServerReceivedAt: DateTimeOffset.UtcNow)
-            };
-
-            return Results.Ok(handovers);
-        })
+        group.MapGet("/booking/{bookingId:guid}", async (
+            Guid bookingId,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            CancellationToken ct) =>
+            (await api.GetByBookingAsync(
+                bookingId,
+                GetUserId(principal),
+                principal.IsInRole("Admin"),
+                ct)).ToHttpResult())
         .WithName("GetHandoversByBooking")
         .WithSummary("Xem danh sách biên bản giao & nhận của chuyến")
         .WithDescription("Retrieves both pickup and return handover records for a specific booking.")
-        .Produces<HandoverSummaryDto[]>(StatusCodes.Status200OK);
+        .Produces<IReadOnlyList<HandoverSummaryDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden);
 
         // 3. Get handover detail by ID
-        group.MapGet("/{id:guid}", (Guid id) =>
-        {
-            var photos = new List<HandoverPhotoDto>
-            {
-                new(Guid.NewGuid(), id, "FrontLeft", "photos/2026/10/fl_preview.jpg", "e3b0c44298fc1c149afbf4c8996fb924", "https://storage.carrental.vn/handovers/fl_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1)),
-                new(Guid.NewGuid(), id, "FrontRight", "photos/2026/10/fr_preview.jpg", "c4ca4238a0b923820dcc509a6f75849b", "https://storage.carrental.vn/handovers/fr_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1)),
-                new(Guid.NewGuid(), id, "BackLeft", "photos/2026/10/bl_preview.jpg", "c81e728d9d4c2f636f067f89cc14862c", "https://storage.carrental.vn/handovers/bl_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1)),
-                new(Guid.NewGuid(), id, "BackRight", "photos/2026/10/br_preview.jpg", "eccbc87e4b5ce2fe28308fd9f2a7baf3", "https://storage.carrental.vn/handovers/br_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1)),
-                new(Guid.NewGuid(), id, "Dash", "photos/2026/10/dash_preview.jpg", "a87ff679a2f3e71d9181a67b7542122c", "https://storage.carrental.vn/handovers/dash_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1)),
-                new(Guid.NewGuid(), id, "Trunk", "photos/2026/10/trunk_preview.jpg", "e4da3b7fbbce2345d7772b0674a318d5", "https://storage.carrental.vn/handovers/trunk_preview.jpg", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(-1))
-            };
-
-            var detail = new HandoverDetailDto(
-                Id: id,
-                BookingId: Guid.Parse("a1111111-0000-0000-0000-000000000001"),
-                Type: "Pickup",
-                Status: "Confirmed",
-                ServerReceivedAt: DateTimeOffset.UtcNow.AddDays(-3),
-                Condition: new VehicleConditionDto(
-                    HandoverId: id,
-                    Odo: 15420,
-                    FuelLevel: 100,
-                    DamageNote: "Xe sạch sẽ, có vết xước nhẹ ở cản trước góc phải"),
-                Photos: photos,
-                IsConfirmedByOwner: true,
-                IsConfirmedByCustomer: true,
-                FinalizedAt: DateTimeOffset.UtcNow.AddDays(-3).AddMinutes(15));
-
-            return Results.Ok(detail);
-        })
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            CancellationToken ct) =>
+            (await api.GetByIdAsync(
+                id,
+                GetUserId(principal),
+                principal.IsInRole("Admin"),
+                ct)).ToHttpResult())
         .WithName("GetHandoverById")
         .WithSummary("Xem chi tiết biên bản, ảnh 4 góc & Odo")
         .WithDescription("Retrieves full details of a vehicle handover report, including odometer, fuel level, corner photos, and digital signatures.")
         .Produces<HandoverDetailDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         // 4. Update vehicle condition (odo, fuel level, damage note)
-        group.MapPut("/{id:guid}/condition", (Guid id, UpdateVehicleConditionRequest request) =>
-        {
-            if (request.Odo < 0 || request.FuelLevel < 0 || request.FuelLevel > 100)
-            {
-                return Error.Validation("handover.invalid_condition", "Odo must be non-negative and FuelLevel must be between 0 and 100.").ToProblemResult();
-            }
-
-            var condition = new VehicleConditionDto(
-                HandoverId: id,
-                Odo: request.Odo,
-                FuelLevel: request.FuelLevel,
-                DamageNote: request.DamageNote);
-
-            return Results.Ok(condition);
-        })
+        group.MapPut("/{id:guid}/condition", async (
+            Guid id,
+            UpdateVehicleConditionRequest request,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            CancellationToken ct) =>
+            (await api.UpdateConditionAsync(id, GetUserId(principal), request, ct)).ToHttpResult())
+        .WithValidation<UpdateVehicleConditionRequest>()
         .WithName("UpdateVehicleCondition")
         .WithSummary("Cập nhật số Km Odo, % nhiên liệu & hư hại")
         .WithDescription("Updates vehicle inspection metrics such as current odometer reading, fuel percentage, and noted damages.")
         .Produces<VehicleConditionDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
-        // 5. Upload vehicle handover photo
-        group.MapPost("/{id:guid}/photos", (Guid id, UploadHandoverPhotoRequest request) =>
+        // 5. Upload vehicle handover photo (supports multipart/form-data file upload and application/json metadata)
+        group.MapPost("/{id:guid}/photos", async (
+            Guid id,
+            HttpContext httpContext,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            IValidator<UploadHandoverPhotoRequest> jsonValidator,
+            CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Corner) || string.IsNullOrWhiteSpace(request.StorageKey))
+            var actorId = GetUserId(principal);
+
+            if (httpContext.Request.HasFormContentType)
             {
-                return Error.Validation("handover.photo_required", "Corner and StorageKey are required.").ToProblemResult();
+                var form = await httpContext.Request.ReadFormAsync(ct);
+                var corner = form["corner"].ToString();
+                var capturedAtRaw = form["clientCapturedAt"].ToString();
+                DateTimeOffset? capturedAt = DateTimeOffset.TryParse(
+                    capturedAtRaw,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out var parsedAt)
+                    ? parsedAt
+                    : null;
+
+                var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+                if (file is null)
+                {
+                    return (await api.UploadPhotoFileAsync(
+                            id,
+                            actorId,
+                            new UploadHandoverPhotoFileRequest(
+                                corner,
+                                Stream.Null,
+                                string.Empty,
+                                string.Empty,
+                                capturedAt),
+                            ct))
+                        .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
+                }
+
+                await using var stream = file.OpenReadStream();
+                return (await api.UploadPhotoFileAsync(
+                        id,
+                        actorId,
+                        new UploadHandoverPhotoFileRequest(
+                            corner,
+                            stream,
+                            file.FileName,
+                            file.ContentType ?? string.Empty,
+                            capturedAt),
+                        ct))
+                    .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
             }
 
-            var photo = new HandoverPhotoDto(
-                Id: Guid.NewGuid(),
-                HandoverId: id,
-                Corner: request.Corner,
-                StorageKey: request.StorageKey,
-                FileHash: request.FileHash,
-                ViewUrl: $"https://storage.carrental.vn/handovers/{request.StorageKey}",
-                ClientCapturedAt: request.ClientCapturedAt,
-                CreatedAt: DateTimeOffset.UtcNow);
+            UploadHandoverPhotoRequest? request;
+            try
+            {
+                request = await httpContext.Request.ReadFromJsonAsync<UploadHandoverPhotoRequest>(ct);
+            }
+            catch (JsonException)
+            {
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: "Invalid JSON payload.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["errorCode"] = "validation.invalid_json" });
+            }
 
-            return Results.Created($"/api/handovers/{id}/photos/{photo.Id}", photo);
+            if (request is null)
+            {
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: "Request body is required.",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["errorCode"] = "validation.null_request" });
+            }
+
+            var validationResult = await jsonValidator.ValidateAsync(request, ct);
+            if (!validationResult.IsValid)
+            {
+                var first = validationResult.Errors[0];
+                return Results.Problem(
+                    title: "Validation Error",
+                    detail: first.ErrorMessage,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["errorCode"] = string.IsNullOrWhiteSpace(first.ErrorCode) ? "validation.failed" : first.ErrorCode,
+                        ["errors"] = validationResult.Errors
+                            .GroupBy(e => e.PropertyName)
+                            .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())
+                    });
+            }
+
+            return (await api.AddPhotoAsync(id, actorId, request, ct))
+                .ToCreatedHttpResult(dto => $"/api/handovers/{id}/photos/{dto.Id}");
         })
         .WithName("UploadHandoverPhoto")
         .WithSummary("Ghi nhận ảnh góc xe, đồng hồ Odo")
-        .WithDescription("Registers an inspected vehicle photo (FrontLeft, Dash, Trunk, etc.) with metadata and storage key.")
+        .WithDescription("Uploads or registers an inspected vehicle photo (FrontLeft, FrontRight, RearLeft, RearRight, Dash) with SHA-256 tamper-verification hash.")
         .Produces<HandoverPhotoDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
         // 6. Confirm handover with digital signature
-        group.MapPut("/{id:guid}/confirm", (Guid id, ConfirmHandoverRequest request) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.ConfirmedByRole) ||
-                (!string.Equals(request.ConfirmedByRole, "Customer", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(request.ConfirmedByRole, "Owner", StringComparison.OrdinalIgnoreCase)))
-            {
-                return Error.Validation("handover.invalid_role", "ConfirmedByRole must be either 'Customer' or 'Owner'.").ToProblemResult();
-            }
-
-            var finalizedDetail = new HandoverDetailDto(
-                Id: id,
-                BookingId: Guid.Parse("a1111111-0000-0000-0000-000000000001"),
-                Type: "Return",
-                Status: "Confirmed",
-                ServerReceivedAt: DateTimeOffset.UtcNow.AddMinutes(-10),
-                Condition: new VehicleConditionDto(id, 15720, 95, "Xe bàn giao đúng tình trạng ban đầu"),
-                Photos: [],
-                IsConfirmedByOwner: true,
-                IsConfirmedByCustomer: true,
-                FinalizedAt: DateTimeOffset.UtcNow);
-
-            return Results.Ok(finalizedDetail);
-        })
+        group.MapPut("/{id:guid}/confirm", async (
+            Guid id,
+            ConfirmHandoverRequest request,
+            ClaimsPrincipal principal,
+            IHandoverApi api,
+            CancellationToken ct) =>
+            (await api.ConfirmAsync(id, GetUserId(principal), request, ct)).ToHttpResult())
+        .WithValidation<ConfirmHandoverRequest>()
         .WithName("ConfirmHandover")
         .WithSummary("Chủ xe & Khách ký chốt (bất biến dữ liệu BR-13)")
         .WithDescription("Submits digital signature confirmation from customer or owner. Once both parties confirm, handover becomes immutable per BR-13.")
         .Produces<HandoverDetailDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
     }
+
+    private static Guid GetUserId(ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(claim, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
+    }
 }
-
-public sealed record CreateHandoverRequest(
-    Guid BookingId,
-    string Type); // "Pickup" hoặc "Return"
-
-public sealed record UpdateVehicleConditionRequest(
-    int Odo,
-    int FuelLevel, // 0 - 100%
-    string? DamageNote);
-
-public sealed record VehicleConditionDto(
-    Guid HandoverId,
-    int Odo,
-    int FuelLevel,
-    string? DamageNote);
-
-public sealed record UploadHandoverPhotoRequest(
-    string Corner, // FrontLeft, FrontRight, BackLeft, BackRight, Dash, Trunk, Interior
-    string StorageKey,
-    string FileHash,
-    DateTimeOffset ClientCapturedAt);
-
-public sealed record HandoverPhotoDto(
-    Guid Id,
-    Guid HandoverId,
-    string Corner,
-    string StorageKey,
-    string FileHash,
-    string ViewUrl,
-    DateTimeOffset ClientCapturedAt,
-    DateTimeOffset CreatedAt);
-
-public sealed record ConfirmHandoverRequest(
-    string ConfirmedByRole, // "Customer" hoặc "Owner"
-    string? SignatureToken);
-
-public sealed record HandoverDetailDto(
-    Guid Id,
-    Guid BookingId,
-    string Type, // Pickup, Return
-    string Status, // Draft, Confirmed
-    DateTimeOffset ServerReceivedAt,
-    VehicleConditionDto? Condition,
-    IReadOnlyList<HandoverPhotoDto> Photos,
-    bool IsConfirmedByOwner,
-    bool IsConfirmedByCustomer,
-    DateTimeOffset? FinalizedAt);
-
-public sealed record HandoverSummaryDto(
-    Guid Id,
-    Guid BookingId,
-    string Type,
-    string Status,
-    DateTimeOffset ServerReceivedAt);

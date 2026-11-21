@@ -1,28 +1,34 @@
 using CarRental.Modules.Bookings.Contracts.Events;
+using CarRental.Modules.Bookings.Contracts;
+using CarRental.Modules.Notifications.Contracts.Enums;
+using CarRental.Modules.Notifications.Services;
 
 namespace CarRental.Modules.Notifications.EventHandlers;
 
 /// <summary>
 /// Wolverine consumer for <see cref="BookingConfirmed"/>.
 /// </summary>
-public sealed class BookingConfirmedConsumer
+public sealed class BookingConfirmedConsumer(
+    NotificationDeliveryService notifications,
+    IBookingApi bookings)
 {
-    /*
-     * WHAT TO DO IN THIS FILE:
-     * ------------------------
-     * Triggered by: BookingConfirmed event from Bookings when an owner approves a reservation.
-     * 
-     * Responsibilities:
-     * 1. Target recipient: Customer (event.CustomerId).
-     * 2. Query contact info via IUsersApi.GetContactAsync(event.CustomerId).
-     * 3. Construct unique deduplication key: $"booking-confirmed:{event.EventId}:{event.CustomerId}".
-     * 4. Build Notification payload containing payment checkout link and payment deadline.
-     * 5. Dispatch transactional alert (Email / SMS) so customer can pay before hold expiration.
-     * 6. Save notification to NotificationsDbContext.
-     */
-    public Task Consume(BookingConfirmed @event, CancellationToken cancellationToken = default)
+    public async Task Consume(BookingConfirmed @event, CancellationToken cancellationToken = default)
     {
-        return Task.CompletedTask;
+        var booking = await bookings.GetByIdAsync(@event.BookingId, Guid.Empty, true, cancellationToken);
+        if (booking.IsFailure)
+        {
+            if (booking.Error.Code == "booking.not_found")
+                return;
+            throw new InvalidOperationException(booking.Error.Message);
+        }
+
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.Email,
+            $"Booking confirmed. Payment is due by {@event.PaymentDeadline:O}.",
+            $"booking-confirmed:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

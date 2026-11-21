@@ -1,6 +1,6 @@
 namespace CarRental.Modules.Bookings.Entities;
 
-public readonly record struct BookingId(Guid Value)
+internal readonly record struct BookingId(Guid Value)
 {
     public static BookingId New() => new(Guid.CreateVersion7());
     public static BookingId From(Guid value) => new(value);

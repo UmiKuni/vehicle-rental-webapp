@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Reporting.Data;
 
-public class ReportingDbContext : DbContext
+internal class ReportingDbContext : DbContext
 {
     public const string Schema = "reporting";
 
     public DbSet<DailyBookingStats> DailyBookingStats => Set<DailyBookingStats>();
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+    public DbSet<BookingReportProjection> BookingReportProjections => Set<BookingReportProjection>();
 
     public ReportingDbContext(DbContextOptions<ReportingDbContext> options) : base(options)
     {

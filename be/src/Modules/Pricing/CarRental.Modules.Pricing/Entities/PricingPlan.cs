@@ -8,7 +8,7 @@ using CarRental.Modules.Pricing.Contracts.Events;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public class PricingPlan : AggregateRoot<Guid>
+internal class PricingPlan : AggregateRoot<Guid>
 {
     private readonly List<FeeRule> _feeRules = new();
 
@@ -51,29 +51,16 @@ public class PricingPlan : AggregateRoot<Guid>
         Money? hourlyRate = null)
     {
         if (vehicleId == Guid.Empty)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidVehicle);
+            return PricingErrors.InvalidVehicle;
 
-        if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekdayRate);
-
-        if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidWeekendRate);
-
-        if (hourlyRate is not null && hourlyRate.Amount <= 0)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidHourlyRate);
-
-        if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidDeposit);
-
-        if (kmLimit <= 0)
-            return Result.Failure<PricingPlan>(PricingErrors.InvalidKmLimit);
+        var validation = ValidateRatesAndLimits(weekdayRate, weekendRate, depositAmount, kmLimit, hourlyRate);
+        if (validation.IsFailure)
+            return validation.Error;
 
         var plan = new PricingPlan(Guid.CreateVersion7(), vehicleId, hourlyRate, weekdayRate, weekendRate, depositAmount, kmLimit);
+        plan.RaisePricingUpdated(now);
 
-        var minPrice = Math.Min(weekdayRate.Amount, weekendRate.Amount);
-        plan.Raise(new PricingUpdated(Guid.CreateVersion7(), now, vehicleId, minPrice));
-
-        return Result.Success(plan);
+        return plan;
     }
 
     public Result Update(
@@ -84,20 +71,9 @@ public class PricingPlan : AggregateRoot<Guid>
         DateTimeOffset now,
         Money? hourlyRate = null)
     {
-        if (weekdayRate == null || weekdayRate.Amount <= 0)
-            return Result.Failure(PricingErrors.InvalidWeekdayRate);
-
-        if (weekendRate == null || weekendRate.Amount <= 0)
-            return Result.Failure(PricingErrors.InvalidWeekendRate);
-
-        if (hourlyRate is not null && hourlyRate.Amount <= 0)
-            return Result.Failure(PricingErrors.InvalidHourlyRate);
-
-        if (depositAmount == null || depositAmount.Amount < 0)
-            return Result.Failure(PricingErrors.InvalidDeposit);
-
-        if (kmLimit <= 0)
-            return Result.Failure(PricingErrors.InvalidKmLimit);
+        var validation = ValidateRatesAndLimits(weekdayRate, weekendRate, depositAmount, kmLimit, hourlyRate);
+        if (validation.IsFailure)
+            return validation;
 
         HourlyRate = hourlyRate;
         WeekdayRate = weekdayRate;
@@ -105,19 +81,17 @@ public class PricingPlan : AggregateRoot<Guid>
         DepositAmount = depositAmount;
         KmLimit = kmLimit;
 
-        var minPrice = Math.Min(weekdayRate.Amount, weekendRate.Amount);
-        Raise(new PricingUpdated(Guid.CreateVersion7(), now, VehicleId, minPrice));
-
+        RaisePricingUpdated(now);
         return Result.Success();
     }
 
     public Result SetFeeRule(FeeType type, Money amount, DateTimeOffset now)
     {
-        if (amount == null || amount.Amount < 0)
-            return Result.Failure(PricingErrors.InvalidFeeAmount);
+        if (amount is null || amount.Amount < 0)
+            return PricingErrors.InvalidFeeAmount;
 
         var existing = _feeRules.FirstOrDefault(f => f.Type == type);
-        if (existing == null)
+        if (existing is null)
         {
             _feeRules.Add(new FeeRule(Guid.CreateVersion7(), Id, type, amount));
         }
@@ -153,39 +127,56 @@ public class PricingPlan : AggregateRoot<Guid>
 
     public Result<Quote> CalculateQuote(DateTimeRange period)
     {
-        if (period == null)
-            return Result.Failure<Quote>(PricingErrors.InvalidPeriod);
+        if (period is null)
+            return PricingErrors.InvalidPeriod;
 
-        var lines = new List<QuoteLine>();
-        var currency = WeekdayRate.Currency;
+        var (baseDescription, baseAmount, currency) = HourlyRate is not null
+            ? CalculateHourlyBase(period)
+            : CalculateDailyBase(period);
 
-        if (HourlyRate is not null)
-        {
-            var totalHours = Math.Max(1, (int)Math.Ceiling(period.Duration.TotalHours));
-            var hourlyTotal = checked(HourlyRate.Amount * totalHours);
-            lines.Add(new QuoteLine(
-                QuoteLineType.BaseRate,
-                $"Rent ({totalHours} hours)",
-                new Money(hourlyTotal, HourlyRate.Currency)));
-            var hourlyCleaningRule = _feeRules.FirstOrDefault(f => f.Type == FeeType.Cleaning);
-            if (hourlyCleaningRule is not null && hourlyCleaningRule.Amount.Amount > 0)
-            {
-                lines.Add(new QuoteLine(QuoteLineType.CleaningFee, "Cleaning fee", hourlyCleaningRule.Amount));
-                hourlyTotal = checked(hourlyTotal + hourlyCleaningRule.Amount.Amount);
-            }
-            lines.Add(new QuoteLine(QuoteLineType.Deposit, "Security deposit", DepositAmount));
+        return BuildQuote(baseDescription, baseAmount, currency);
+    }
 
-            Money? hourlyOverKmFee = _feeRules.FirstOrDefault(f => f.Type == FeeType.OverKm)?.Amount;
-            return Result.Success(new Quote(
-                VehicleId,
-                new Money(hourlyTotal, HourlyRate.Currency),
-                DepositAmount,
-                KmLimit,
-                hourlyOverKmFee,
-                lines,
-                CancellationPolicy.Standard));
-        }
+    private static Result ValidateRatesAndLimits(
+        Money weekdayRate,
+        Money weekendRate,
+        Money depositAmount,
+        int kmLimit,
+        Money? hourlyRate)
+    {
+        if (weekdayRate is null || weekdayRate.Amount <= 0)
+            return PricingErrors.InvalidWeekdayRate;
 
+        if (weekendRate is null || weekendRate.Amount <= 0)
+            return PricingErrors.InvalidWeekendRate;
+
+        if (hourlyRate is not null && hourlyRate.Amount <= 0)
+            return PricingErrors.InvalidHourlyRate;
+
+        if (depositAmount is null || depositAmount.Amount < 0)
+            return PricingErrors.InvalidDeposit;
+
+        if (kmLimit <= 0)
+            return PricingErrors.InvalidKmLimit;
+
+        return Result.Success();
+    }
+
+    private void RaisePricingUpdated(DateTimeOffset now)
+    {
+        var minPrice = Math.Min(WeekdayRate.Amount, WeekendRate.Amount);
+        Raise(new PricingUpdated(Guid.CreateVersion7(), now, VehicleId, minPrice));
+    }
+
+    private (string Description, long Amount, string Currency) CalculateHourlyBase(DateTimeRange period)
+    {
+        var totalHours = Math.Max(1, (int)Math.Ceiling(period.Duration.TotalHours));
+        var hourlyTotal = checked(HourlyRate!.Amount * totalHours);
+        return ($"Rent ({totalHours} hours)", hourlyTotal, HourlyRate.Currency);
+    }
+
+    private (string Description, long Amount, string Currency) CalculateDailyBase(DateTimeRange period)
+    {
         // Calculate days in UTC+7 (Vietnam Time)
         var vnOffset = TimeSpan.FromHours(7);
         var startVn = period.Start.ToOffset(vnOffset);
@@ -204,7 +195,7 @@ public class PricingPlan : AggregateRoot<Guid>
 
         for (var d = currentDate; d <= endDate; d = d.AddDays(1))
         {
-            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
+            if (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
             {
                 weekendCount++;
                 totalRent += WeekendRate.Amount;
@@ -222,22 +213,29 @@ public class PricingPlan : AggregateRoot<Guid>
             totalRent = WeekdayRate.Amount;
         }
 
-        lines.Add(new QuoteLine(QuoteLineType.BaseRate, $"Rent ({weekdayCount} weekdays, {weekendCount} weekend days)", new Money(totalRent, currency)));
+        return ($"Rent ({weekdayCount} weekdays, {weekendCount} weekend days)", totalRent, WeekdayRate.Currency);
+    }
 
-        long subtotal = totalRent;
+    private Quote BuildQuote(string baseDescription, long baseAmount, string currency)
+    {
+        var lines = new List<QuoteLine>
+        {
+            new(QuoteLineType.BaseRate, baseDescription, new Money(baseAmount, currency))
+        };
 
+        var subtotal = baseAmount;
         var cleaningRule = _feeRules.FirstOrDefault(f => f.Type == FeeType.Cleaning);
-        if (cleaningRule != null && cleaningRule.Amount.Amount > 0)
+        if (cleaningRule is not null && cleaningRule.Amount.Amount > 0)
         {
             lines.Add(new QuoteLine(QuoteLineType.CleaningFee, "Cleaning fee", cleaningRule.Amount));
-            subtotal += cleaningRule.Amount.Amount;
+            subtotal = checked(subtotal + cleaningRule.Amount.Amount);
         }
 
         lines.Add(new QuoteLine(QuoteLineType.Deposit, "Security deposit", DepositAmount));
 
-        Money? overKmFee = _feeRules.FirstOrDefault(f => f.Type == FeeType.OverKm)?.Amount;
+        var overKmFee = _feeRules.FirstOrDefault(f => f.Type == FeeType.OverKm)?.Amount;
 
-        var quote = new Quote(
+        return new Quote(
             VehicleId,
             new Money(subtotal, currency),
             DepositAmount,
@@ -245,7 +243,5 @@ public class PricingPlan : AggregateRoot<Guid>
             overKmFee,
             lines,
             CancellationPolicy.Standard);
-
-        return Result.Success(quote);
     }
 }
