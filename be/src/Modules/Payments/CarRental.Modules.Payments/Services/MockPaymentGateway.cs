@@ -3,6 +3,8 @@ using System.Text.Json;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Payments.Contracts.Dtos;
 using CarRental.Modules.Payments.Contracts.Enums;
+using CarRental.Modules.Payments.Data.Repositories;
+using CarRental.Modules.Payments.Entities;
 using CarRental.Modules.Payments.Errors;
 using CarRental.Modules.Payments.Services.Gateways;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +13,8 @@ namespace CarRental.Modules.Payments.Services;
 
 internal sealed class MockPaymentGateway(
     IConfiguration configuration,
-    TimeProvider clock) : IPaymentGateway
+    TimeProvider clock,
+    IPaymentsRepository? repository = null) : IPaymentGateway
 {
     private static readonly TimeSpan CheckoutTtl = TimeSpan.FromMinutes(15);
 
@@ -120,22 +123,37 @@ internal sealed class MockPaymentGateway(
         }
     }
 
-    public Task<Result<GatewayWebhookNotification>> CapturePayPalOrderAsync(
+    public async Task<Result<GatewayWebhookNotification>> CapturePayPalOrderAsync(
         string paypalOrderId,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(paypalOrderId))
-            return Task.FromResult(Result.Failure<GatewayWebhookNotification>(PaymentsErrors.InvalidPayPalOrderId));
+            return Result.Failure<GatewayWebhookNotification>(PaymentsErrors.InvalidPayPalOrderId);
 
-        return Task.FromResult(Result.Success(new GatewayWebhookNotification(
+        var trimmedOrderId = paypalOrderId.Trim();
+        var amount = 0m;
+        var currency = "VND";
+
+        if (repository is not null && Guid.TryParse(trimmedOrderId, out var orderGuid) && orderGuid != Guid.Empty)
+        {
+            var payment = await repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
+                          ?? await repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
+            if (payment is not null)
+            {
+                amount = payment.Amount.Amount;
+                currency = payment.Amount.Currency;
+            }
+        }
+
+        return Result.Success(new GatewayWebhookNotification(
             PaymentMethod.Paypal,
             $"MOCK-PP-CAP-{Guid.CreateVersion7():N}",
-            paypalOrderId,
-            0m,
-            "VND",
+            trimmedOrderId,
+            amount,
+            currency,
             true,
             "00",
-            "{}")));
+            JsonSerializer.Serialize(new { orderId = trimmedOrderId, amount, currency, mock = true })));
     }
 
     public bool IsWebhookAmountValid(

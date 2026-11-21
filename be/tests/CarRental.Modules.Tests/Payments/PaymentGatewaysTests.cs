@@ -4,15 +4,26 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Web;
+using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Messaging;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Bookings.Contracts;
+using CarRental.Modules.Bookings.Contracts.Dtos;
 using CarRental.Modules.Payments.Contracts.Dtos;
 using CarRental.Modules.Payments.Contracts.Enums;
+using CarRental.Modules.Payments.Contracts.Events;
+using CarRental.Modules.Payments.Data;
+using CarRental.Modules.Payments.Data.Repositories;
+using CarRental.Modules.Payments.Entities;
 using CarRental.Modules.Payments.Options;
 using CarRental.Modules.Payments.Services;
 using CarRental.Modules.Payments.Services.Gateways;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using Xunit;
 
 namespace CarRental.Modules.Tests.Payments;
@@ -498,6 +509,86 @@ public class PaymentGatewaysTests
             new GatewayCheckoutRequest(Guid.NewGuid(), Guid.NewGuid(), 1000m, "VND", PaymentMethod.Stripe, "https://app.test/return", Now));
         missingProvider.IsFailure.Should().BeTrue();
         missingProvider.Error.Code.Should().Be("payment.invalid_method");
+    }
+
+    [Fact]
+    public async Task MockPaymentGateway_CapturePayPalOrder_ShouldResolvePaymentAmountAndPassValidation()
+    {
+        var customerId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var bookingId = Guid.NewGuid();
+        var payment = Payment.CreatePending(bookingId, Money.Of(5_000_000), Money.Of(2_000_000), Now).Value;
+        payment.SetPaymentMethod(PaymentMethod.Paypal);
+
+        var payments = new List<Payment> { payment };
+        var deposits = new List<Deposit>();
+        var inboxes = new List<WebhookInbox>();
+
+        var repoMock = new Mock<IPaymentsRepository>();
+        repoMock.Setup(r => r.GetPaymentByIdAsync(It.IsAny<PaymentId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PaymentId id, CancellationToken _) => payments.SingleOrDefault(p => p.Id == id));
+        repoMock.Setup(r => r.GetPendingPaymentByBookingIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid bId, CancellationToken _) =>
+                payments.Where(p => p.BookingId == bId && p.Status == PaymentStatus.Pending)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault());
+        repoMock.Setup(r => r.GetDepositByBookingIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid bId, CancellationToken _) => deposits.FirstOrDefault(d => d.BookingId == bId));
+        repoMock.Setup(r => r.HasWebhookBeenProcessedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string txnId, CancellationToken _) => inboxes.Any(w => w.Id == txnId));
+        repoMock.Setup(r => r.AddDeposit(It.IsAny<Deposit>())).Callback((Deposit d) => deposits.Add(d));
+        repoMock.Setup(r => r.AddWebhookInbox(It.IsAny<WebhookInbox>())).Callback((WebhookInbox w) => inboxes.Add(w));
+
+        var config = new ConfigurationBuilder().AddInMemoryCollection([]).Build();
+        var clock = new FixedTimeProvider(Now);
+        var gateway = new MockPaymentGateway(config, clock, repoMock.Object);
+
+        var captureN = await gateway.CapturePayPalOrderAsync(payment.Id.Value.ToString("N"));
+        captureN.IsSuccess.Should().BeTrue();
+        captureN.Value.Amount.Should().Be(5_000_000m);
+        captureN.Value.Currency.Should().Be("VND");
+        gateway.IsWebhookAmountValid(
+                PaymentMethod.Paypal,
+                payment.Amount.Amount,
+                payment.Amount.Currency,
+                captureN.Value.Amount,
+                captureN.Value.Currency)
+            .Should().BeTrue();
+
+        var captureD = await gateway.CapturePayPalOrderAsync(payment.Id.Value.ToString("D"));
+        captureD.IsSuccess.Should().BeTrue();
+        captureD.Value.Amount.Should().Be(5_000_000m);
+        captureD.Value.Currency.Should().Be("VND");
+
+        var dbContextMock = new Mock<PaymentsDbContext>(new DbContextOptionsBuilder<PaymentsDbContext>().Options);
+        dbContextMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var bookingApiMock = new Mock<IBookingApi>();
+        bookingApiMock.Setup(b => b.IsParticipantAsync(bookingId, customerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        bookingApiMock.Setup(b => b.MarkPaidAsync(bookingId, payment.Id.Value, Now, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        var outboxMock = new Mock<IEventOutbox>();
+        outboxMock.Setup(o => o.PublishAsync(It.IsAny<PaymentSucceeded>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new PaymentsApiService(
+            dbContextMock.Object,
+            repoMock.Object,
+            bookingApiMock.Object,
+            gateway,
+            outboxMock.Object,
+            clock);
+
+        var serviceCapture = await service.CapturePayPalOrderAsync(payment.Id.Value.ToString("N"), customerId);
+        serviceCapture.IsSuccess.Should().BeTrue();
+        serviceCapture.Value.Status.Should().Be("Success");
+        serviceCapture.Value.Amount.Should().Be(5_000_000m);
+        payment.Status.Should().Be(PaymentStatus.Success);
+        bookingApiMock.Verify(
+            b => b.MarkPaidAsync(bookingId, payment.Id.Value, Now, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     private static VnPayPaymentGateway CreateVnPayGateway(VnPayOptions opts, FakeHttpMessageHandler? handler = null) =>
