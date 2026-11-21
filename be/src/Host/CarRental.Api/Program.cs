@@ -137,7 +137,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
     }
 }
 
-// Map Module Endpoints (Mock Implementation)
+// Map Module Endpoints
 app.MapPricingEndpoints();
 app.MapUsersEndpoints();
 app.MapFleetEndpoints();
