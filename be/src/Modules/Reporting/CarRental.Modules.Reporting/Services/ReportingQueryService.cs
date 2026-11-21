@@ -153,7 +153,7 @@ internal sealed class ReportingQueryService(
 
     private static OwnerTripRevenueItemDto MapTripRevenueItem(BookingReportProjection projection)
     {
-        var grossRent = projection.RentAmount;
+        var grossRent = Math.Max(0m, projection.RentAmount - projection.RefundedAmount);
         var commission = Math.Round(grossRent * PlatformCommissionRate, 0);
         var netIncome = grossRent - commission;
 
