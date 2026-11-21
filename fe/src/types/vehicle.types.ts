@@ -30,14 +30,13 @@ export interface Vehicle {
   name: string
   brand: string
   modelYear?: number
-  category: VehicleInterest
+  category?: VehicleInterest
   transmission: TransmissionType
-  fuelType: FuelType
+  fuelType?: FuelType
   seats: number
   pricePerDay: number
-  imageUrl: string
+  imageUrl?: string
   rating: number
-  tripsCount: number
   location: string
   latitude?: number
   longitude?: number

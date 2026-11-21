@@ -16,6 +16,7 @@ interface VehicleSearchItem {
 
 interface VehicleSearchPage {
   items: VehicleSearchItem[]
+  totalPages: number
 }
 
 interface FleetVehicle {
@@ -38,6 +39,16 @@ interface PricingPlan {
   depositAmount: Money
 }
 
+async function searchAllPages(params: Record<string, string | number | undefined>): Promise<VehicleSearchItem[]> {
+  const firstPage = await apiClient.get<VehicleSearchPage>('/search/vehicles', { params: { ...params, page: 1 } })
+  const items = [...firstPage.data.items]
+  for (let page = 2; page <= firstPage.data.totalPages; page += 1) {
+    const { data } = await apiClient.get<VehicleSearchPage>('/search/vehicles', { params: { ...params, page } })
+    items.push(...data.items)
+  }
+  return items
+}
+
 function mapVehicle(
   vehicle: Pick<FleetVehicle, 'vehicleId' | 'status' | 'brandName' | 'modelName' | 'transmission' | 'seats' | 'address' | 'primaryImageKey' | 'location'>,
   pricePerDay = 0,
@@ -50,16 +61,11 @@ function mapVehicle(
     name: `${vehicle.brandName} ${vehicle.modelName}`,
     brand: vehicle.brandName,
     modelYear: undefined,
-    category: vehicle.seats >= 6 ? 'CAR_7_SEAT' : 'CAR_4_SEAT',
     transmission: vehicle.transmission.toLowerCase().includes('manual') ? 'MANUAL' : 'AUTOMATIC',
-    fuelType: 'GASOLINE',
     seats: vehicle.seats,
     pricePerDay,
-    imageUrl: vehicle.primaryImageKey?.startsWith('http')
-      ? vehicle.primaryImageKey
-      : 'https://placehold.co/800x500?text=Vehicle',
+    imageUrl: vehicle.primaryImageKey?.startsWith('http') ? vehicle.primaryImageKey : undefined,
     rating,
-    tripsCount: reviewCount,
     location: vehicle.address,
     latitude: vehicle.location.latitude,
     longitude: vehicle.location.longitude,
@@ -73,10 +79,7 @@ function mapVehicle(
 export const vehicleApi = {
   /** Search published vehicles through the real Search module API. */
   getVehicles: async (params?: VehicleFilterParams): Promise<Vehicle[]> => {
-    const { data } = await apiClient.get<VehicleSearchPage>('/search/vehicles', {
-      params: {
-        brand: params?.brand ?? params?.search,
-        model: params?.brand ? params?.search : undefined,
+    const commonParams = {
         seats: params?.seats,
         transmission: params?.transmission === 'ALL' ? undefined
           : params?.transmission === 'AUTOMATIC' ? 'Auto'
@@ -86,12 +89,22 @@ export const vehicleApi = {
         latitude: params?.latitude,
         longitude: params?.longitude,
         radiusKm: params?.latitude != null && params?.longitude != null ? 25 : undefined,
-        page: 1,
         pageSize: 100,
-      },
-    })
+    }
+    const search = params?.search?.trim()
+    const requests = params?.brand
+      ? [searchAllPages({ ...commonParams, brand: params.brand, model: search || undefined })]
+      : search
+        ? [
+            searchAllPages({ ...commonParams, brand: search }),
+            searchAllPages({ ...commonParams, model: search }),
+          ]
+        : [searchAllPages(commonParams)]
+    const pages = await Promise.all(requests)
+    const results = new Map<string, VehicleSearchItem>()
+    pages.forEach((items) => items.forEach((vehicle) => results.set(vehicle.vehicleId, vehicle)))
 
-    return data.items.map((vehicle) => mapVehicle({
+    return [...results.values()].map((vehicle) => mapVehicle({
       vehicleId: vehicle.vehicleId,
       status: 'Published',
       brandName: vehicle.brand,

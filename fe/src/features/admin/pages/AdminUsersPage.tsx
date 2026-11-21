@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import apiClient from '@/shared/lib/axios'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { Button } from '@/shared/components/ui/Button'
+import { useDebounce } from '@/shared/hooks/useDebounce'
 
 interface AdminUser {
   userId: string
@@ -22,7 +23,14 @@ interface AdminUser {
   email: string
   phone: string
   role: string
-  status: 'Active' | 'Banned'
+  status: string
+}
+interface PagedUsers {
+  items: AdminUser[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
 }
 interface AccessChange {
   user: AdminUser
@@ -34,11 +42,20 @@ export default function AdminUsersPage() {
   const { user: currentUser } = useAuth()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 250)
+  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [confirmation, setConfirmation] = useState<AccessChange | null>(null)
   const users = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: async () => (await apiClient.get<AdminUser[]>('/users')).data,
+    queryKey: ['admin', 'users', debouncedSearch, statusFilter, page],
+    queryFn: async () => (await apiClient.get<PagedUsers>('/users/', {
+      params: {
+        page,
+        pageSize: 25,
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter.toUpperCase(),
+      },
+    })).data,
   })
   const mutation = useMutation({
     mutationFn: async ({ user, action }: AccessChange) =>
@@ -52,23 +69,9 @@ export default function AdminUsersPage() {
     },
     onError: () => toast.error('Could not update account access. Check your admin permissions.'),
   })
-  const accounts = users.data ?? []
-  const activeCount = accounts.filter((account) => account.status === 'Active').length
-  const bannedCount = accounts.length - activeCount
-  const rows = useMemo(
-    () =>
-      accounts.filter((account) => {
-        const matchesSearch =
-          `${account.fullName} ${account.email} ${account.phone} ${account.role} ${account.status} ${account.userId}`
-            .toLowerCase()
-            .includes(search.toLowerCase())
-        const matchesStatus =
-          statusFilter === 'all' ||
-          (statusFilter === 'active' ? account.status === 'Active' : account.status === 'Banned')
-        return matchesSearch && matchesStatus
-      }),
-    [accounts, search, statusFilter]
-  )
+  const accounts = users.data?.items ?? []
+  const rows = accounts
+  const totalCount = users.data?.totalCount ?? 0
 
   return (
     <div className="space-y-5">
@@ -101,7 +104,7 @@ export default function AdminUsersPage() {
                   Platform accounts
                 </h2>
                 <span className="rounded-md bg-[#eef3ef] px-2 py-0.5 font-mono text-xs font-bold tabular-nums text-[#53645a]">
-                  {users.isError ? '—' : users.isPending ? '…' : accounts.length}
+                  {users.isError ? '—' : users.isPending ? '…' : totalCount}
                 </span>
               </div>
               <p className="mb-0 mt-0.5 text-xs font-medium text-[#77847b]">
@@ -116,8 +119,8 @@ export default function AdminUsersPage() {
             />
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, email, phone or ID"
+              onChange={(event) => { setSearch(event.target.value); setPage(1) }}
+              placeholder="Search name, email or phone"
               className="h-9 w-full rounded-lg border border-[#dce5df] bg-white pl-9 pr-3 text-sm font-medium text-[#263733] outline-none transition placeholder:font-normal placeholder:text-[#99a39c] focus:border-[#78a99a] focus:ring-2 focus:ring-[#78a99a]/15"
             />
           </label>
@@ -134,17 +137,17 @@ export default function AdminUsersPage() {
                 {
                   id: 'all',
                   label: 'All accounts',
-                  count: users.isError ? undefined : users.isPending ? undefined : accounts.length,
+                  count: users.isError || users.isPending || statusFilter !== 'all' ? undefined : totalCount,
                 },
                 {
                   id: 'active',
                   label: 'Active',
-                  count: users.isError ? undefined : users.isPending ? undefined : activeCount,
+                  count: undefined,
                 },
                 {
                   id: 'banned',
                   label: 'Suspended',
-                  count: users.isError ? undefined : users.isPending ? undefined : bannedCount,
+                  count: undefined,
                 },
               ] as const
             ).map((filter) => (
@@ -152,7 +155,7 @@ export default function AdminUsersPage() {
                 key={filter.id}
                 role="tab"
                 aria-selected={statusFilter === filter.id}
-                onClick={() => setStatusFilter(filter.id)}
+                onClick={() => { setStatusFilter(filter.id); setPage(1) }}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition ${statusFilter === filter.id ? 'bg-white text-[#245c47] shadow-sm ring-1 ring-[#dfe8e1]' : 'text-[#718078] hover:bg-white hover:text-[#34483b]'}`}
               >
                 {filter.label}
@@ -171,7 +174,7 @@ export default function AdminUsersPage() {
               ? 'Account data unavailable'
               : users.isPending
                 ? 'Loading accounts…'
-                : `${rows.length} shown`}
+                : `Showing ${rows.length} of ${totalCount}`}
           </span>
         </div>
 
@@ -246,7 +249,7 @@ export default function AdminUsersPage() {
                 rows.map((account) => {
                   const isSelf =
                     account.userId.toLowerCase() === currentUser?.id.toString().toLowerCase()
-                  const isBanned = account.status === 'Banned'
+                  const isBanned = account.status.toLowerCase() === 'banned'
                   return (
                     <tr
                       key={account.userId}
@@ -330,6 +333,11 @@ export default function AdminUsersPage() {
           </span>
           <span>Account changes take effect immediately.</span>
         </div>
+        {!users.isError && (users.data?.totalPages ?? 0) > 1 && <div className="flex items-center justify-end gap-2 border-t border-[#e8eeea] px-4 py-3 sm:px-5">
+          <Button variant="outline" size="sm" disabled={page <= 1 || users.isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button>
+          <span className="text-xs font-medium text-[#718078]">Page {page} of {users.data?.totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= (users.data?.totalPages ?? 1) || users.isFetching} onClick={() => setPage((current) => current + 1)}>Next</Button>
+        </div>}
       </section>
 
       {confirmation && (

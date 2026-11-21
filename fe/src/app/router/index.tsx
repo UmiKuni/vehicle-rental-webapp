@@ -12,7 +12,6 @@ const AuthPage = lazy(() => import('@/features/auth/pages/AuthPage'))
 const DashboardPage    = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
-const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
 const ProfileEditPage  = lazy(() => import('@/features/profile/pages/ProfileEditPage'))
 const VerificationTermsPage = lazy(() => import('@/features/profile/pages/VerificationTermsPage'))
 const IdentityVerificationPage = lazy(() => import('@/features/profile/pages/IdentityVerificationPage'))
@@ -123,7 +122,7 @@ const router = createBrowserRouter([
       { path: ROUTES.PROFILE_VERIFY, element: wrap(VerificationTermsPage) },
       { path: ROUTES.VERIFY_IDENTITY, element: wrap(IdentityVerificationPage) },
       { path: ROUTES.VERIFY_LICENSE, element: wrap(LicenseVerificationPage) },
-      { path: '/profile/verify', element: wrap(KycWizardPage) },
+      { path: '/profile/verify', element: <Navigate to={ROUTES.PROFILE_VERIFY} replace /> },
     ],
   },
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, CarFront, Check, Layers3, RefreshCw, Users } from 'lucide-react'
+import { ArrowUpRight, CarFront, Layers3, RefreshCw, Users, Banknote, CalendarCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import apiClient from '@/shared/lib/axios'
 import { ROUTES } from '@/shared/constants'
@@ -12,10 +12,21 @@ interface AdminVehicle {
   plateNumber: string
   status: string
 }
-interface CatalogEntry {
-  brandId?: string
-  modelId?: string
-  name: string
+interface AdminDashboardStats {
+  totalUsers: number
+  totalVehicles: number
+  activeRentals: number
+  pendingApprovalBookings: number
+  totalRevenueThisMonth: number
+  totalPlatformFeeCollected: number
+  completedTripsThisMonth: number
+  cancellationRatePercentage: number
+}
+interface DailyBookingStats {
+  date: string
+  totalBookings: number
+  totalRevenue: number
+  cancellationCount: number
 }
 
 function Metric({
@@ -25,7 +36,7 @@ function Metric({
   icon: Icon,
 }: {
   label: string
-  value: number
+  value: number | string
   hint: string
   icon: typeof CarFront
 }) {
@@ -44,19 +55,26 @@ function Metric({
 }
 
 export default function DashboardPage() {
+  const dashboard = useQuery({
+    queryKey: ['admin', 'dashboard'],
+    queryFn: async () => (await apiClient.get<AdminDashboardStats>('/reporting/dashboard')).data,
+  })
+  const dailyStats = useQuery({
+    queryKey: ['admin', 'daily-stats'],
+    queryFn: async () => {
+      const to = new Date()
+      const from = new Date(to)
+      from.setDate(from.getDate() - 6)
+      const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      return (await apiClient.get<DailyBookingStats[]>('/reporting/daily-stats', {
+        params: { from: localDate(from), to: localDate(to) },
+      })).data
+    },
+  })
   const vehicles = useQuery({
     queryKey: ['admin', 'fleet'],
     queryFn: async () => (await apiClient.get<AdminVehicle[]>('/fleet/vehicles')).data,
   })
-  const brands = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: async () => (await apiClient.get<CatalogEntry[]>('/fleet/brands')).data,
-  })
-  const models = useQuery({
-    queryKey: ['admin', 'models'],
-    queryFn: async () => (await apiClient.get<CatalogEntry[]>('/fleet/models')).data,
-  })
-
   if (vehicles.isError)
     return (
       <ErrorState
@@ -85,8 +103,8 @@ export default function DashboardPage() {
         <button
           onClick={() => {
             void vehicles.refetch()
-            void brands.refetch()
-            void models.refetch()
+            void dashboard.refetch()
+            void dailyStats.refetch()
           }}
           className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-lg border border-[#d6e2e0] bg-white px-4 text-[13px] font-bold text-[#3d5552] shadow-sm transition hover:border-[#9dc9c8] hover:bg-[#f4fafa] active:scale-[.98] sm:self-auto"
         >
@@ -98,22 +116,23 @@ export default function DashboardPage() {
       <div className="grid overflow-hidden rounded-xl border border-[#dfe7e6] bg-white divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-3">
         <Metric
           label="Published vehicles"
-          value={published.length}
-          hint="Visible in customer search"
+          value={dashboard.data?.totalVehicles ?? published.length}
+          hint={dashboard.data ? 'Current platform fleet' : 'Published listings available'}
           icon={CarFront}
         />
         <Metric
-          label="Vehicle brands"
-          value={brands.data?.length ?? 0}
-          hint="Available for fleet listings"
-          icon={Layers3}
+          label="Active rentals"
+          value={dashboard.data?.activeRentals ?? '—'}
+          hint="Currently in progress"
+          icon={CalendarCheck}
         />
         <Metric
-          label="Vehicle models"
-          value={models.data?.length ?? 0}
-          hint="Listed in the catalog"
-          icon={Check}
+          label="Revenue this month"
+          value={dashboard.data ? `${new Intl.NumberFormat('vi-VN').format(dashboard.data.totalRevenueThisMonth)} ₫` : '—'}
+          hint="Gross rental revenue"
+          icon={Banknote}
         />
+        <Metric label="Users" value={dashboard.data?.totalUsers ?? '—'} hint="Registered accounts" icon={Users} />
       </div>
 
       {vehicles.isPending && (
@@ -121,6 +140,17 @@ export default function DashboardPage() {
           <div className="h-full w-1/3 animate-pulse bg-[#4b8360]" />
         </div>
       )}
+
+      {dashboard.isError && <ErrorState message="Could not load reporting data." onRetry={() => void dashboard.refetch()} />}
+      {dailyStats.isError && <ErrorState message="Could not load the revenue trend." onRetry={() => void dailyStats.refetch()} />}
+
+      <section className="rounded-xl border border-[#dfe7e6] bg-white p-5 sm:p-6">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+          <div><p className="mb-1 text-[10px] font-bold tracking-[.12em] text-[#287f7e]">LAST 7 DAYS</p><h2 className="m-0 text-base font-extrabold text-[#1b2c29]">Bookings and revenue</h2></div>
+          {dashboard.data && <p className="m-0 text-xs font-semibold text-[#687773]">{dashboard.data.pendingApprovalBookings} bookings awaiting approval</p>}
+        </div>
+        {dailyStats.isPending ? <div className="mt-5 h-32 animate-pulse rounded-lg bg-[#f3f6f3]" /> : (dailyStats.data?.length ?? 0) === 0 ? <p className="mb-0 mt-5 text-sm text-[#687773]">No daily activity was returned for this period.</p> : <div className="mt-5 grid grid-cols-7 items-end gap-2">{dailyStats.data?.map((day) => { const maximum = Math.max(1, ...dailyStats.data!.map((item) => item.totalRevenue)); const height = Math.max(4, Math.round(day.totalRevenue / maximum * 100)); return <div key={day.date} className="flex min-w-0 flex-col items-center gap-2" title={`${day.totalBookings} bookings · ${new Intl.NumberFormat('vi-VN').format(day.totalRevenue)} ₫`}><div className="flex h-28 w-full items-end"><div className="w-full rounded-t bg-[#287f7e]" style={{ height: `${height}%` }} /></div><span className="text-[10px] font-medium text-[#687773]">{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(`${day.date}T00:00:00`))}</span></div> })}</div>}
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.85fr)]">
         <section className="overflow-hidden rounded-xl border border-[#dfe7e6] bg-white">

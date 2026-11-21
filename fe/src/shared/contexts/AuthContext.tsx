@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import type { ReactNode } from 'react'
 import type { AuthState, AuthUser } from '@/types/auth.types'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
@@ -54,13 +55,34 @@ function parseUserFromToken(): AuthUser | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => parseUserFromToken())
-  const isLoading = false
+  const [isLoading, setIsLoading] = useState(() => Boolean(
+    localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
+  ))
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOKEN_KEY) && !localStorage.getItem(REFRESH_TOKEN_KEY)) return
+    let active = true
+    authApi.getMe()
+      .then((currentUser) => { if (active) setUser(currentUser) })
+      .catch((error: unknown) => {
+        if (!active) return
+        const status = isAxiosError(error) ? error.response?.status : undefined
+        if (status === 401 || status === 403) {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(REFRESH_TOKEN_KEY)
+          setUser(null)
+        }
+      })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
+  }, [])
 
   const login = useCallback(
     (newUser: AuthUser, accessToken: string, refreshToken: string) => {
       localStorage.setItem(TOKEN_KEY, accessToken)
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
       setUser(newUser)
+      setIsLoading(false)
     },
     []
   )

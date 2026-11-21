@@ -1,15 +1,14 @@
 import { Link } from 'react-router-dom'
 import {
   ShieldAlert, ChevronRight, LogOut, User, Mail, Shield,
-  CalendarDays, MapPin, AlertTriangle, Clock, Settings, CreditCard, Bell, Pencil,
-  Globe2,
+  AlertTriangle, Clock, Settings, CreditCard, Bell, Pencil, FileImage,
 } from 'lucide-react'
 import { useProfile, useKycStatus } from '../hooks/useProfile'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { VerificationBadge } from '../components/VerificationBadge'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
-import { getInitials, formatDate } from '@/shared/utils'
+import { getInitials } from '@/shared/utils'
 
 // ─── Sub-components to keep this file under 250 lines ────────────────────────
 
@@ -23,17 +22,18 @@ function ProfileSkeleton() {
   )
 }
 
-function KycPendingBanner() {
+function KycPendingBanner({ kyc }: { kyc: NonNullable<ReturnType<typeof useKycStatus>['data']> }) {
   return (
     <div className="mx-4 rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
       <div className="flex items-start gap-3">
         <Clock className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-            Pending Review
+            Verification in progress
           </p>
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            Your profile has been submitted. We will review and respond within 1–2 business days.
+            {kyc.isIdVerified ? 'National ID is verified.' : 'National ID verification is still needed.'}{' '}
+            {kyc.isDriverLicenseVerified ? "Driver's license is verified." : "Driver's license verification is still needed."}
           </p>
         </div>
       </div>
@@ -161,7 +161,7 @@ export default function ProfilePage() {
 
       {/* ── KYC Status Banner ── */}
       {kycStatus === 'UNVERIFIED' && <KycUnverifiedCta />}
-      {kycStatus === 'PENDING' && <KycPendingBanner />}
+      {kycStatus === 'PENDING' && <KycPendingBanner kyc={kyc!} />}
       {kycStatus === 'REJECTED' && <KycRejectedBanner reason={kyc?.rejectionReason} />}
 
       {/* ── Account Info Card ── */}
@@ -180,30 +180,9 @@ export default function ProfilePage() {
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Verification Profile
           </p>
-          {kyc.docType === 'PASSPORT' ? (
-            <>
-              <InfoRow icon={Globe2} label="Passport" value={kyc.idNumber || kyc.cccdNumber} />
-              {kyc.country && <InfoRow icon={MapPin} label="Nationality / Country" value={kyc.country} />}
-              {kyc.expiryDate && (
-                <InfoRow icon={CalendarDays} label="Expiry Date" value={formatDate(kyc.expiryDate)} />
-              )}
-            </>
-          ) : (
-            <InfoRow icon={CreditCard} label="National ID (CCCD)" value={kyc.idNumber || kyc.cccdNumber} />
-          )}
-          <InfoRow
-            icon={CalendarDays}
-            label="Date of Birth"
-            value={kyc.dateOfBirth ? formatDate(kyc.dateOfBirth) : undefined}
-          />
-          <InfoRow icon={MapPin} label="Accommodation Province/City" value={kyc.province} />
-          {kyc.submittedAt && (
-            <InfoRow
-              icon={Clock}
-              label="Submitted At"
-              value={formatDate(kyc.submittedAt)}
-            />
-          )}
+          <InfoRow icon={CreditCard} label="National ID" value={kyc.isIdVerified ? 'Verified' : 'Not verified'} />
+          <InfoRow icon={Shield} label="Driver's license" value={kyc.isDriverLicenseVerified ? 'Verified' : 'Not verified'} />
+          {kyc.documents?.map((document) => <InfoRow key={document.documentId} icon={FileImage} label={`${document.type} document`} value={document.verificationStatus} />)}
         </div>
       )}
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Fuel, Gauge, MapPin, ShieldCheck, Star, Users } from 'lucide-react'
 import { useVehicleDetail } from '../hooks/useVehicles'
 import { BookingModal } from '../components/BookingModal'
 import { VehicleGallery } from '../components/VehicleGallery'
 import { VehicleReviews } from '../components/VehicleReviews'
+import { reviewApi } from '../api/review.api'
 import { ErrorState } from '@/shared/components/common/StateViews'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
 import type { Vehicle } from '@/types/vehicle.types'
@@ -23,6 +25,18 @@ export default function VehicleDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { data: vehicle, isLoading, isError, refetch } = useVehicleDetail(vehicleId)
+  const ratingSummary = useQuery({
+    queryKey: ['vehicle-rating-summary', vehicleId],
+    queryFn: () => reviewApi.getVehicleRatingSummary(vehicleId!),
+    enabled: !!vehicleId,
+  })
+  const reviews = useInfiniteQuery({
+    queryKey: ['vehicle-reviews', vehicleId],
+    queryFn: ({ pageParam }) => reviewApi.getVehicleReviews(vehicleId!, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
+    enabled: !!vehicleId,
+  })
   const [bookingVehicle, setBookingVehicle] = useState<Vehicle | null>(null)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const reviewsRef = useRef<HTMLDivElement>(null)
@@ -54,7 +68,8 @@ export default function VehicleDetailPage() {
   const description = vehicle.description?.trim() ?? ''
   const shouldTruncateDescription = description.length > 190
   const visibleDescription = shouldTruncateDescription && !descriptionExpanded ? `${description.slice(0, 190).trimEnd()}…` : description
-  const reviewCount = vehicle.reviewCount ?? vehicle.reviews?.length ?? 0
+  const averageRating = ratingSummary.data?.averageRating ?? vehicle.rating
+  const reviewCount = ratingSummary.data?.totalReviews ?? vehicle.reviewCount ?? vehicle.reviews?.length ?? 0
   const provider = vehicle.provider
 
   const goBack = () => {
@@ -73,11 +88,11 @@ export default function VehicleDetailPage() {
 
       <main className="detail-main">
         <section className="vehicle-overview">
-          <div className="detail-eyebrow">{vehicle.brand}{vehicle.modelYear ? ` · ${vehicle.modelYear}` : ''} · {vehicle.category.replaceAll('_', ' ')}</div>
+          <div className="detail-eyebrow">{vehicle.brand}{vehicle.modelYear ? ` · ${vehicle.modelYear}` : ''}</div>
           <div className="detail-title-row">
             <h2>{vehicle.name}</h2>
             <button type="button" className="detail-rating" onClick={() => reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} aria-label={`View ${reviewCount} reviews`}>
-              <Star size={15} fill="currentColor" /> {vehicle.rating > 0 ? vehicle.rating.toFixed(1) : '—'} <small>({reviewCount})</small>
+              <Star size={15} fill="currentColor" /> {averageRating > 0 ? averageRating.toFixed(1) : '—'} <small>({reviewCount})</small>
             </button>
           </div>
           <p className="detail-location"><MapPin size={16} /> {vehicle.location}</p>
@@ -90,12 +105,12 @@ export default function VehicleDetailPage() {
         <section className="detail-specs" aria-label="Technical specifications">
           <div><Users size={18} /><span>{vehicle.seats} seats</span></div>
           <div><Gauge size={18} /><span>{vehicle.transmission === 'AUTOMATIC' ? 'Automatic' : 'Manual'}</span></div>
-          <div><Fuel size={18} /><span>{vehicle.fuelType === 'ELECTRIC' ? 'Electric' : vehicle.fuelType === 'DIESEL' ? 'Diesel' : vehicle.fuelType === 'HYBRID' ? 'Hybrid' : 'Gasoline'}</span></div>
+          {vehicle.fuelType && <div><Fuel size={18} /><span>{vehicle.fuelType}</span></div>}
         </section>
 
         <section className="detail-section">
           <h2>Features</h2>
-          {vehicle.features.length > 0 ? <div className="detail-features">{vehicle.features.map((feature) => <span key={feature}><ShieldCheck size={14} />{feature}</span>)}</div> : <p className="detail-muted">No features provided.</p>}
+          {(vehicle.features?.length ?? 0) > 0 ? <div className="detail-features">{vehicle.features?.map((feature) => <span key={feature}><ShieldCheck size={14} />{feature}</span>)}</div> : <p className="detail-muted">Feature information is not included in the current vehicle API.</p>}
         </section>
 
         <section className="detail-section provider-section">
@@ -111,19 +126,27 @@ export default function VehicleDetailPage() {
 
         <section className="detail-section detail-price-section">
           <h2>Rental Price &amp; Fees</h2>
-          <div className="detail-cost-row"><span>Rental price</span><strong>{money(vehicle.pricePerDay)} VND <small>/ day</small></strong></div>
+          <div className="detail-cost-row"><span>Starting rental price</span><strong>{money(vehicle.pricePerDay)} VND <small>/ day</small></strong></div>
           <div className="detail-cost-row"><span>Security deposit</span><strong>{money(vehicle.depositAmount)} VND</strong></div>
-          <div className="detail-cost-row"><span>Delivery <small>(optional)</small></span><strong>{money(vehicle.deliveryFeeAmount ?? 100000)} VND</strong></div>
           {(vehicle.additionalFees ?? []).map((fee, index) => <div className="detail-cost-row" key={`${fee.name}-${index}`}><span>{fee.name}{fee.description && <small className="detail-fee-description">{fee.description}</small>}</span><strong>{money(fee.amount)} VND</strong></div>)}
         </section>
 
         <section className="detail-rating-summary">
-          <div><span className="detail-rating-large"><Star size={21} fill="currentColor" /> {vehicle.rating > 0 ? vehicle.rating.toFixed(1) : '—'}</span><p>{reviewCount} reviews</p></div>
+          <div><span className="detail-rating-large"><Star size={21} fill="currentColor" /> {averageRating > 0 ? averageRating.toFixed(1) : '—'}</span><p>{reviewCount} reviews</p></div>
           <button type="button" onClick={() => reviewsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>View reviews</button>
         </section>
 
         <div ref={reviewsRef}>
-          <VehicleReviews key={vehicle.id} reviews={vehicle.reviews} totalCount={reviewCount} />
+          <VehicleReviews
+            key={vehicle.id}
+            reviews={reviews.data?.pages.flatMap((page) => page.items) ?? []}
+            totalCount={reviews.data?.pages[0]?.totalCount ?? reviewCount}
+            hasMore={reviews.hasNextPage}
+            isLoadingMore={reviews.isFetchingNextPage}
+            isLoading={reviews.isPending}
+            isError={reviews.isError}
+            onLoadMore={() => void reviews.fetchNextPage()}
+          />
         </div>
       </main>
 

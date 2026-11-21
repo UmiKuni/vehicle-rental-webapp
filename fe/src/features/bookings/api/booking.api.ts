@@ -1,5 +1,4 @@
 import apiClient from '@/shared/lib/axios'
-import type { Vehicle } from '@/types/vehicle.types'
 import type { Booking, BookingStatus, CreateBookingPayload } from '@/types/booking.types'
 
 interface BookingSummaryDto {
@@ -24,7 +23,30 @@ interface BookingDetailDto extends BookingSummaryDto {
   securityDepositAmount: number
 }
 
-interface PagedBookings { items: BookingSummaryDto[] }
+interface PagedBookings {
+  items: BookingSummaryDto[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface BookingCancellationResult {
+  status: string
+  penaltyAmount: number
+  refundAmount: number
+}
+
+async function getAllMyBookings(): Promise<BookingSummaryDto[]> {
+  const pageSize = 100
+  const firstPage = await apiClient.get<PagedBookings>('/bookings/me', { params: { page: 1, pageSize } })
+  const items = [...firstPage.data.items]
+  for (let page = 2; page <= firstPage.data.totalPages; page += 1) {
+    const { data } = await apiClient.get<PagedBookings>('/bookings/me', { params: { page, pageSize } })
+    items.push(...data.items)
+  }
+  return items
+}
 
 function mapStatus(status: string): BookingStatus {
   const normalized = status.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()
@@ -36,22 +58,10 @@ function mapBooking(dto: BookingSummaryDto | BookingDetailDto): Booking {
   const end = new Date(dto.endTime)
   const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000))
   const detail = dto as BookingDetailDto
-  const vehicle: Vehicle = {
+  const vehicle = {
     id: dto.vehicleId,
     name: dto.vehicleModel,
-    brand: dto.vehicleModel.split(' ')[0] ?? 'Vehicle',
-    category: 'CAR_4_SEAT',
-    transmission: 'AUTOMATIC',
-    fuelType: 'GASOLINE',
-    seats: 0,
     pricePerDay: (detail.totalRentAmount ?? dto.totalAmount ?? 0) / totalDays,
-    imageUrl: 'https://placehold.co/800x500?text=Vehicle',
-    rating: 0,
-    tripsCount: 0,
-    location: detail.pickupLocation ?? '',
-    features: [],
-    isAvailable: true,
-    depositAmount: detail.securityDepositAmount ?? 0,
   }
 
   return {
@@ -68,8 +78,7 @@ function mapBooking(dto: BookingSummaryDto | BookingDetailDto): Booking {
     pricePerDay: vehicle.pricePerDay,
     totalAmount: detail.totalRentAmount ?? dto.totalAmount ?? 0,
     depositAmount: detail.securityDepositAmount ?? 0,
-    deliveryType: 'STATION',
-    deliveryAddress: detail.pickupLocation,
+    pickupLocation: detail.pickupLocation ?? '',
     status: mapStatus(dto.status),
     createdAt: dto.createdAt,
   }
@@ -77,8 +86,7 @@ function mapBooking(dto: BookingSummaryDto | BookingDetailDto): Booking {
 
 export const bookingApi = {
   getMyBookings: async (): Promise<Booking[]> => {
-    const { data } = await apiClient.get<PagedBookings>('/bookings/me')
-    return data.items.map(mapBooking)
+    return (await getAllMyBookings()).map(mapBooking)
   },
 
   getBooking: async (id: string): Promise<Booking> => {
@@ -89,16 +97,17 @@ export const bookingApi = {
   createBooking: async (payload: CreateBookingPayload): Promise<Booking> => {
     const { data } = await apiClient.post<BookingDetailDto>('/bookings/', {
       vehicleId: payload.vehicleId,
-      startTime: new Date(`${payload.startDate.slice(0, 10)}T00:00:00Z`).toISOString(),
-      endTime: new Date(`${payload.endDate.slice(0, 10)}T00:00:00Z`).toISOString(),
-      pickupLocation: payload.deliveryType === 'DOORSTEP' ? payload.deliveryAddress : 'Vehicle rental station',
+      startTime: new Date(`${payload.startDate.slice(0, 10)}T00:00:00`).toISOString(),
+      endTime: new Date(`${payload.endDate.slice(0, 10)}T00:00:00`).toISOString(),
+      pickupLocation: payload.pickupLocation.trim(),
       includeInsurance: false,
       notes: payload.note ?? null,
     })
     return mapBooking(data)
   },
 
-  cancelBooking: async (id: string): Promise<void> => {
-    await apiClient.put(`/bookings/${id}/cancel`, { reason: 'Cancelled by customer' })
+  cancelBooking: async (id: string): Promise<BookingCancellationResult> => {
+    const { data } = await apiClient.put<BookingCancellationResult>(`/bookings/${id}/cancel`, { reason: 'Cancelled by customer' })
+    return data
   },
 }

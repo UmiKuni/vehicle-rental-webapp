@@ -1,12 +1,27 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Star } from 'lucide-react'
 import type { VehicleReview } from '@/types/vehicle.types'
 
 const PAGE_SIZE = 5
 
-export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { reviews?: VehicleReview[]; totalCount?: number }) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const visibleReviews = useMemo(() => reviews.slice(0, visibleCount), [reviews, visibleCount])
+export function VehicleReviews({
+  reviews = [],
+  totalCount = reviews.length,
+  hasMore = false,
+  isLoadingMore = false,
+  isLoading = false,
+  isError = false,
+  onLoadMore,
+}: {
+  reviews?: VehicleReview[]
+  totalCount?: number
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  isLoading?: boolean
+  isError?: boolean
+  onLoadMore?: () => void
+}) {
+  const visibleReviews = useMemo(() => reviews.slice(0, Math.max(PAGE_SIZE, reviews.length)), [reviews])
 
   return (
     <section id="vehicle-reviews" className="detail-section vehicle-reviews" aria-labelledby="vehicle-reviews-title">
@@ -14,7 +29,11 @@ export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { 
         <div><span className="detail-eyebrow">RENTER FEEDBACK</span><h2 id="vehicle-reviews-title">Reviews</h2></div>
         <span className="vehicle-review-total">{totalCount} reviews</span>
       </div>
-      {reviews.length === 0 ? (
+      {isLoading ? (
+        <p className="vehicle-reviews-empty">Loading reviews…</p>
+      ) : isError ? (
+        <p className="vehicle-reviews-empty">Reviews could not be loaded. Please try again later.</p>
+      ) : reviews.length === 0 ? (
         <p className="vehicle-reviews-empty">{totalCount === 0 ? 'No reviews yet.' : 'Review details are currently unavailable.'}</p>
       ) : (
         <>
@@ -29,9 +48,9 @@ export function VehicleReviews({ reviews = [], totalCount = reviews.length }: { 
               </article>
             ))}
           </div>
-          {visibleCount < reviews.length && (
-            <button type="button" className="vehicle-reviews-more" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>
-              Show {Math.min(PAGE_SIZE, reviews.length - visibleCount)} more reviews
+          {hasMore && onLoadMore && (
+            <button type="button" className="vehicle-reviews-more" onClick={onLoadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? 'Loading reviews…' : 'Show more reviews'}
             </button>
           )}
         </>

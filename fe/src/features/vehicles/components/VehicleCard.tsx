@@ -1,18 +1,10 @@
-import { Star, MapPin, Users, Fuel, Gauge, Sparkles } from 'lucide-react'
+import { Star, MapPin, Users, Gauge, CarFront } from 'lucide-react'
 import type { Vehicle } from '@/types/vehicle.types'
 
 interface VehicleCardProps {
   vehicle: Vehicle
   onBook: (vehicle: Vehicle) => void
   onViewDetails?: (vehicle: Vehicle) => void
-}
-
-const CATEGORY_NAMES: Record<string, string> = {
-  ELECTRIC: 'Electric',
-  CAR_4_SEAT: '4-5 Seats',
-  CAR_7_SEAT: '7 Seats',
-  TRUCK: 'Pickup Truck',
-  MOTORBIKE: 'Motorbike',
 }
 
 export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps) {
@@ -22,28 +14,24 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
     <div className="overflow-hidden rounded-2xl border border-border/80 bg-card text-card-foreground shadow-xs hover:shadow-md transition-all">
       {/* Vehicle Image with Aspect Ratio & Badges */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-        <img
+        {vehicle.imageUrl ? <img
           src={vehicle.imageUrl}
           alt={vehicle.name}
           className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
           loading="lazy"
-        />
+        /> : <div className="grid h-full w-full place-items-center text-muted-foreground"><CarFront size={48} /></div>}
 
         {/* Top Badges */}
         <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white shadow-xs">
-            <Sparkles className="size-3 text-[#22d3ee]" />
-            {CATEGORY_NAMES[vehicle.category] ?? vehicle.category}
-          </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-0.5 text-[11px] font-bold text-foreground shadow-xs">
             <Star className="size-3 fill-amber-400 text-amber-400" />
-            {vehicle.rating}
-            <span className="text-[10px] text-muted-foreground font-normal">({vehicle.tripsCount})</span>
+            {vehicle.rating > 0 ? vehicle.rating.toFixed(1) : 'No rating'}
+            <span className="text-[10px] text-muted-foreground font-normal">({vehicle.reviewCount ?? 0} reviews)</span>
           </span>
         </div>
 
         {/* Fuel / Eco Badge Bottom Right */}
-        <div className="absolute bottom-2.5 right-2.5">
+        {vehicle.fuelType && <div className="absolute bottom-2.5 right-2.5">
           <span
             className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-xs ${
               vehicle.fuelType === 'ELECTRIC'
@@ -53,7 +41,7 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
           >
             {vehicle.fuelType === 'ELECTRIC' ? '⚡ EV' : vehicle.fuelType === 'DIESEL' ? 'Diesel' : 'Gasoline'}
           </span>
-        </div>
+        </div>}
       </div>
 
       {/* Content */}
@@ -83,14 +71,14 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
             <span>{vehicle.transmission === 'AUTOMATIC' ? 'Automatic' : 'Manual'}</span>
           </div>
           <div className="flex items-center gap-1.5 justify-center">
-            <Fuel className="size-3.5 text-foreground/70" />
+            <CarFront className="size-3.5 text-foreground/70" />
             <span className="truncate">{vehicle.brand}</span>
           </div>
         </div>
 
         {/* Features Chips */}
         <div className="flex flex-wrap gap-1">
-          {vehicle.features.slice(0, 3).map((f) => (
+          {(vehicle.features ?? []).slice(0, 3).map((f) => (
             <span
               key={f}
               className="rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
