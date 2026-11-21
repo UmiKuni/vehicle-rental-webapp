@@ -1,4 +1,5 @@
 using CarRental.Modules.Notifications.Data;
+using CarRental.Modules.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,9 @@ public static class NotificationsModule
         services.AddDbContext<NotificationsDbContext>(options =>
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", NotificationsDbContext.Schema)));
+
+        services.AddScoped<NotificationDeliveryService>();
+        services.AddScoped<INotificationDeliveryProvider, LoggingNotificationDeliveryProvider>();
 
         return services;
     }

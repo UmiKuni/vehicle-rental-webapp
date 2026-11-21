@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Bookings.Data.Configurations;
 
-public sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<BookingLineItem>
+internal sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<BookingLineItem>
 {
     public void Configure(EntityTypeBuilder<BookingLineItem> builder)
     {
@@ -12,6 +12,7 @@ public sealed class BookingLineItemConfiguration : IEntityTypeConfiguration<Book
 
         builder.HasKey(l => l.Id);
         builder.Property(l => l.Id)
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(l => l.BookingId)

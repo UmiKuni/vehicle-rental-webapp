@@ -4,13 +4,14 @@ using CarRental.Modules.Availability.Contracts.Enums;
 
 namespace CarRental.Modules.Availability.Entities;
 
-public class CalendarEntry : Entity<Guid>
+internal class CalendarEntry : Entity<Guid>
 {
     public Guid VehicleId { get; private set; }
     public CalendarEntryType Type { get; private set; }
     public DateTimeRange TimeRange { get; private set; } = null!;
     public DateTimeOffset? ExpiresAt { get; private set; }
     public Guid? BookingId { get; private set; }
+    public string? Reason { get; private set; }
 
     private CalendarEntry() { }
 
@@ -20,7 +21,8 @@ public class CalendarEntry : Entity<Guid>
         CalendarEntryType type,
         DateTimeRange timeRange,
         DateTimeOffset? expiresAt,
-        Guid? bookingId)
+        Guid? bookingId,
+        string? reason = null)
     {
         Id = id;
         VehicleId = vehicleId;
@@ -28,6 +30,7 @@ public class CalendarEntry : Entity<Guid>
         TimeRange = timeRange;
         ExpiresAt = expiresAt;
         BookingId = bookingId;
+        Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
     }
 
     public bool IsActive(DateTimeOffset now)

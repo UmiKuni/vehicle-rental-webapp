@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Errors;
 
 namespace CarRental.Modules.Audit.Entities;
 
@@ -65,42 +66,42 @@ public sealed class AuditLogEntry : Entity<Guid>
     {
         if (actorId == Guid.Empty)
         {
-            return Result.Failure<AuditLogEntry>(Error.Validation(
-                "Audit.EmptyActorId",
-                "Actor ID must not be empty."));
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyActorId);
+        }
+
+        if (id == Guid.Empty)
+        {
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyEventId);
+        }
+
+        if (timestamp == default)
+        {
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyTimestamp);
         }
 
         if (string.IsNullOrWhiteSpace(action))
         {
-            return Result.Failure<AuditLogEntry>(Error.Validation(
-                "Audit.EmptyAction",
-                "Action must not be empty."));
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyAction);
         }
 
         if (string.IsNullOrWhiteSpace(entityName))
         {
-            return Result.Failure<AuditLogEntry>(Error.Validation(
-                "Audit.EmptyEntityName",
-                "Entity name must not be empty."));
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyEntityName);
         }
 
         if (string.IsNullOrWhiteSpace(entityId))
         {
-            return Result.Failure<AuditLogEntry>(Error.Validation(
-                "Audit.EmptyEntityId",
-                "Entity ID must not be empty."));
+            return Result.Failure<AuditLogEntry>(AuditErrors.EmptyEntityId);
         }
 
-        var entryId = id == Guid.Empty ? Guid.NewGuid() : id;
-        var entryTimestamp = timestamp == default ? DateTimeOffset.UtcNow : timestamp;
         var entryIp = string.IsNullOrWhiteSpace(ipAddress) ? "0.0.0.0" : ipAddress.Trim();
 
         var sanitizedBefore = MaskPii(beforeState);
         var sanitizedAfter = MaskPii(afterState);
 
         return Result.Success(new AuditLogEntry(
-            entryId,
-            entryTimestamp,
+            id,
+            timestamp,
             actorId,
             entryIp,
             action.Trim(),

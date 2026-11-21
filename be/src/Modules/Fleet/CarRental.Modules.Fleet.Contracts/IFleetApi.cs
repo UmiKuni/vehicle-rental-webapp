@@ -1,4 +1,5 @@
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Fleet.Contracts.Enums;
 using CarRental.Modules.Fleet.Contracts.Dtos;
 
 namespace CarRental.Modules.Fleet.Contracts;
@@ -16,6 +17,14 @@ public interface IFleetApi
     Task<Result> HideAsync(Guid vehicleId, CancellationToken ct = default);
     Task<Result> ShowAsync(Guid vehicleId, CancellationToken ct = default);
     Task<Result> UnpublishAsync(Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, CancellationToken ct = default);
+    Task<Result<VehicleImageDto>> UploadImageAsync(
+        Guid vehicleId,
+        Guid ownerId,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default);
+    Task<Result> RemoveImageAsync(Guid vehicleId, Guid ownerId, Guid imageId, CancellationToken ct = default);
     Task<Result<IReadOnlyList<BrandDto>>> GetBrandsAsync(CancellationToken ct = default);
     Task<Result<BrandDto>> GetBrandAsync(Guid brandId, CancellationToken ct = default);
     Task<Result<BrandDto>> CreateBrandAsync(CreateBrandDto dto, CancellationToken ct = default);

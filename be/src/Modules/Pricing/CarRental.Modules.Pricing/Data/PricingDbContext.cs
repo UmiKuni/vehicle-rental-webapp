@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Pricing.Data;
 
-public class PricingDbContext : DbContext
+internal class PricingDbContext : DbContext
 {
     public const string Schema = "pricing";
 

@@ -5,7 +5,7 @@ using CarRental.Modules.Pricing.Contracts.Enums;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public sealed record QuoteLine : ValueObject
+internal sealed record QuoteLine : ValueObject
 {
     public QuoteLineType Type { get; init; }
     public string Description { get; init; } = string.Empty;

@@ -4,7 +4,7 @@ using CarRental.Modules.Pricing.Contracts.Dtos;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public sealed record CancellationTier : ValueObject
+internal sealed record CancellationTier : ValueObject
 {
     public int HoursBeforeStart { get; init; }
     public decimal RefundPercent { get; init; }
@@ -23,7 +23,7 @@ public sealed record CancellationTier : ValueObject
     public CancellationTierDto ToDto() => new(HoursBeforeStart, RefundPercent);
 }
 
-public sealed record CancellationPolicy : ValueObject
+internal sealed record CancellationPolicy : ValueObject
 {
     private readonly List<CancellationTier> _tiers = [];
     public IReadOnlyList<CancellationTier> Tiers => _tiers.AsReadOnly();

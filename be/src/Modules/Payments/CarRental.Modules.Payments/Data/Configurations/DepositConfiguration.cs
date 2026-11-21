@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Payments.Data.Configurations;
 
-public sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
+internal sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
 {
     public void Configure(EntityTypeBuilder<Deposit> builder)
     {
@@ -13,6 +13,7 @@ public sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
         builder.HasKey(d => d.Id);
         builder.Property(d => d.Id)
             .HasConversion(id => id.Value, val => new DepositId(val))
+            .ValueGeneratedNever()
             .HasColumnName("id");
 
         builder.Property(d => d.BookingId)

@@ -1,4 +1,5 @@
 using CarRental.IntegrationTests.Fixtures;
+using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Audit.Contracts.Commands;
 using CarRental.Modules.Audit.Data;
 using CarRental.Modules.Audit.Data.Repositories;
@@ -127,6 +128,37 @@ public class AuditIntegrationTests : IntegrationTestBase
             history.Should().HaveCount(2);
             history.First().Action.Should().Be("Publish"); // Ordered descending by timestamp
             history.Last().Action.Should().Be("Create");
+        }
+    }
+
+    [Fact]
+    public async Task AuditLogEntry_Update_ShouldBeRejectedAsAppendOnly()
+    {
+        var entryId = Guid.NewGuid();
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+            var entry = AuditLogEntry.Record(
+                entryId,
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid(),
+                "127.0.0.1",
+                "Create",
+                "Vehicle",
+                "veh_append_only").Value;
+            db.AuditLogEntries.Add(entry);
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+            var entry = await db.AuditLogEntries.FirstAsync(item => item.Id == entryId);
+            db.Entry(entry).State = EntityState.Modified;
+
+            await FluentActions.Awaiting(() => db.SaveChangesAsync())
+                .Should()
+                .ThrowAsync<DomainException>();
         }
     }
 }

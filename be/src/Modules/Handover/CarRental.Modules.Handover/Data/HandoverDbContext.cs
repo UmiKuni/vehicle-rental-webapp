@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Modules.Handover.Data;
 
-public class HandoverDbContext : DbContext
+internal class HandoverDbContext : DbContext
 {
     public const string Schema = "handover";
 

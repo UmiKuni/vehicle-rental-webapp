@@ -1,4 +1,11 @@
+using System.Security.Claims;
+using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Availability.Contracts;
+using CarRental.Modules.Availability.Contracts.Dtos;
+using CarRental.Modules.Availability.Contracts.Enums;
+using CarRental.Modules.Availability.Errors;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -12,33 +19,18 @@ public static class AvailabilityEndpoints
         var group = app.MapGroup("/api/availability")
             .WithTags("Availability");
 
-        // 1. Check vehicle availability for a given date range
-        group.MapGet("/vehicles/{vehicleId:guid}/check", (Guid vehicleId, DateTimeOffset? start, DateTimeOffset? end) =>
+        group.MapGet("/vehicles/{vehicleId:guid}/check", async (
+            Guid vehicleId,
+            DateTimeOffset? start,
+            DateTimeOffset? end,
+            IAvailabilityApi api,
+            CancellationToken ct) =>
         {
-            if (!start.HasValue || !end.HasValue || end.Value <= start.Value)
-            {
-                return Error.Validation("availability.invalid_date_range", "Valid start and end query parameters are required, and end must be greater than start.").ToProblemResult();
-            }
+            var rangeResult = CreateRange(start, end);
+            if (rangeResult.IsFailure)
+                return rangeResult.ToHttpResult();
 
-            // Realistic mock busy periods (e.g. existing confirmed booking)
-            var busyPeriods = new List<DateTimeRangeDto>
-            {
-                new(
-                    Start: DateTimeOffset.UtcNow.AddDays(3).Date.AddHours(8),
-                    End: DateTimeOffset.UtcNow.AddDays(5).Date.AddHours(20))
-            };
-
-            var hasConflict = busyPeriods.Any(p => start.Value < p.End && end.Value > p.Start);
-
-            var response = new AvailabilityCheckResultDto(
-                VehicleId: vehicleId,
-                StartTime: start.Value,
-                EndTime: end.Value,
-                IsAvailable: !hasConflict,
-                ConflictReason: hasConflict ? "Xe đã có lịch đặt hoặc đang được giữ chỗ trong khoảng thời gian này." : null,
-                BusyPeriods: hasConflict ? busyPeriods : []);
-
-            return Results.Ok(response);
+            return (await api.CheckVehicleAvailabilityAsync(vehicleId, rangeResult.Value, ct)).ToHttpResult();
         })
         .WithName("CheckVehicleAvailability")
         .WithSummary("Check vehicle availability for a given date range")
@@ -46,121 +38,82 @@ public static class AvailabilityEndpoints
         .Produces<AvailabilityCheckResultDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        // 2. Get vehicle calendar and blocked schedule entries
-        group.MapGet("/vehicles/{vehicleId:guid}/calendar", (Guid vehicleId, DateTimeOffset? from, DateTimeOffset? to) =>
-        {
-            var entries = new[]
-            {
-                new CalendarEntryDto(
-                    Id: Guid.NewGuid(),
-                    VehicleId: vehicleId,
-                    Type: "Booked",
-                    StartTime: DateTimeOffset.UtcNow.AddDays(3).Date.AddHours(8),
-                    EndTime: DateTimeOffset.UtcNow.AddDays(5).Date.AddHours(20),
-                    ExpiresAt: null,
-                    BookingId: Guid.NewGuid(),
-                    Note: "Đơn thuê đã xác nhận #BK-9182"),
-                new CalendarEntryDto(
-                    Id: Guid.NewGuid(),
-                    VehicleId: vehicleId,
-                    Type: "Hold",
-                    StartTime: DateTimeOffset.UtcNow.AddDays(7).Date.AddHours(9),
-                    EndTime: DateTimeOffset.UtcNow.AddDays(8).Date.AddHours(18),
-                    ExpiresAt: DateTimeOffset.UtcNow.AddMinutes(12),
-                    BookingId: Guid.NewGuid(),
-                    Note: "Khách hàng đang thanh toán cọc"),
-                new CalendarEntryDto(
-                    Id: Guid.NewGuid(),
-                    VehicleId: vehicleId,
-                    Type: "OwnerBlocked",
-                    StartTime: DateTimeOffset.UtcNow.AddDays(12).Date.AddHours(0),
-                    EndTime: DateTimeOffset.UtcNow.AddDays(14).Date.AddHours(23).AddMinutes(59),
-                    ExpiresAt: null,
-                    BookingId: null,
-                    Note: "Chủ xe sử dụng cá nhân / về quê"),
-                new CalendarEntryDto(
-                    Id: Guid.NewGuid(),
-                    VehicleId: vehicleId,
-                    Type: "Maintenance",
-                    StartTime: DateTimeOffset.UtcNow.AddDays(20).Date.AddHours(8),
-                    EndTime: DateTimeOffset.UtcNow.AddDays(21).Date.AddHours(17),
-                    ExpiresAt: null,
-                    BookingId: null,
-                    Note: "Bảo dưỡng định kỳ 20.000 km và thay dầu")
-            };
-
-            return Results.Ok(entries);
-        })
+        group.MapGet("/vehicles/{vehicleId:guid}/calendar", async (
+            Guid vehicleId,
+            DateTimeOffset? from,
+            DateTimeOffset? to,
+            IAvailabilityApi api,
+            CancellationToken ct) =>
+            (await api.GetCalendarAsync(vehicleId, from, to, ct)).ToHttpResult())
         .WithName("GetVehicleCalendar")
         .WithSummary("Get vehicle calendar and blocked schedule entries")
         .WithDescription("Retrieves all booked periods, temporary holds, maintenance blocks, and owner-blocked dates for a vehicle within a date range.")
-        .Produces<CalendarEntryDto[]>(StatusCodes.Status200OK);
+        .Produces<IReadOnlyList<CalendarEntryDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        // 3. Block vehicle schedule manually
-        group.MapPost("/vehicles/{vehicleId:guid}/blocks", (Guid vehicleId, BlockScheduleRequest request) =>
+        group.MapPost("/vehicles/{vehicleId:guid}/blocks", async (
+            Guid vehicleId,
+            BlockScheduleRequest request,
+            ClaimsPrincipal principal,
+            IAvailabilityApi api,
+            CancellationToken ct) =>
         {
-            if (request.EndTime <= request.StartTime || string.IsNullOrWhiteSpace(request.Reason))
-            {
-                return Error.Validation("availability.invalid_schedule_block", "EndTime must be greater than StartTime, and Reason is required.").ToProblemResult();
-            }
+            var rangeResult = CreateRange(request.StartTime, request.EndTime);
+            if (rangeResult.IsFailure)
+                return rangeResult.ToHttpResult();
 
-            var entry = new CalendarEntryDto(
-                Id: Guid.NewGuid(),
-                VehicleId: vehicleId,
-                Type: "OwnerBlocked",
-                StartTime: request.StartTime,
-                EndTime: request.EndTime,
-                ExpiresAt: null,
-                BookingId: null,
-                Note: request.Reason);
+            var result = await api.BlockAsync(
+                vehicleId,
+                GetUserId(principal),
+                rangeResult.Value,
+                request.Reason,
+                request.Type ?? CalendarEntryType.OwnerBlocked,
+                ct);
 
-            return Results.Created($"/api/availability/vehicles/{vehicleId}/calendar", entry);
+            return result.ToCreatedHttpResult(_ => $"/api/availability/vehicles/{vehicleId}/calendar");
         })
+        .WithValidation<BlockScheduleRequest>()
         .WithName("BlockVehicleSchedule")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("OwnerOnly")
         .WithSummary("Block vehicle schedule manually")
         .WithDescription("Allows vehicle owners to manually block dates for personal use or scheduled maintenance.")
         .Produces<CalendarEntryDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
-        // 4. Unblock previously blocked schedule
-        group.MapDelete("/blocks/{blockId:guid}", (Guid blockId) =>
-        {
-            return Results.NoContent();
-        })
+        group.MapDelete("/blocks/{blockId:guid}", async (
+            Guid blockId,
+            ClaimsPrincipal principal,
+            IAvailabilityApi api,
+            CancellationToken ct) =>
+            (await api.UnblockAsync(blockId, GetUserId(principal), ct)).ToHttpResult())
         .WithName("UnblockVehicleSchedule")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("OwnerOnly")
         .WithSummary("Unblock previously blocked schedule")
         .WithDescription("Removes an owner-created block, restoring vehicle availability for bookings.")
-        .Produces(StatusCodes.Status204NoContent);
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
     }
+
+    private static Result<DateTimeRange> CreateRange(DateTimeOffset? start, DateTimeOffset? end)
+    {
+        if (!start.HasValue || !end.HasValue)
+            return AvailabilityErrors.InvalidRange;
+
+        return DateTimeRange.Create(start.Value, end.Value);
+    }
+
+    private static Guid GetUserId(ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(claim, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
+    }
 }
-
-public sealed record AvailabilityCheckResultDto(
-    Guid VehicleId,
-    DateTimeOffset StartTime,
-    DateTimeOffset EndTime,
-    bool IsAvailable,
-    string? ConflictReason,
-    IReadOnlyList<DateTimeRangeDto> BusyPeriods);
-
-public sealed record DateTimeRangeDto(
-    DateTimeOffset Start,
-    DateTimeOffset End);
-
-public sealed record CalendarEntryDto(
-    Guid Id,
-    Guid VehicleId,
-    string Type, // Booked, Hold, OwnerBlocked, Maintenance
-    DateTimeOffset StartTime,
-    DateTimeOffset EndTime,
-    DateTimeOffset? ExpiresAt,
-    Guid? BookingId,
-    string? Note);
-
-public sealed record BlockScheduleRequest(
-    DateTimeOffset StartTime,
-    DateTimeOffset EndTime,
-    string Reason);

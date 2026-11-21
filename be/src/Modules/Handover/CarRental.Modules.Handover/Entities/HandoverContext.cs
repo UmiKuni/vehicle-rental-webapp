@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Handover.Entities;
 
-public class HandoverContext : Entity<Guid>
+internal class HandoverContext : Entity<Guid>
 {
     public Guid BookingId { get; private set; }
     public Guid VehicleId { get; private set; }

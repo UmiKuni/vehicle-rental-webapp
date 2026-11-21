@@ -221,7 +221,7 @@ public class FleetModuleTests
         vehicle.SubmitForApproval();
 
         var adminId = Guid.NewGuid();
-        var approveResult = vehicle.Approve(adminId);
+        var approveResult = vehicle.Approve(adminId, DateTimeOffset.UtcNow);
 
         approveResult.IsSuccess.Should().BeTrue();
         vehicle.Status.Should().Be(VehicleStatus.Published);
@@ -235,7 +235,7 @@ public class FleetModuleTests
     {
         var vehicle = CreateTestVehicle();
 
-        var result = vehicle.Approve(Guid.NewGuid());
+        var result = vehicle.Approve(Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Code.Should().Be("fleet.invalid_state");
@@ -251,7 +251,7 @@ public class FleetModuleTests
         vehicle.SubmitForApproval();
 
         var adminId = Guid.NewGuid();
-        var rejectResult = vehicle.Reject(adminId, "Inadequate photos of vehicle interior.");
+        var rejectResult = vehicle.Reject(adminId, "Inadequate photos of vehicle interior.", DateTimeOffset.UtcNow);
 
         rejectResult.IsSuccess.Should().BeTrue();
         vehicle.Status.Should().Be(VehicleStatus.Draft);
@@ -265,7 +265,7 @@ public class FleetModuleTests
     {
         var vehicle = CreateTestVehicle();
 
-        var result = vehicle.Reject(Guid.NewGuid(), "Cannot reject a draft");
+        var result = vehicle.Reject(Guid.NewGuid(), "Cannot reject a draft", DateTimeOffset.UtcNow);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Code.Should().Be("fleet.invalid_state");
@@ -279,10 +279,10 @@ public class FleetModuleTests
         vehicle.AddImage("vehicles/img2.jpg");
         vehicle.AddImage("vehicles/img3.jpg");
         vehicle.SubmitForApproval();
-        vehicle.Approve(Guid.NewGuid());
+        vehicle.Approve(Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         var adminId = Guid.NewGuid();
-        var unpublishResult = vehicle.Unpublish(adminId, "Safety violation");
+        var unpublishResult = vehicle.Unpublish(adminId, "Safety violation", DateTimeOffset.UtcNow);
 
         unpublishResult.IsSuccess.Should().BeTrue();
         vehicle.Status.Should().Be(VehicleStatus.Hidden);
@@ -299,7 +299,7 @@ public class FleetModuleTests
     {
         var vehicle = CreateTestVehicle();
 
-        var result = vehicle.Unpublish(Guid.NewGuid(), "Reason");
+        var result = vehicle.Unpublish(Guid.NewGuid(), "Reason", DateTimeOffset.UtcNow);
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Code.Should().Be("fleet.invalid_state");
@@ -313,7 +313,7 @@ public class FleetModuleTests
         vehicle.AddImage("vehicles/img2.jpg");
         vehicle.AddImage("vehicles/img3.jpg");
         vehicle.SubmitForApproval();
-        vehicle.Approve(Guid.NewGuid());
+        vehicle.Approve(Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         var hideResult = vehicle.Hide();
         hideResult.IsSuccess.Should().BeTrue();

@@ -103,15 +103,16 @@ public class Vehicle : AggregateRoot<VehicleId>
         return Result.Success();
     }
 
-    public Result AddImage(string storageKey)
+    public Result<Guid> AddImage(string storageKey)
     {
         if (string.IsNullOrWhiteSpace(storageKey))
-            return Result.Failure(FleetErrors.InvalidImage);
+            return Result.Failure<Guid>(FleetErrors.InvalidImage);
 
         bool isPrimary = _images.Count == 0;
-        _images.Add(new VehicleImage(Guid.CreateVersion7(), Id, storageKey.Trim(), isPrimary));
+        var imageId = Guid.CreateVersion7();
+        _images.Add(new VehicleImage(imageId, Id, storageKey.Trim(), isPrimary));
 
-        return Result.Success();
+        return Result.Success(imageId);
     }
 
     public Result RemoveImage(Guid imageId)
@@ -148,7 +149,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result SubmitForApproval()
     {
         if (Status != VehicleStatus.Draft)
-            return Result.Failure(FleetErrors.InvalidStateFCC971);
+            return Result.Failure(FleetErrors.OnlyDraftCanSubmit);
 
         if (!_images.Any(i => i.IsPrimary))
             return Result.Failure(FleetErrors.MissingPrimaryImage);
@@ -160,37 +161,37 @@ public class Vehicle : AggregateRoot<VehicleId>
         return Result.Success();
     }
 
-    public Result Approve(Guid adminId)
+    public Result Approve(Guid adminId, DateTimeOffset now)
     {
         if (Status != VehicleStatus.PendingApproval)
-            return Result.Failure(FleetErrors.InvalidState458A59);
+            return Result.Failure(FleetErrors.OnlyPendingCanApprove);
 
         Status = VehicleStatus.Published;
         HiddenByAdmin = false;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Approved, null, DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Approved, null, now));
 
         return Result.Success();
     }
 
-    public Result Reject(Guid adminId, string reason)
+    public Result Reject(Guid adminId, string reason, DateTimeOffset now)
     {
         if (Status != VehicleStatus.PendingApproval)
-            return Result.Failure(FleetErrors.InvalidState921A2E);
+            return Result.Failure(FleetErrors.OnlyPendingCanReject);
 
         Status = VehicleStatus.Draft;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, reason, DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, reason, now));
 
         return Result.Success();
     }
 
-    public Result Unpublish(Guid adminId, string reason)
+    public Result Unpublish(Guid adminId, string reason, DateTimeOffset now)
     {
         if (Status != VehicleStatus.Published)
-            return Result.Failure(FleetErrors.InvalidState6745DC);
+            return Result.Failure(FleetErrors.OnlyPublishedCanUnpublish);
 
         Status = VehicleStatus.Hidden;
         HiddenByAdmin = true;
-        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, $"Unpublished by admin: {reason}", DateTimeOffset.UtcNow));
+        _approvals.Add(new VehicleApproval(Guid.CreateVersion7(), Id, adminId, ApprovalDecision.Rejected, $"Unpublished by admin: {reason}", now));
 
         return Result.Success();
     }
@@ -198,7 +199,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Hide()
     {
         if (Status != VehicleStatus.Published)
-            return Result.Failure(FleetErrors.InvalidStateB3AEDE);
+            return Result.Failure(FleetErrors.OnlyPublishedCanHide);
 
         Status = VehicleStatus.Hidden;
         return Result.Success();
@@ -207,7 +208,7 @@ public class Vehicle : AggregateRoot<VehicleId>
     public Result Show()
     {
         if (Status != VehicleStatus.Hidden)
-            return Result.Failure(FleetErrors.InvalidState756344);
+            return Result.Failure(FleetErrors.OnlyHiddenCanShow);
 
         if (HiddenByAdmin)
             return Result.Failure(FleetErrors.HiddenByAdmin);

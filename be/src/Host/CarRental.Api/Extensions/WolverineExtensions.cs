@@ -1,7 +1,13 @@
 using CarRental.BuildingBlocks.Messaging;
 using CarRental.Modules.Audit.EventHandlers;
+using CarRental.Modules.Availability.EventHandlers;
+using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Fleet.Contracts.Events;
+using CarRental.Modules.Handover.Contracts.Events;
+using CarRental.Modules.Payments.Contracts.Events;
+using CarRental.Modules.Payments.EventHandlers;
 using CarRental.Modules.Pricing.Contracts.Events;
+using CarRental.Modules.Reporting.EventHandlers;
 using CarRental.Modules.Search.EventHandlers;
 using Wolverine;
 using Wolverine.ErrorHandling;
@@ -36,9 +42,30 @@ public static class WolverineExtensions
             }
             opts.Discovery.IncludeType<AuditCommandHandlers>();
             opts.Discovery.IncludeType<SearchEventHandlers>();
+            opts.Discovery.IncludeType<AvailabilityEventHandlers>();
+            opts.Discovery.IncludeType<PaymentsEventHandlers>();
+            opts.Discovery.IncludeType<BookingRequestedConsumer>();
+            opts.Discovery.IncludeType<BookingCancelledConsumer>();
+            opts.Discovery.IncludeType<PaymentSucceededConsumer>();
+            opts.Discovery.IncludeType<PaymentRefundedConsumer>();
+            opts.Discovery.IncludeType<ReportingBookingLifecycleHandlers>();
             opts.LocalQueue("search-events");
             opts.PublishMessage<VehiclePublished>().ToLocalQueue("search-events");
             opts.PublishMessage<PricingUpdated>().ToLocalQueue("search-events");
+            opts.LocalQueue("availability-events");
+            opts.PublishMessage<BookingCancelled>().ToLocalQueue("availability-events");
+            opts.PublishMessage<BookingRejected>().ToLocalQueue("availability-events");
+            opts.PublishMessage<BookingExpired>().ToLocalQueue("availability-events");
+            opts.LocalQueue("payments-events");
+            opts.PublishMessage<BookingConfirmed>().ToLocalQueue("payments-events");
+            opts.PublishMessage<HandoverConfirmed>().ToLocalQueue("payments-events");
+            opts.PublishMessage<PaymentSucceeded>().ToLocalQueue("payments-events");
+            opts.PublishMessage<PaymentFailed>().ToLocalQueue("payments-events");
+            opts.LocalQueue("reporting-events");
+            opts.PublishMessage<BookingRequested>().ToLocalQueue("reporting-events");
+            opts.PublishMessage<BookingPaid>().ToLocalQueue("reporting-events");
+            opts.PublishMessage<BookingCompleted>().ToLocalQueue("reporting-events");
+            opts.PublishMessage<PaymentRefunded>().ToLocalQueue("reporting-events");
 
             // Integration tests should not leave durable local queue work to drain after the
             // test database is torn down. Production retains durable local queues.

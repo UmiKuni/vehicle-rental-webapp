@@ -2,7 +2,7 @@ using CarRental.BuildingBlocks.Domain;
 
 namespace CarRental.Modules.Payments.Entities;
 
-public class WebhookInbox : Entity<string>
+internal class WebhookInbox : Entity<string>
 {
     public DateTimeOffset ProcessedAt { get; private set; }
     public string PayloadJson { get; private set; } = string.Empty;

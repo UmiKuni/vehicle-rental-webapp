@@ -4,7 +4,7 @@ using CarRental.Modules.Pricing.Contracts.Enums;
 
 namespace CarRental.Modules.Pricing.Entities;
 
-public class FeeRule : Entity<Guid>
+internal class FeeRule : Entity<Guid>
 {
     public Guid PricingPlanId { get; private set; }
     public FeeType Type { get; private set; }

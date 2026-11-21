@@ -21,6 +21,63 @@ public interface IPaymentsApi
         CancellationToken ct = default);
 
     /// <summary>
+    /// Initiates checkout for an authenticated customer after verifying booking ownership and payable amount.
+    /// </summary>
+    Task<Result<PaymentCheckoutDto>> InitiateCheckoutAsync(
+        Guid customerId,
+        InitiatePaymentRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentDetailDto>> GetPaymentByIdAsync(
+        Guid paymentId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default);
+
+    Task<Result<BookingPaymentSummaryDto>> GetPaymentByBookingAsync(
+        Guid bookingId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentWebhookResponseDto>> HandleWebhookAsync(
+        PaymentWebhookRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentWebhookResponseDto>> HandleGatewayWebhookAsync(
+        GatewayWebhookRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentDetailDto>> CapturePayPalOrderAsync(
+        string paypalOrderId,
+        Guid actorId,
+        bool isAdmin = false,
+        CancellationToken ct = default);
+
+    Task<Result<PaymentRefundDto>> RefundPaymentAsync(
+        Guid paymentId,
+        Guid actorId,
+        bool isAdmin,
+        decimal amount,
+        string reason,
+        CancellationToken ct = default);
+
+    Task<Result<DepositActionDto>> ReleaseDepositByIdAsync(
+        Guid depositId,
+        Guid actorId,
+        bool isAdmin = false,
+        string? note = null,
+        CancellationToken ct = default);
+
+    Task<Result<DepositActionDto>> DeductDepositByIdAsync(
+        Guid depositId,
+        Guid actorId,
+        bool isAdmin = false,
+        decimal deductAmount = 0m,
+        string reason = "",
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Freezes an active security deposit when a support dispute ticket is opened.
     /// </summary>
     Task<Result> FreezeDepositAsync(
@@ -49,4 +106,3 @@ public interface IPaymentsApi
         Guid bookingId,
         CancellationToken ct = default);
 }
-

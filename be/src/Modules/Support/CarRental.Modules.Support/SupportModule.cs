@@ -1,4 +1,6 @@
 using CarRental.Modules.Support.Data;
+using CarRental.Modules.Support.Contracts;
+using CarRental.Modules.Support.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class SupportModule
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", SupportDbContext.Schema)));
 
+        services.AddScoped<ISupportApi, SupportApiService>();
         return services;
     }
 }

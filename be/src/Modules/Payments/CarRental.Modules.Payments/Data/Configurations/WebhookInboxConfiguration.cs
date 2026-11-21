@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CarRental.Modules.Payments.Data.Configurations;
 
-public sealed class WebhookInboxConfiguration : IEntityTypeConfiguration<WebhookInbox>
+internal sealed class WebhookInboxConfiguration : IEntityTypeConfiguration<WebhookInbox>
 {
     public void Configure(EntityTypeBuilder<WebhookInbox> builder)
     {
@@ -12,6 +12,7 @@ public sealed class WebhookInboxConfiguration : IEntityTypeConfiguration<Webhook
 
         builder.HasKey(w => w.Id);
         builder.Property(w => w.Id)
+            .ValueGeneratedNever()
             .HasMaxLength(128)
             .HasColumnName("id");
 
