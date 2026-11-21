@@ -74,8 +74,7 @@ public static class PaymentsModule
             .BindConfiguration(PaymentGatewayOptions.SectionName)
             .PostConfigure(opts =>
             {
-                if (!opts.UseMockGateway
-                    && bool.TryParse(configuration["PAYMENTS_USE_MOCK_GATEWAY"], out var flatMock))
+                if (bool.TryParse(configuration["PAYMENTS_USE_MOCK_GATEWAY"], out var flatMock))
                 {
                     opts.UseMockGateway = flatMock;
                 }

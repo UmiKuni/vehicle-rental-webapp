@@ -60,6 +60,13 @@ namespace CarRental.Modules.Reporting.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paid_at");
 
+                    b.Property<decimal>("RefundedAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("refunded_amount");
+
                     b.Property<decimal>("RentAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")

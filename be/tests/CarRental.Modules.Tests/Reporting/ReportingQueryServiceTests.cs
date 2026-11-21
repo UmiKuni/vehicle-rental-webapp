@@ -329,6 +329,63 @@ public class ReportingQueryServiceTests
         result.Value.NetEarnings.Should().Be(result.Value.GrossRevenue - result.Value.PlatformCommissionTotal);
     }
 
+    [Fact]
+    public async Task GetOwnerRevenueAsync_WhenPartialRefundApplied_ShouldSubtractRefundAndClampAtZero()
+    {
+        var harness = CreateHarness();
+        var ownerId = Guid.NewGuid();
+
+        var partialRefundTrip = BookingReportProjection.Create(
+            Guid.NewGuid(),
+            ownerId,
+            Guid.NewGuid(),
+            "51K-889.99",
+            "Mazda CX-5",
+            new DateTimeOffset(2026, 11, 2, 1, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 5, 13, 0, 0, TimeSpan.Zero),
+            3_000_000m,
+            new DateTimeOffset(2026, 11, 1, 1, 0, 0, TimeSpan.Zero));
+        partialRefundTrip.RecordPayment(3_000_000m, new DateTimeOffset(2026, 11, 1, 2, 0, 0, TimeSpan.Zero));
+        partialRefundTrip.ApplyRefund(1_000_000m);
+
+        var overRefundTrip = BookingReportProjection.Create(
+            Guid.NewGuid(),
+            ownerId,
+            Guid.NewGuid(),
+            "51H-123.45",
+            "Honda Civic",
+            new DateTimeOffset(2026, 11, 10, 1, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero),
+            1_500_000m,
+            new DateTimeOffset(2026, 11, 9, 1, 0, 0, TimeSpan.Zero));
+        overRefundTrip.RecordPayment(3_500_000m, new DateTimeOffset(2026, 11, 9, 2, 0, 0, TimeSpan.Zero));
+        overRefundTrip.ApplyRefund(2_000_000m);
+
+        harness.RepositoryMock
+            .Setup(x => x.GetOwnerTripsInRangeAsync(
+                ownerId,
+                new DateTimeOffset(2026, 10, 31, 17, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 11, 30, 17, 0, 0, TimeSpan.Zero),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([partialRefundTrip, overRefundTrip]);
+
+        var result = await harness.Service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TotalTrips.Should().Be(2);
+        result.Value.Trips[0].GrossRent.Should().Be(2_000_000m);
+        result.Value.Trips[0].PlatformCommission.Should().Be(200_000m);
+        result.Value.Trips[0].NetIncome.Should().Be(1_800_000m);
+
+        result.Value.Trips[1].GrossRent.Should().Be(0m);
+        result.Value.Trips[1].PlatformCommission.Should().Be(0m);
+        result.Value.Trips[1].NetIncome.Should().Be(0m);
+
+        result.Value.GrossRevenue.Should().Be(2_000_000m);
+        result.Value.PlatformCommissionTotal.Should().Be(200_000m);
+        result.Value.NetEarnings.Should().Be(1_800_000m);
+    }
+
     private static (
         ReportingQueryService Service,
         Mock<IReportingRepository> RepositoryMock,

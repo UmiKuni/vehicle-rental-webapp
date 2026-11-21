@@ -211,6 +211,15 @@ public class ReportingIntegrationTests : IntegrationTestBase
             var stat = await db.DailyBookingStats.AsNoTracking().SingleAsync(s => s.Id == todayBucket);
             return proj.PaidAmount == 2_000_000m && stat.TotalRevenue == 2_000_000m;
         });
+
+        var ownerRevenueAfterRefundResponse = await ownerClient.GetAsync(
+            $"/api/reporting/owner/revenue?ownerId={ownerId}&month={vnNow.Month}&year={vnNow.Year}");
+        ownerRevenueAfterRefundResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var ownerReportAfterRefund = await ownerRevenueAfterRefundResponse.Content.ReadFromJsonAsync<OwnerRevenueReportDto>();
+        ownerReportAfterRefund.Should().NotBeNull();
+        ownerReportAfterRefund!.GrossRevenue.Should().Be(2_000_000m);
+        ownerReportAfterRefund.PlatformCommissionTotal.Should().Be(200_000m);
+        ownerReportAfterRefund.NetEarnings.Should().Be(1_800_000m);
     }
 
     [Fact]

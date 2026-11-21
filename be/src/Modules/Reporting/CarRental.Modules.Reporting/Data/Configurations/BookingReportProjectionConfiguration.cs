@@ -53,6 +53,12 @@ internal sealed class BookingReportProjectionConfiguration : IEntityTypeConfigur
             .HasDefaultValue(0m)
             .IsRequired();
 
+        builder.Property(x => x.RefundedAmount)
+            .HasColumnName("refunded_amount")
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m)
+            .IsRequired();
+
         builder.Property(x => x.Status)
             .HasColumnName("status")
             .HasMaxLength(32)

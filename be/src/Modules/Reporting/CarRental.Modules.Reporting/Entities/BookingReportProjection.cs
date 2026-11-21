@@ -28,6 +28,7 @@ internal sealed class BookingReportProjection : Entity<Guid>
     public DateTimeOffset EndTime { get; private set; }
     public decimal RentAmount { get; private set; }
     public decimal PaidAmount { get; private set; }
+    public decimal RefundedAmount { get; private set; }
     public string Status { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? PaidAt { get; private set; }
@@ -57,6 +58,7 @@ internal sealed class BookingReportProjection : Entity<Guid>
         EndTime = endTime;
         RentAmount = rentAmount;
         PaidAmount = 0m;
+        RefundedAmount = 0m;
         Status = BookingProjectionStatus.Pending;
         CreatedAt = createdAt;
     }
@@ -120,6 +122,7 @@ internal sealed class BookingReportProjection : Entity<Guid>
         if (amount <= 0m)
             return;
 
+        RefundedAmount += amount;
         PaidAmount = Math.Max(0m, PaidAmount - amount);
     }
 
