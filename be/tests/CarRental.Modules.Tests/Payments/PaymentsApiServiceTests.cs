@@ -263,11 +263,34 @@ public class PaymentsApiServiceTests
         ownerDeduct.Value.Status.Should().Be("Deducted");
         ownerDeduct.Value.DeductedAmount.Should().Be(1_200_000m);
         ownerDeduct.Value.RefundedAmount.Should().Be(3_800_000m);
+        ownerDeduct.Value.Notes.Should().Be("Damage");
+
+        var summary = await harness.Service.GetPaymentByBookingAsync(bookingId, ownerId);
+        summary.IsSuccess.Should().BeTrue();
+        summary.Value.Deposit.Should().NotBeNull();
+        summary.Value.Deposit!.Notes.Should().Be("Damage");
 
         // Release after deduction fails with Conflict
         var releaseAfterDeduct = await harness.Service.ReleaseDepositByIdAsync(deposit.Id.Value, ownerId, false, "Done");
         releaseAfterDeduct.IsFailure.Should().BeTrue();
         releaseAfterDeduct.Error.Code.Should().Be("deposit.invalid_state");
+
+        // Release on a fresh deposit persists the note
+        var secondBookingId = Guid.NewGuid();
+        var releaseHarness = CreateHarness(customerId, ownerId, secondBookingId, "Paid", 2_000_000m, 4_000_000m);
+        var freshDeposit = Deposit.Hold(secondBookingId, Money.Of(4_000_000), Now).Value;
+        releaseHarness.Deposits.Add(freshDeposit);
+
+        var ownerRelease = await releaseHarness.Service.ReleaseDepositByIdAsync(freshDeposit.Id.Value, ownerId, false, "Returned clean");
+        ownerRelease.IsSuccess.Should().BeTrue();
+        ownerRelease.Value.Status.Should().Be("Released");
+        ownerRelease.Value.Notes.Should().Be("Returned clean");
+        freshDeposit.Notes.Should().Be("Returned clean");
+
+        var releasedSummary = await releaseHarness.Service.GetPaymentByBookingAsync(secondBookingId, ownerId);
+        releasedSummary.IsSuccess.Should().BeTrue();
+        releasedSummary.Value.Deposit.Should().NotBeNull();
+        releasedSummary.Value.Deposit!.Notes.Should().Be("Returned clean");
     }
 
     [Fact]

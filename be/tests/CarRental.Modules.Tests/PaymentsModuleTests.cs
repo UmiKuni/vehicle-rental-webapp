@@ -93,10 +93,23 @@ public class PaymentsModuleTests
     {
         var deposit = Deposit.Hold(BookingId, Money.Of(5_000_000), Now).Value;
 
-        var result = deposit.Release(Now.AddDays(2));
+        var result = deposit.Release(Now.AddDays(2), "  All good  ");
 
         result.IsSuccess.Should().BeTrue();
         deposit.Status.Should().Be(DepositStatus.Released);
+        deposit.Notes.Should().Be("All good");
+    }
+
+    [Fact]
+    public void ReleaseDeposit_WithWhitespaceNote_ShouldNormalizeNotesToNull()
+    {
+        var deposit = Deposit.Hold(BookingId, Money.Of(5_000_000), Now).Value;
+
+        var result = deposit.Release(Now.AddDays(2), "   ");
+
+        result.IsSuccess.Should().BeTrue();
+        deposit.Status.Should().Be(DepositStatus.Released);
+        deposit.Notes.Should().BeNull();
     }
 
     [Fact]
@@ -117,11 +130,12 @@ public class PaymentsModuleTests
     {
         var deposit = Deposit.Hold(BookingId, Money.Of(5_000_000), Now).Value;
 
-        var result = deposit.Deduct(Money.Of(1_500_000), Now.AddDays(2));
+        var result = deposit.Deduct(Money.Of(1_500_000), Now.AddDays(2), "  Minor scratch  ");
 
         result.IsSuccess.Should().BeTrue();
         deposit.Status.Should().Be(DepositStatus.Deducted);
         deposit.DeductedAmount.Amount.Should().Be(1_500_000);
+        deposit.Notes.Should().Be("Minor scratch");
     }
 
     [Fact]

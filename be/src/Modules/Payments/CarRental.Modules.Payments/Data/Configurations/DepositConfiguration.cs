@@ -60,6 +60,10 @@ internal sealed class DepositConfiguration : IEntityTypeConfiguration<Deposit>
         builder.Property(d => d.SettledAt)
             .HasColumnName("settled_at");
 
+        builder.Property(d => d.Notes)
+            .HasMaxLength(500)
+            .HasColumnName("notes");
+
         builder.Property(d => d.Version)
             .IsRowVersion()
             .HasColumnName("xmin");

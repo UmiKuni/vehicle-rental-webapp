@@ -404,6 +404,7 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         var releasedDto = await releaseResponse.Content.ReadFromJsonAsync<DepositActionDto>();
         releasedDto!.Status.Should().Be("Released");
         releasedDto.RefundedAmount.Should().Be(5_000_000m);
+        releasedDto.Notes.Should().Be("All good");
 
         // Owner deducts partial amount
         var deductResponse = await ownerClient.PostAsJsonAsync(
@@ -414,17 +415,26 @@ public class PaymentsIntegrationTests : IntegrationTestBase
         deductedDto!.Status.Should().Be("Deducted");
         deductedDto.DeductedAmount.Should().Be(750_000m);
         deductedDto.RefundedAmount.Should().Be(4_250_000m);
+        deductedDto.Notes.Should().Be("Minor scratch");
 
         using (var scope = CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
             var savedRelease = await db.Deposits.AsNoTracking().SingleAsync(d => d.Id == depositRelease.Id);
             savedRelease.Status.Should().Be(DepositStatus.Released);
+            savedRelease.Notes.Should().Be("All good");
 
             var savedDeduct = await db.Deposits.AsNoTracking().SingleAsync(d => d.Id == depositDeduct.Id);
             savedDeduct.Status.Should().Be(DepositStatus.Deducted);
             savedDeduct.DeductedAmount.Amount.Should().Be(750_000);
+            savedDeduct.Notes.Should().Be("Minor scratch");
         }
+
+        var deductSummaryResponse = await ownerClient.GetAsync($"/api/payments/booking/{bookingDeductId}");
+        deductSummaryResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var deductSummary = await deductSummaryResponse.Content.ReadFromJsonAsync<BookingPaymentSummaryDto>();
+        deductSummary!.Deposit.Should().NotBeNull();
+        deductSummary.Deposit!.Notes.Should().Be("Minor scratch");
     }
 
     [Fact]

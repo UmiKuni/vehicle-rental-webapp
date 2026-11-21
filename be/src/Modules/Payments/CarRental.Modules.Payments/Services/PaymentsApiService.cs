@@ -391,7 +391,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             return authResult.Error;
 
         var now = _clock.GetUtcNow();
-        var releaseResult = deposit.Release(now);
+        var releaseResult = deposit.Release(now, note);
         if (releaseResult.IsFailure)
             return releaseResult.Error;
 
@@ -421,7 +421,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             return deductMoneyResult.Error;
 
         var now = _clock.GetUtcNow();
-        var deductResult = deposit.Deduct(deductMoneyResult.Value, now);
+        var deductResult = deposit.Deduct(deductMoneyResult.Value, now, reason);
         if (deductResult.IsFailure)
             return deductResult.Error;
 
@@ -483,7 +483,8 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.DeductedAmount.Amount,
             deposit.IsFrozen,
             deposit.ReleaseAfter,
-            deposit.SettledAt);
+            deposit.SettledAt,
+            deposit.Notes);
     }
 
     private async Task<Result<PaymentWebhookResponseDto>> ProcessGatewayNotificationAsync(
@@ -746,7 +747,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.Status.ToString(),
             deposit.DeductedAmount.Amount,
             CalculateRefundedAmount(deposit),
-            deposit.IsFrozen ? "Deposit is frozen pending dispute resolution." : null,
+            deposit.IsFrozen ? "Deposit is frozen pending dispute resolution." : deposit.Notes,
             deposit.SettledAt ?? now);
 
     private static DepositActionDto MapDepositAction(Deposit deposit, DateTimeOffset timestamp) =>
@@ -756,7 +757,8 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.Amount.Amount,
             deposit.DeductedAmount.Amount,
             CalculateRefundedAmount(deposit),
-            deposit.SettledAt ?? timestamp);
+            deposit.SettledAt ?? timestamp,
+            deposit.Notes);
 
     private static decimal CalculateRefundedAmount(Deposit deposit) => deposit.Status switch
     {
