@@ -67,4 +67,9 @@ internal static class BookingsErrors
         Error.Conflict(
             "booking.terminal_state",
             $"Cannot modify a booking in terminal state {current}.");
+
+    public static Error ConcurrentModification =>
+        Error.Conflict(
+            "booking.concurrent_modification",
+            "The booking was modified concurrently. Please refresh and try again.");
 }

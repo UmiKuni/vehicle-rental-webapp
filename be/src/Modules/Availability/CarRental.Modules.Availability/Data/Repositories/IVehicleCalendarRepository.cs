@@ -34,5 +34,12 @@ internal interface IVehicleCalendarRepository
         DateTimeOffset now,
         CancellationToken ct = default);
 
+    Task<int> DeleteExpiredHoldsAsync(
+        Guid vehicleId,
+        DateTimeOffset now,
+        CancellationToken ct = default);
+
+    void ClearChangeTracker();
+
     void Add(VehicleCalendar calendar);
 }

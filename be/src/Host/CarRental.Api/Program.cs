@@ -1,4 +1,5 @@
 using CarRental.Api.Extensions;
+using CarRental.Api.Infrastructure.Redis;
 using CarRental.Api.Infrastructure.Storage;
 using CarRental.Modules.Audit;
 using CarRental.Modules.Availability;
@@ -31,6 +32,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddImageStorage(builder.Configuration, builder.Environment);
+builder.Services.AddRedisInfrastructure(builder.Configuration, builder.Environment);
 
 // Register modular monolith modules
 builder.Services

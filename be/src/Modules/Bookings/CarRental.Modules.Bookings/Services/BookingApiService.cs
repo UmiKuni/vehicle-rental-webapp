@@ -16,6 +16,9 @@ using CarRental.Modules.Fleet.Contracts.Dtos;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CarRental.Modules.Bookings.Services;
 
@@ -31,6 +34,7 @@ internal sealed class BookingApiService : IBookingApi
     private readonly IAvailabilityApi _availabilityApi;
     private readonly IEventOutbox _eventOutbox;
     private readonly TimeProvider _clock;
+    private readonly ILogger<BookingApiService> _logger;
 
     public BookingApiService(
         BookingDbContext dbContext,
@@ -40,7 +44,8 @@ internal sealed class BookingApiService : IBookingApi
         IPricingApi pricingApi,
         IAvailabilityApi availabilityApi,
         IEventOutbox eventOutbox,
-        TimeProvider clock)
+        TimeProvider clock,
+        ILogger<BookingApiService>? logger = null)
     {
         _dbContext = dbContext;
         _repository = repository;
@@ -50,6 +55,7 @@ internal sealed class BookingApiService : IBookingApi
         _availabilityApi = availabilityApi;
         _eventOutbox = eventOutbox;
         _clock = clock;
+        _logger = logger ?? NullLogger<BookingApiService>.Instance;
     }
 
     public async Task<Result<BookingDetailDto>> CreateAsync(
@@ -175,7 +181,9 @@ internal sealed class BookingApiService : IBookingApi
         if (approveResult.IsFailure)
             return approveResult.Error;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
 
         var payableAmount = SumLineItems(
             booking,
@@ -213,7 +221,10 @@ internal sealed class BookingApiService : IBookingApi
         if (rejectResult.IsFailure)
             return rejectResult.Error;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
+
         await _availabilityApi.ReleaseHoldAsync(booking.VehicleId, booking.Id.Value, ct);
 
         await _eventOutbox.PublishAsync(
@@ -254,7 +265,10 @@ internal sealed class BookingApiService : IBookingApi
 
         var outcome = cancelResult.Value;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
+
         await _availabilityApi.ReleaseHoldAsync(booking.VehicleId, booking.Id.Value, ct);
 
         await _eventOutbox.PublishAsync(
@@ -302,7 +316,10 @@ internal sealed class BookingApiService : IBookingApi
 
         var outcome = cancelResult.Value;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
+
         await _availabilityApi.ReleaseHoldAsync(booking.VehicleId, booking.Id.Value, ct);
 
         await _eventOutbox.PublishAsync(
@@ -344,7 +361,10 @@ internal sealed class BookingApiService : IBookingApi
         if (markPaidResult.IsFailure)
             return markPaidResult;
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult;
+
         await _availabilityApi.ConfirmHoldAsync(booking.VehicleId, booking.Id.Value, ct);
 
         await _eventOutbox.PublishAsync(
@@ -397,8 +417,7 @@ internal sealed class BookingApiService : IBookingApi
         if (startResult.IsFailure)
             return startResult;
 
-        await _dbContext.SaveChangesAsync(ct);
-        return Result.Success();
+        return await SaveBookingChangesAsync(bookingResult.Value.Id.Value, ct);
     }
 
     public async Task<Result> CompleteTripAsync(
@@ -423,7 +442,9 @@ internal sealed class BookingApiService : IBookingApi
                 return feeResult;
         }
 
-        await _dbContext.SaveChangesAsync(ct);
+        var saveResult = await SaveBookingChangesAsync(booking.Id.Value, ct);
+        if (saveResult.IsFailure)
+            return saveResult;
 
         await _eventOutbox.PublishAsync(
             new BookingCompleted(
@@ -538,15 +559,33 @@ internal sealed class BookingApiService : IBookingApi
             {
                 await _availabilityApi.ReleaseHoldAsync(booking.VehicleId, booking.Id.Value, CancellationToken.None);
             }
-            catch
+            catch (Exception releaseEx)
             {
-                // Best-effort compensation when persistence fails after hold placement
+                _logger.LogError(
+                    releaseEx,
+                    "Failed to release availability hold for Vehicle {VehicleId}, Booking {BookingId} after booking save failure.",
+                    booking.VehicleId,
+                    booking.Id.Value);
             }
 
             throw;
         }
 
         return Result.Success();
+    }
+
+    private async Task<Result> SaveBookingChangesAsync(Guid bookingId, CancellationToken ct)
+    {
+        try
+        {
+            await _dbContext.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Optimistic concurrency conflict while updating Booking {BookingId}.", bookingId);
+            return BookingsErrors.ConcurrentModification;
+        }
     }
 
     private async Task<Result<PagedResult<BookingSummaryDto>>> BuildPagedBookingsAsync(

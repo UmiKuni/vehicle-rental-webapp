@@ -13,6 +13,7 @@ using CarRental.Modules.Fleet.Contracts.Dtos;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Npgsql;
 using Xunit;
 
 namespace CarRental.Modules.Tests.Availability;
@@ -302,6 +303,36 @@ public class AvailabilityApiServiceTests
         confirmConcurrency.IsFailure.Should().BeTrue();
         confirmConcurrency.Error.Code.Should().Be("availability.hold_not_found_or_expired");
         confirmConcurrency.Error.Type.Should().Be(ErrorType.NotFound);
+
+        var releaseConcurrency = await harness.Service.ReleaseHoldAsync(vehicleId, bookingId);
+        releaseConcurrency.IsFailure.Should().BeTrue();
+        releaseConcurrency.Error.Code.Should().Be("availability.slot_unavailable");
+        releaseConcurrency.Error.Type.Should().Be(ErrorType.Conflict);
+    }
+
+    [Fact]
+    public async Task ExclusionViolation_ShouldMapToSlotUnavailableConflict()
+    {
+        var ownerId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+        var bookingId = Guid.NewGuid();
+        var range = DateTimeRange.Create(Now.AddDays(2), Now.AddDays(4)).Value;
+        var harness = CreateHarness(ownerId);
+
+        var pgEx = new PostgresException("conflicting key value violates exclusion constraint", "ERROR", "ERROR", PostgresErrorCodes.ExclusionViolation);
+        harness.DbContextMock
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("exclusion violation", pgEx));
+
+        var placeResult = await harness.Service.PlaceHoldAsync(vehicleId, bookingId, range, TimeSpan.FromHours(1));
+        placeResult.IsFailure.Should().BeTrue();
+        placeResult.Error.Code.Should().Be("availability.slot_unavailable");
+        placeResult.Error.Type.Should().Be(ErrorType.Conflict);
+
+        var blockResult = await harness.Service.BlockAsync(vehicleId, ownerId, range, "Maintenance", CalendarEntryType.Maintenance);
+        blockResult.IsFailure.Should().BeTrue();
+        blockResult.Error.Code.Should().Be("availability.slot_unavailable");
+        blockResult.Error.Type.Should().Be(ErrorType.Conflict);
     }
 
     private static (
