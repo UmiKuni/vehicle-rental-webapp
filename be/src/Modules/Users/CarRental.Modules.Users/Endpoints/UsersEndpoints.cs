@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -159,9 +160,19 @@ public static class UsersEndpoints
             VerifyIdDocumentDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.VerifyIdAsync(GetUserId(principal), dto, ct);
+            var actorId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.VerifyIdAsync(actorId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyMyId")
@@ -177,12 +188,22 @@ public static class UsersEndpoints
             VerifyIdDocumentDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+            var actorId = GetUserId(principal);
+            if (userId != actorId && !principal.IsInRole("Admin"))
                 return Results.Forbid();
 
-            var result = await api.VerifyIdAsync(userId, dto, ct);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => userId.ToString(),
+                execute: () => api.VerifyIdAsync(userId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyUserId")
@@ -198,9 +219,19 @@ public static class UsersEndpoints
             VerifyDriverLicenseDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.VerifyDriverLicenseAsync(GetUserId(principal), dto, ct);
+            var actorId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyDriverLicense",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.VerifyDriverLicenseAsync(actorId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: res => new { res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyMyDriverLicense")
@@ -216,17 +247,27 @@ public static class UsersEndpoints
         IFormFile file,
         ClaimsPrincipal principal,
         IUsersApi api,
+        IAuditRecorder auditRecorder,
         CancellationToken ct) =>
         {
-        await using var stream = file.OpenReadStream();
-        var result = await api.UploadIdentityDocumentAsync(
-            GetUserId(principal),
-            type,
-            stream,
-            file.FileName,
-            file.ContentType,
-            ct);
-        return result.ToHttpResult();
+            var actorId = GetUserId(principal);
+            await using var stream = file.OpenReadStream();
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "UploadIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.UploadIdentityDocumentAsync(
+                    actorId,
+                    type,
+                    stream,
+                    file.FileName,
+                    file.ContentType,
+                    ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: _ => new { DocumentType = type.ToString(), FileName = file.FileName },
+                actorId: actorId,
+                ct: ct);
+            return result.ToHttpResult();
         })
         .DisableAntiforgery()
         .WithName("UploadMyIdentityDocument")
@@ -240,12 +281,22 @@ public static class UsersEndpoints
             VerifyDriverLicenseDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+            var actorId = GetUserId(principal);
+            if (userId != actorId && !principal.IsInRole("Admin"))
                 return Results.Forbid();
 
-            var result = await api.VerifyDriverLicenseAsync(userId, dto, ct);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyDriverLicense",
+                entityName: "User",
+                getEntityId: _ => userId.ToString(),
+                execute: () => api.VerifyDriverLicenseAsync(userId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyUserDriverLicense")
@@ -352,9 +403,19 @@ public static class UsersEndpoints
             Guid userId,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.BanAsync(userId, GetUserId(principal), ct);
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "BanUser",
+                entityName: "User",
+                entityId: userId.ToString(),
+                execute: () => api.BanAsync(userId, adminId, ct),
+                captureBeforeState: async () => (await api.GetProfileAsync(userId, ct)).Value,
+                captureAfterState: () => new { Status = "Banned", BannedBy = adminId },
+                actorId: adminId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("BanUser")
@@ -366,9 +427,19 @@ public static class UsersEndpoints
             Guid userId,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.UnbanAsync(userId, GetUserId(principal), ct);
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "UnbanUser",
+                entityName: "User",
+                entityId: userId.ToString(),
+                execute: () => api.UnbanAsync(userId, adminId, ct),
+                captureBeforeState: async () => (await api.GetProfileAsync(userId, ct)).Value,
+                captureAfterState: () => new { Status = "Active", UnbannedBy = adminId },
+                actorId: adminId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("UnbanUser")

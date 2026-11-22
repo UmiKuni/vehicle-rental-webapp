@@ -18,6 +18,62 @@ internal sealed class AuditLogRepository : IAuditLogRepository
         await _dbContext.AuditLogEntries.AddAsync(entry, ct);
     }
 
+    public async Task<(IReadOnlyList<AuditLogEntry> Items, int TotalCount)> GetPagedAsync(
+        int page,
+        int pageSize,
+        Guid? actorId = null,
+        string? entityName = null,
+        string? entityId = null,
+        string? action = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        CancellationToken ct = default)
+    {
+        var normalizedPage = Math.Max(page, 1);
+        var normalizedPageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _dbContext.AuditLogEntries.AsNoTracking();
+
+        if (actorId.HasValue && actorId.Value != Guid.Empty)
+        {
+            query = query.Where(entry => entry.ActorId == actorId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(entityName))
+        {
+            query = query.Where(entry => entry.EntityName == entityName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(entityId))
+        {
+            query = query.Where(entry => entry.EntityId == entityId.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            query = query.Where(entry => entry.Action == action.Trim());
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(entry => entry.Timestamp >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(entry => entry.Timestamp <= to.Value);
+        }
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(entry => entry.Timestamp)
+            .Skip((normalizedPage - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
+
     public Task<AuditLogEntry?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         _dbContext.AuditLogEntries
             .AsNoTracking()

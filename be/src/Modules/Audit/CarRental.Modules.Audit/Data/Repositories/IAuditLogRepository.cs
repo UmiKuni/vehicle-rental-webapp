@@ -6,6 +6,17 @@ public interface IAuditLogRepository
 {
     Task AddAsync(AuditLogEntry entry, CancellationToken ct = default);
 
+    Task<(IReadOnlyList<AuditLogEntry> Items, int TotalCount)> GetPagedAsync(
+        int page,
+        int pageSize,
+        Guid? actorId = null,
+        string? entityName = null,
+        string? entityId = null,
+        string? action = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        CancellationToken ct = default);
+
     Task<AuditLogEntry?> GetByIdAsync(Guid id, CancellationToken ct = default);
 
     Task<IReadOnlyList<AuditLogEntry>> GetByEntityAsync(

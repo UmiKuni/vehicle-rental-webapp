@@ -72,6 +72,8 @@ namespace CarRental.Modules.Audit.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Action");
+
                     b.HasIndex("ActorId");
 
                     b.HasIndex("Timestamp");
