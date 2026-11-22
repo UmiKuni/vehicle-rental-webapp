@@ -12,9 +12,9 @@ public sealed class BookingRequestedConsumer(NotificationDeliveryService notific
     public async Task Consume(BookingRequested @event, CancellationToken cancellationToken = default) =>
         await notifications.CreateAndDeliverAsync(
             @event.OwnerId,
-            NotificationType.Push,
+            NotificationType.InApp,
             $"New booking request for vehicle {@event.VehicleId}.",
-            $"booking-requested:{@event.EventId}:{@event.OwnerId}",
+            $"inapp:booking-requested:{@event.EventId}:{@event.OwnerId}",
             @event.OccurredAt,
             cancellationToken);
 }

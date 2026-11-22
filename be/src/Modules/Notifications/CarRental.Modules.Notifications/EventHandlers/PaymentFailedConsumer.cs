@@ -29,6 +29,13 @@ public sealed class PaymentFailedConsumer(
             $"payment-failed:{@event.EventId}:{booking.Value.CustomerId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            $"Payment failed for booking {@event.BookingId}: {@event.Reason}",
+            $"inapp:payment-failed:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

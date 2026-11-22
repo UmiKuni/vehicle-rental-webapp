@@ -11,6 +11,7 @@ using CarRental.Modules.Fleet.Endpoints;
 using CarRental.Modules.Handover;
 using CarRental.Modules.Handover.Endpoints;
 using CarRental.Modules.Notifications;
+using CarRental.Modules.Notifications.Hubs;
 using CarRental.Modules.Payments;
 using CarRental.Modules.Payments.Endpoints;
 using CarRental.Modules.Pricing;
@@ -151,6 +152,7 @@ app.MapReviewsEndpoints();
 app.MapSupportEndpoints();
 app.MapReportingEndpoints();
 app.MapAuditEndpoints();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();
 

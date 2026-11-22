@@ -12,9 +12,9 @@ public sealed class VehiclePublishedConsumer(NotificationDeliveryService notific
     public async Task Consume(VehiclePublished @event, CancellationToken cancellationToken = default) =>
         await notifications.CreateAndDeliverAsync(
             @event.OwnerId,
-            NotificationType.Push,
+            NotificationType.InApp,
             $"Your vehicle {@event.Brand} {@event.Model} is now published.",
-            $"vehicle-published:{@event.EventId}:{@event.VehicleId}",
+            $"inapp:vehicle-published:{@event.EventId}:{@event.VehicleId}",
             @event.OccurredAt,
             cancellationToken);
 }

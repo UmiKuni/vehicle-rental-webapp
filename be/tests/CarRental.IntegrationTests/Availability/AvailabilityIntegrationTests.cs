@@ -207,7 +207,7 @@ public class AvailabilityIntegrationTests : IntegrationTestBase
                 Guid.NewGuid(),
                 DateTimeOffset.UtcNow,
                 bookingId,
-                Guid.NewGuid(),
+                ownerId,
                 new Money(0, "VND"),
                 new Money(500_000, "VND"),
                 "Customer cancelled"));

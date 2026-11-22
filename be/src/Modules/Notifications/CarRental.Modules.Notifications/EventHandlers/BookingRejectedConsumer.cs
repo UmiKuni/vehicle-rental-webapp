@@ -29,6 +29,13 @@ public sealed class BookingRejectedConsumer(
             $"booking-rejected:{@event.EventId}:{booking.Value.CustomerId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            $"Your booking was rejected: {@event.Reason}",
+            $"inapp:booking-rejected:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

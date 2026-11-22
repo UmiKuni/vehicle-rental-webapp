@@ -29,6 +29,13 @@ public sealed class BookingConfirmedConsumer(
             $"booking-confirmed:{@event.EventId}:{booking.Value.CustomerId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            $"Booking confirmed. Payment is due by {@event.PaymentDeadline:O}.",
+            $"inapp:booking-confirmed:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

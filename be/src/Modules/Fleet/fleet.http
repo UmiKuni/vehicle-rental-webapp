@@ -246,7 +246,7 @@ Authorization: Bearer {{fleetFlowAccessToken}}
 ### Admin flow: login -> create brand -> create models
 ### ============================================================
 
-@createBrandName = Test Brand 1
+@createBrandName = Test Brand {{$randomInt}}
 @createModelName1 = Test Model A {{$randomInt}}
 @createModelName2 = Test Model B {{$randomInt}}
 

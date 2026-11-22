@@ -1,4 +1,5 @@
 using CarRental.Modules.Notifications.Data;
+using CarRental.Modules.Notifications.Hubs;
 using CarRental.Modules.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +32,8 @@ public static class NotificationsModule
         services.AddScoped<SmtpEmailDeliveryProvider>();
         services.AddScoped<TwilioSmsDeliveryProvider>();
         services.AddScoped<INotificationDeliveryProvider, ExternalNotificationDeliveryProvider>();
+        services.AddScoped<SignalRNotificationDeliveryProvider>();
+        services.AddSignalR();
 
         return services;
     }

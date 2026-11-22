@@ -30,10 +30,17 @@ public sealed class PaymentSucceededConsumer(
             @event.OccurredAt,
             cancellationToken);
         await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            $"Payment succeeded for booking {@event.BookingId}: {@event.Amount}.",
+            $"inapp:payment-succeeded:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
+        await notifications.CreateAndDeliverAsync(
             booking.Value.OwnerId,
-            NotificationType.Push,
+            NotificationType.InApp,
             $"Payment secured for booking {@event.BookingId}.",
-            $"payment-succeeded:{@event.EventId}:{booking.Value.OwnerId}",
+            $"inapp:payment-succeeded:{@event.EventId}:{booking.Value.OwnerId}",
             @event.OccurredAt,
             cancellationToken);
     }
