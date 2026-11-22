@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Contracts.Dtos;
 using CarRental.Modules.Availability.Contracts.Enums;
@@ -56,19 +57,28 @@ public static class AvailabilityEndpoints
             BlockScheduleRequest request,
             ClaimsPrincipal principal,
             IAvailabilityApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
             var rangeResult = CreateRange(request.StartTime, request.EndTime);
             if (rangeResult.IsFailure)
                 return rangeResult.ToHttpResult();
 
-            var result = await api.BlockAsync(
-                vehicleId,
-                GetUserId(principal),
-                rangeResult.Value,
-                request.Reason,
-                request.Type ?? CalendarEntryType.OwnerBlocked,
-                ct);
+            var ownerId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "CreateAvailabilityBlock",
+                entityName: "AvailabilityBlock",
+                getEntityId: entry => entry.Id.ToString(),
+                execute: () => api.BlockAsync(
+                    vehicleId,
+                    ownerId,
+                    rangeResult.Value,
+                    request.Reason,
+                    request.Type ?? CalendarEntryType.OwnerBlocked,
+                    ct),
+                captureAfterState: entry => new { entry.Id, entry.VehicleId, entry.StartTime, entry.EndTime, entry.Type, entry.Note },
+                actorId: ownerId,
+                ct: ct);
 
             return result.ToCreatedHttpResult(_ => $"/api/availability/vehicles/{vehicleId}/calendar");
         })
@@ -87,8 +97,20 @@ public static class AvailabilityEndpoints
             Guid blockId,
             ClaimsPrincipal principal,
             IAvailabilityApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.UnblockAsync(blockId, GetUserId(principal), ct)).ToHttpResult())
+        {
+            var ownerId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "DeleteAvailabilityBlock",
+                entityName: "AvailabilityBlock",
+                entityId: blockId.ToString(),
+                execute: () => api.UnblockAsync(blockId, ownerId, ct),
+                captureAfterState: () => new { BlockId = blockId, UnblockedBy = ownerId },
+                actorId: ownerId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
         .WithName("UnblockVehicleSchedule")
         .RequireAuthorization("OwnerOnly")
         .WithSummary("Unblock previously blocked schedule")

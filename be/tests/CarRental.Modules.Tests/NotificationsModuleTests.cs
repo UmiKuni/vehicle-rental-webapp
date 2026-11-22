@@ -4,9 +4,13 @@ using CarRental.Modules.Fleet.Contracts.Events;
 using CarRental.Modules.Notifications.Contracts.Enums;
 using CarRental.Modules.Notifications.Entities;
 using CarRental.Modules.Notifications.EventHandlers;
+using CarRental.Modules.Notifications.Services;
 using CarRental.Modules.Payments.Contracts.Events;
 using CarRental.Modules.Support.Contracts.Events;
+using CarRental.Modules.Users.Contracts.Dtos;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace CarRental.Modules.Tests;
@@ -203,6 +207,51 @@ public class NotificationsModuleTests
         notification.Status.Should().Be(NotificationStatus.Sent);
         notification.SentAt.Should().Be(sentTime);
         notification.LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SmtpEmailDeliveryProvider_WithoutConfiguration_ShouldThrow()
+    {
+        var provider = new SmtpEmailDeliveryProvider(
+            Options.Create(new NotificationDeliveryOptions()),
+            NullLogger<SmtpEmailDeliveryProvider>.Instance);
+        var notification = Notification.Create(
+            UserId,
+            NotificationType.Email,
+            "Booking confirmed",
+            "smtp_missing_config",
+            Now).Value;
+
+        var act = () => provider.DeliverAsync(
+            notification,
+            new UserContactDto(UserId, "customer@example.com", "0901234567", "Customer"),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotificationDeliveryException>()
+            .WithMessage("*SMTP email delivery is not configured*");
+    }
+
+    [Fact]
+    public async Task TwilioSmsDeliveryProvider_WithoutConfiguration_ShouldThrow()
+    {
+        var provider = new TwilioSmsDeliveryProvider(
+            Mock.Of<IHttpClientFactory>(),
+            Options.Create(new NotificationDeliveryOptions()),
+            NullLogger<TwilioSmsDeliveryProvider>.Instance);
+        var notification = Notification.Create(
+            UserId,
+            NotificationType.SMS,
+            "Booking confirmed",
+            "sms_missing_config",
+            Now).Value;
+
+        var act = () => provider.DeliverAsync(
+            notification,
+            new UserContactDto(UserId, "customer@example.com", "0901234567", "Customer"),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotificationDeliveryException>()
+            .WithMessage("*Twilio SMS delivery is not configured*");
     }
 
 }

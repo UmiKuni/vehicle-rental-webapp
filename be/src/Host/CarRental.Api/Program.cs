@@ -1,6 +1,7 @@
 using CarRental.Api.Extensions;
 using CarRental.Api.Infrastructure.Storage;
 using CarRental.Modules.Audit;
+using CarRental.Modules.Audit.Endpoints;
 using CarRental.Modules.Availability;
 using CarRental.Modules.Availability.Endpoints;
 using CarRental.Modules.Bookings;
@@ -149,6 +150,7 @@ app.MapHandoverEndpoints();
 app.MapReviewsEndpoints();
 app.MapSupportEndpoints();
 app.MapReportingEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
 

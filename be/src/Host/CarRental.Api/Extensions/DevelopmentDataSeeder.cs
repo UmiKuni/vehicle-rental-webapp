@@ -407,7 +407,7 @@ public static class DevelopmentDataSeeder
             return;
 
         var result = AuditLogEntry.Record(
-            Guid.Empty,
+            Guid.NewGuid(),
             clock.GetUtcNow(),
             actorId,
             "127.0.0.1",

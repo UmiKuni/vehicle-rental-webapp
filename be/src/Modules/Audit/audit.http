@@ -1,2 +1,54 @@
-# No HTTP endpoints are currently mapped for the Audit module.
-# Audit records are currently written through module services and event handlers.
+@baseUrl = http://localhost:8080
+@seedAdminEmail = admin.seed@example.com
+@seedPassword = Password123!
+@auditEntryId = 00000000-0000-0000-0000-000000000000
+@entityName = Booking
+@entityId = 00000000-0000-0000-0000-000000000301
+@actorId = 00000000-0000-0000-0000-000000000001
+
+### Login as the seeded admin
+# @name loginAdmin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedAdminEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@adminToken = {{loginAdmin.response.body.$.accessToken}}
+
+### Get all audit entries (paged)
+GET {{baseUrl}}/api/audit?page=1&pageSize=20
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Get audit entries with filters (actor, entity, action, date range)
+GET {{baseUrl}}/api/audit?page=1&pageSize=20&entityName={{entityName}}&action=AdminCancelBooking
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Get an audit entry by ID
+GET {{baseUrl}}/api/audit/{{auditEntryId}}
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Get audit history for an entity
+GET {{baseUrl}}/api/audit/entity/{{entityName}}/{{entityId}}
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Get audit history for an actor
+GET {{baseUrl}}/api/audit/actor/{{actorId}}
+Accept: application/json
+Authorization: Bearer {{adminToken}}

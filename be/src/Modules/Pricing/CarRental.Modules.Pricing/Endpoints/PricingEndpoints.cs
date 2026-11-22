@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Pricing.Contracts;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -50,10 +51,21 @@ public static class PricingEndpoints
             ConfigurePricingDto request,
             ClaimsPrincipal principal,
             IPricingApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var dto = request with { OwnerId = GetUserId(principal) };
-            return (await api.ConfigurePricingAsync(vehicleId, dto, ct)).ToHttpResult();
+            var ownerId = GetUserId(principal);
+            var dto = request with { OwnerId = ownerId };
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "ConfigurePricing",
+                entityName: "VehiclePricing",
+                getEntityId: p => p.VehicleId.ToString(),
+                execute: () => api.ConfigurePricingAsync(vehicleId, dto, ct),
+                captureBeforeState: async () => (await api.GetPricingAsync(vehicleId, ct)).Value,
+                captureAfterState: p => new { p.VehicleId, WeekdayRate = p.WeekdayRate.Amount, DepositAmount = p.DepositAmount.Amount, p.KmLimit },
+                actorId: ownerId,
+                ct: ct);
+            return result.ToHttpResult();
         })
             .WithValidation<ConfigurePricingDto>()
             .WithName("ConfigureVehiclePricing")

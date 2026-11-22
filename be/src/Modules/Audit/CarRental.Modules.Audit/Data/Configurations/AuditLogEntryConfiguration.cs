@@ -53,6 +53,7 @@ public class AuditLogEntryConfiguration : IEntityTypeConfiguration<AuditLogEntry
 
         builder.HasIndex(x => x.Timestamp);
         builder.HasIndex(x => x.ActorId);
+        builder.HasIndex(x => x.Action);
         builder.HasIndex(x => new { x.EntityName, x.EntityId });
     }
 }

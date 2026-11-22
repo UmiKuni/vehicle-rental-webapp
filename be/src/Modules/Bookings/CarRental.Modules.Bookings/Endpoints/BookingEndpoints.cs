@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Bookings.Contracts;
 using CarRental.Modules.Bookings.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -151,8 +152,21 @@ public static class BookingEndpoints
             AdminCancelBookingRequest request,
             ClaimsPrincipal principal,
             IBookingApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.AdminCancelAsync(id, GetUserId(principal), request.Reason, request.PenaltyParty, ct)).ToHttpResult())
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "AdminCancelBooking",
+                entityName: "Booking",
+                getEntityId: dto => dto.Id.ToString(),
+                execute: () => api.AdminCancelAsync(id, adminId, request.Reason, request.PenaltyParty, ct),
+                captureBeforeState: async () => (await api.GetRentalDetailsAsync(id, ct)).Value,
+                captureAfterState: dto => new { dto.Status, dto.TotalRentAmount, dto.SecurityDepositAmount, Reason = request.Reason, PenaltyParty = request.PenaltyParty },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
         .WithValidation<AdminCancelBookingRequest>()
         .WithName("AdminCancelBooking")
         .RequireAuthorization("AdminOnly")

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Support.Contracts;
 using CarRental.Modules.Support.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -66,8 +67,21 @@ public static class SupportEndpoints
             Guid ticketId,
             ClaimsPrincipal principal,
             ISupportApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.StartReviewAsync(ticketId, GetUserId(principal), ct)).ToHttpResult())
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "StartReviewTicket",
+                entityName: "SupportTicket",
+                entityId: ticketId.ToString(),
+                execute: () => api.StartReviewAsync(ticketId, adminId, ct),
+                captureBeforeState: async () => (await api.GetByIdAsync(ticketId, adminId, isAdmin: true, ct)).Value,
+                captureAfterState: () => new { Status = "UnderReview", ReviewedBy = adminId },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
             .RequireAuthorization("AdminOnly")
             .Produces(StatusCodes.Status204NoContent);
 
@@ -76,8 +90,21 @@ public static class SupportEndpoints
             ResolveSupportTicketDto request,
             ClaimsPrincipal principal,
             ISupportApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.ResolveAsync(ticketId, GetUserId(principal), request, ct)).ToHttpResult())
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "ResolveTicket",
+                entityName: "SupportTicket",
+                getEntityId: dto => dto.TicketId.ToString(),
+                execute: () => api.ResolveAsync(ticketId, adminId, request, ct),
+                captureBeforeState: async () => (await api.GetByIdAsync(ticketId, adminId, isAdmin: true, ct)).Value,
+                captureAfterState: dto => new { dto.TicketId, dto.Status, dto.DepositToCustomerPercent, dto.ResolutionNote, dto.ResolvedBy },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
             .RequireAuthorization("AdminOnly")
             .Produces<SupportTicketDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

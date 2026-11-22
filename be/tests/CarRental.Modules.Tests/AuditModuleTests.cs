@@ -1,5 +1,14 @@
+using System.Security.Claims;
+using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Contracts;
+using CarRental.Modules.Audit.Contracts.Commands;
 using CarRental.Modules.Audit.Entities;
+using CarRental.Modules.Audit.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Wolverine;
 using Xunit;
 
 namespace CarRental.Modules.Tests;
@@ -225,5 +234,175 @@ public class AuditModuleTests
         result.Value.BeforeState.Should().Contain("*********456");
         result.Value.BeforeState.Should().NotContain("12345678");
         result.Value.BeforeState.Should().Contain("*****678");
+    }
+
+    [Fact]
+    public async Task AuditRecorder_RecordAsync_WithExplicitParameters_ShouldPublishCommand()
+    {
+        var busMock = new Mock<IMessageBus>();
+        var recorder = new AuditRecorder(
+            busMock.Object,
+            TimeProvider.System,
+            NullLogger<AuditRecorder>.Instance);
+
+        var actor = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+
+        await recorder.RecordAsync(
+            action: "BanUser",
+            entityName: "User",
+            entityId: "usr_100",
+            beforeState: new { Status = "Active" },
+            afterState: new { Status = "Banned" },
+            actorId: actor,
+            ipAddress: "192.168.1.1",
+            eventId: eventId);
+
+        busMock.Verify(b => b.PublishAsync(
+            It.Is<RecordAuditEntry>(cmd =>
+                cmd.EventId == eventId &&
+                cmd.ActorId == actor &&
+                cmd.IpAddress == "192.168.1.1" &&
+                cmd.Action == "BanUser" &&
+                cmd.EntityName == "User" &&
+                cmd.EntityId == "usr_100" &&
+                cmd.BeforeStateJson != null &&
+                cmd.AfterStateJson != null),
+            It.IsAny<DeliveryOptions?>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AuditRecorder_RecordAsync_WithHttpContext_ShouldExtractActorAndIp()
+    {
+        var busMock = new Mock<IMessageBus>();
+        var actor = Guid.NewGuid();
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.5");
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, actor.ToString())
+        }, "TestAuth");
+        httpContext.User = new ClaimsPrincipal(identity);
+
+        var httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        httpContextAccessorMock.Setup(h => h.HttpContext).Returns(httpContext);
+
+        var recorder = new AuditRecorder(
+            busMock.Object,
+            TimeProvider.System,
+            NullLogger<AuditRecorder>.Instance,
+            httpContextAccessorMock.Object);
+
+        await recorder.RecordAsync(
+            action: "UnbanUser",
+            entityName: "User",
+            entityId: "usr_200");
+
+        busMock.Verify(b => b.PublishAsync(
+            It.Is<RecordAuditEntry>(cmd =>
+                cmd.ActorId == actor &&
+                cmd.IpAddress == "10.0.0.5" &&
+                cmd.Action == "UnbanUser" &&
+                cmd.EntityName == "User" &&
+                cmd.EntityId == "usr_200"),
+            It.IsAny<DeliveryOptions?>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AuditRecorder_RecordAsync_WithoutActor_ShouldThrowUnauthorizedAccessException()
+    {
+        var busMock = new Mock<IMessageBus>();
+        var recorder = new AuditRecorder(
+            busMock.Object,
+            TimeProvider.System,
+            NullLogger<AuditRecorder>.Instance);
+
+        var act = () => recorder.RecordAsync(
+            action: "BanUser",
+            entityName: "User",
+            entityId: "usr_100");
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    [Fact]
+    public async Task AuditRecorderExtensions_ExecuteWithAuditAsync_WhenSuccess_ShouldRecordAudit()
+    {
+        var recorderMock = new Mock<IAuditRecorder>();
+        var actor = Guid.NewGuid();
+
+        var result = await recorderMock.Object.ExecuteWithAuditAsync(
+            action: "ApproveVehicle",
+            entityName: "Vehicle",
+            entityId: "veh_1",
+            execute: () => Task.FromResult(Result.Success()),
+            captureBeforeState: () => Task.FromResult<object?>(new { Status = "Submitted" }),
+            captureAfterState: () => new { Status = "Approved" },
+            actorId: actor);
+
+        result.IsSuccess.Should().BeTrue();
+        recorderMock.Verify(r => r.RecordAsync(
+            "ApproveVehicle",
+            "Vehicle",
+            "veh_1",
+            It.IsAny<object?>(),
+            It.IsAny<object?>(),
+            actor,
+            It.IsAny<string?>(),
+            It.IsAny<Guid?>(),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AuditRecorderExtensions_ExecuteWithAuditAsync_WhenFailure_ShouldNotRecordAudit()
+    {
+        var recorderMock = new Mock<IAuditRecorder>();
+        var actor = Guid.NewGuid();
+
+        var result = await recorderMock.Object.ExecuteWithAuditAsync(
+            action: "ApproveVehicle",
+            entityName: "Vehicle",
+            entityId: "veh_1",
+            execute: () => Task.FromResult(Result.Failure(Error.NotFound("Vehicle.NotFound", "Vehicle not found"))),
+            captureBeforeState: () => Task.FromResult<object?>(null),
+            captureAfterState: () => null,
+            actorId: actor);
+
+        result.IsFailure.Should().BeTrue();
+        recorderMock.Verify(r => r.RecordAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<object?>(),
+            It.IsAny<object?>(),
+            It.IsAny<Guid?>(),
+            It.IsAny<string?>(),
+            It.IsAny<Guid?>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public void AuditedAction_RecordCreation_ShouldSetExpectedProperties()
+    {
+        var eventId = Guid.NewGuid();
+        var action = new AuditedAction(
+            "BanUser",
+            "User",
+            "usr_1",
+            IncludeBeforeState: true,
+            IncludeAfterState: true,
+            EventId: eventId);
+
+        action.Action.Should().Be("BanUser");
+        action.EntityName.Should().Be("User");
+        action.EntityId.Should().Be("usr_1");
+        action.IncludeBeforeState.Should().BeTrue();
+        action.IncludeAfterState.Should().BeTrue();
+        action.EventId.Should().Be(eventId);
     }
 }

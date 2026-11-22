@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Validation;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Payments.Contracts;
 using CarRental.Modules.Payments.Contracts.Dtos;
 using CarRental.Modules.Payments.Contracts.Enums;
@@ -180,14 +181,28 @@ public static class PaymentEndpoints
             RefundPaymentRequest request,
             ClaimsPrincipal principal,
             IPaymentsApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.RefundPaymentAsync(
-                id,
-                GetUserId(principal),
-                principal.IsInRole("Admin"),
-                request.Amount,
-                request.Reason,
-                ct)).ToHttpResult())
+        {
+            var actorId = GetUserId(principal);
+            var isAdmin = principal.IsInRole("Admin");
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "RefundPayment",
+                entityName: "Payment",
+                getEntityId: dto => dto.PaymentId.ToString(),
+                execute: () => api.RefundPaymentAsync(
+                    id,
+                    actorId,
+                    isAdmin,
+                    request.Amount,
+                    request.Reason,
+                    ct),
+                captureBeforeState: async () => (await api.GetPaymentByIdAsync(id, actorId, isAdmin, ct)).Value,
+                captureAfterState: dto => new { dto.PaymentId, dto.Status, dto.RefundedAmount, dto.RemainingAmount, dto.Reason },
+                actorId: actorId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
         .WithValidation<RefundPaymentRequest>()
         .WithName("RefundPayment")
         .RequireAuthorization("AuthenticatedUser")
@@ -204,13 +219,26 @@ public static class PaymentEndpoints
             ReleaseDepositRequest? request,
             ClaimsPrincipal principal,
             IPaymentsApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.ReleaseDepositByIdAsync(
-                depositId,
-                GetUserId(principal),
-                principal.IsInRole("Admin"),
-                request?.Note,
-                ct)).ToHttpResult())
+        {
+            var actorId = GetUserId(principal);
+            var isAdmin = principal.IsInRole("Admin");
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "ReleaseDeposit",
+                entityName: "Deposit",
+                getEntityId: dto => dto.DepositId.ToString(),
+                execute: () => api.ReleaseDepositByIdAsync(
+                    depositId,
+                    actorId,
+                    isAdmin,
+                    request?.Note,
+                    ct),
+                captureAfterState: dto => new { dto.DepositId, dto.Status, dto.OriginalAmount, dto.RefundedAmount, Note = request?.Note },
+                actorId: actorId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
         .WithName("ReleaseDeposit")
         .RequireAuthorization("AuthenticatedUser")
         .WithSummary("Hoàn trả toàn bộ tiền cọc sau khi trả xe")
@@ -225,14 +253,27 @@ public static class PaymentEndpoints
             DeductDepositRequest request,
             ClaimsPrincipal principal,
             IPaymentsApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.DeductDepositByIdAsync(
-                depositId,
-                GetUserId(principal),
-                principal.IsInRole("Admin"),
-                request.DeductAmount,
-                request.Reason,
-                ct)).ToHttpResult())
+        {
+            var actorId = GetUserId(principal);
+            var isAdmin = principal.IsInRole("Admin");
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "DeductDeposit",
+                entityName: "Deposit",
+                getEntityId: dto => dto.DepositId.ToString(),
+                execute: () => api.DeductDepositByIdAsync(
+                    depositId,
+                    actorId,
+                    isAdmin,
+                    request.DeductAmount,
+                    request.Reason,
+                    ct),
+                captureAfterState: dto => new { dto.DepositId, dto.Status, dto.OriginalAmount, dto.DeductedAmount, dto.RefundedAmount, request.Reason },
+                actorId: actorId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
         .WithValidation<DeductDepositRequest>()
         .WithName("DeductDeposit")
         .RequireAuthorization("AuthenticatedUser")
