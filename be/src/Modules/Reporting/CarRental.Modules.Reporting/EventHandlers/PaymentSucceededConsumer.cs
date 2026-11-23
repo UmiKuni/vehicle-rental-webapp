@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Payments.Contracts.Events;
 using CarRental.Modules.Reporting.Data;
 using CarRental.Modules.Reporting.Data.Repositories;
@@ -18,14 +19,16 @@ public sealed class PaymentSucceededConsumer
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     internal Task Handle(
         PaymentSucceeded message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleStatsAndProjectionAsync(
             message.EventId,
             message.BookingId,
@@ -35,5 +38,6 @@ public sealed class PaymentSucceededConsumer
             clock,
             stats => stats.ApplyPaymentSucceeded(message.Amount.Amount, message.OccurredAt),
             projection => projection.RecordPayment(message.Amount.Amount, message.OccurredAt),
-            ct);
+            ct,
+            cacheService);
 }
