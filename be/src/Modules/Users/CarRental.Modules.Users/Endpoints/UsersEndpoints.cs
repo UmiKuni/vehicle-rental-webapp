@@ -59,60 +59,6 @@ public static class UsersEndpoints
         .WithSummary("Revoke a refresh token.")
         .Produces(StatusCodes.Status204NoContent);
 
-        // Route aliases for /api/auth/* to support both conventions seamlessly
-        var authGroup = routes.MapGroup("/api/auth").WithTags("Authentication");
-
-        authGroup.MapPost("/register", async (RegisterUserDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.RegisterAsync(dto, ct);
-            return result.ToCreatedHttpResult(u => $"/api/users/{u.UserId}");
-        })
-        .WithName("AuthRegisterUser")
-        .WithSummary("Register a customer account (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status409Conflict);
-
-        authGroup.MapPost("/login", async (LoginUserDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.LoginAsync(dto, ct);
-            return result.ToHttpResult();
-        })
-        .WithName("AuthLoginUser")
-        .WithSummary("Authenticate with email/phone (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
-
-        authGroup.MapPost("/refresh", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.RefreshAsync(dto.RefreshToken, null, ct);
-            return result.ToHttpResult();
-        })
-        .WithName("AuthRefreshUserToken")
-        .WithSummary("Rotate refresh token (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
-
-        authGroup.MapPost("/logout", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            await api.LogoutAsync(dto.RefreshToken, ct);
-            return Results.NoContent();
-        })
-        .WithName("AuthLogoutUser")
-        .RequireAuthorization("UnverifiedUserAllowed")
-        .WithSummary("Revoke refresh token (alias).")
-        .Produces(StatusCodes.Status204NoContent);
-
-        authGroup.MapGet("/me", (ClaimsPrincipal principal) =>
-            Results.Ok(BuildCurrentUserDto(principal)))
-        .WithName("AuthGetCurrentUser")
-        .RequireAuthorization("UnverifiedUserAllowed")
-        .WithSummary("Get authenticated user identity (alias).")
-        .Produces<CurrentUserDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized);
-
         var unverifiedAllowed = group.MapGroup(string.Empty)
             .RequireAuthorization("UnverifiedUserAllowed");
 
