@@ -56,9 +56,28 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
     connection.onreconnected(() => { if (active) setConnection({ ownerId, state: 'connected' }) })
     connection.onclose(() => { if (active) setConnection({ ownerId, state: 'disconnected' }) })
 
-    void connection.start()
-      .then(() => { if (active) setConnection({ ownerId, state: 'connected' }) })
-      .catch(() => { if (active) setConnection({ ownerId, state: 'disconnected' }) })
+    const retryDelays = [0, 2_000, 5_000, 10_000, 30_000]
+    const startWithRetry = async () => {
+      let attempt = 0
+      while (active && connection.state === 'Disconnected') {
+        const delay = retryDelays[Math.min(attempt, retryDelays.length - 1)]
+        if (delay > 0) {
+          setConnection({ ownerId, state: 'reconnecting' })
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
+        if (!active) return
+
+        try {
+          await connection.start()
+          if (active) setConnection({ ownerId, state: 'connected' })
+          return
+        } catch {
+          attempt += 1
+        }
+      }
+    }
+
+    void startWithRetry()
 
     return () => {
       active = false
