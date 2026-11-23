@@ -28,7 +28,6 @@ public static class BookingEndpoints
                 .ToCreatedHttpResult(b => $"/api/bookings/{b.Id}"))
         .WithValidation<CreateBookingRequest>()
         .WithName("CreateBooking")
-        .RequireAuthorization("CustomerOnly")
         .WithSummary("Tạo đơn đặt xe (Khóa lịch xe 12h, trạng thái Pending)")
         .WithDescription("Creates a new vehicle rental booking request with hold status, booking line items, and estimated charges.")
         .Produces<BookingDetailDto>(StatusCodes.Status201Created)
@@ -46,7 +45,6 @@ public static class BookingEndpoints
             int pageSize = 10) =>
             (await api.GetMyBookingsAsync(GetUserId(principal), status, page, pageSize, ct)).ToHttpResult())
         .WithName("GetMyBookings")
-        .RequireAuthorization("CustomerOnly")
         .WithSummary("Khách thuê xem danh sách đơn đã đặt")
         .WithDescription("Retrieves a paginated list of bookings created by the currently authenticated customer.")
         .Produces<PagedResult<BookingSummaryDto>>(StatusCodes.Status200OK)
@@ -61,7 +59,6 @@ public static class BookingEndpoints
             int pageSize = 10) =>
             (await api.GetMyBookingsAsync(GetUserId(principal), status, page, pageSize, ct)).ToHttpResult())
         .WithName("GetAllMyBookings")
-        .RequireAuthorization("CustomerOnly")
         .WithSummary("Khách thuê xem danh sách đơn đã đặt (alias)")
         .Produces<PagedResult<BookingSummaryDto>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest);
@@ -141,7 +138,6 @@ public static class BookingEndpoints
             (await api.CancelAsync(id, GetUserId(principal), request.Reason, ct)).ToHttpResult())
         .WithValidation<CancelBookingRequest>()
         .WithName("CancelBooking")
-        .RequireAuthorization("CustomerOnly")
         .WithSummary("Khách hàng hủy đơn (tính phạt BR-08)")
         .WithDescription("Cancels a booking by the customer, applying platform cancellation policy BR-08 and computing penalties/refunds.")
         .Produces<BookingCancellationResultDto>(StatusCodes.Status200OK)

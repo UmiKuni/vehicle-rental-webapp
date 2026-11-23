@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { queryClient } from '@/shared/lib/query-client'
 import { ThemeProvider } from '@/shared/contexts/ThemeContext'
 import { AuthProvider } from '@/shared/contexts/AuthContext'
-import { NotificationRealtimeProvider } from '@/shared/contexts/NotificationRealtimeContext'
 
 interface AppProvidersProps {
   children: ReactNode
@@ -15,7 +14,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <NotificationRealtimeProvider>{children}</NotificationRealtimeProvider>
+          {children}
         </AuthProvider>
       </ThemeProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

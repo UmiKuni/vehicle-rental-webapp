@@ -10,12 +10,12 @@ public interface IFleetApi
     Task<Result<IReadOnlyList<VehicleSummaryDto>>> GetPublishedVehiclesAsync(CancellationToken ct = default);
     Task<Result<IReadOnlyList<VehicleSummaryDto>>> GetOwnerVehiclesAsync(Guid ownerId, CancellationToken ct = default);
     Task<Result<VehicleSummaryDto>> CreateVehicleAsync(CreateVehicleDto dto, CancellationToken ct = default);
-    Task<Result<VehicleSummaryDto>> UpdateVehicleAsync(Guid vehicleId, Guid ownerId, UpdateVehicleDto dto, CancellationToken ct = default);
-    Task<Result> SubmitForApprovalAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default);
+    Task<Result<VehicleSummaryDto>> UpdateVehicleAsync(Guid vehicleId, UpdateVehicleDto dto, CancellationToken ct = default);
+    Task<Result> SubmitForApprovalAsync(Guid vehicleId, CancellationToken ct = default);
     Task<Result> ApproveAsync(Guid vehicleId, Guid adminId, CancellationToken ct = default);
     Task<Result> RejectAsync(Guid vehicleId, Guid adminId, RejectVehicleDto dto, CancellationToken ct = default);
-    Task<Result> HideAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default);
-    Task<Result> ShowAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default);
+    Task<Result> HideAsync(Guid vehicleId, CancellationToken ct = default);
+    Task<Result> ShowAsync(Guid vehicleId, CancellationToken ct = default);
     Task<Result> UnpublishAsync(Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, CancellationToken ct = default);
     Task<Result<VehicleImageDto>> UploadImageAsync(
         Guid vehicleId,
