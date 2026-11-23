@@ -1,6 +1,7 @@
 using CarRental.Modules.Fleet.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Storage;
 using CarRental.Modules.Fleet.Contracts;
@@ -17,32 +18,55 @@ namespace CarRental.Modules.Fleet.Services;
 
 public sealed class FleetApiService : IFleetApi
 {
+    private const string BrandsCacheKey = "fleet:brands:all";
+    private static readonly TimeSpan ReferenceCacheTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan VehicleSummaryCacheTtl = TimeSpan.FromMinutes(5);
+
     private readonly FleetDbContext _dbContext;
     private readonly IUsersApi _usersApi;
     private readonly IImageStorage _imageStorage;
     private readonly IEventOutbox _eventOutbox;
     private readonly TimeProvider _clock;
+    private readonly ICacheService? _cacheService;
 
     public FleetApiService(
         FleetDbContext dbContext,
         IUsersApi usersApi,
         IImageStorage imageStorage,
         IEventOutbox eventOutbox,
-        TimeProvider clock)
+        TimeProvider clock,
+        ICacheService? cacheService = null)
     {
         _dbContext = dbContext;
         _usersApi = usersApi;
         _imageStorage = imageStorage;
         _eventOutbox = eventOutbox;
         _clock = clock;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<VehicleSummaryDto>> GetVehicleSummaryAsync(Guid vehicleId, CancellationToken ct = default)
     {
+        if (vehicleId == Guid.Empty)
+            return Result.Failure<VehicleSummaryDto>(NotFound());
+
+        var cacheKey = VehicleSummaryCacheKey(vehicleId);
+        if (_cacheService is not null)
+        {
+            var cached = await _cacheService.GetAsync<VehicleSummaryDto>(cacheKey, ct);
+            if (cached is not null)
+                return Result.Success(cached);
+        }
+
         var vehicle = await FindVehicleAsync(vehicleId, ct);
-        return vehicle is null
-            ? Result.Failure<VehicleSummaryDto>(NotFound())
-            : Result.Success(await ToSummaryAsync(vehicle, ct));
+        if (vehicle is null)
+            return Result.Failure<VehicleSummaryDto>(NotFound());
+
+        var summary = await ToSummaryAsync(vehicle, ct);
+        if (_cacheService is not null)
+            await _cacheService.SetAsync(cacheKey, summary, VehicleSummaryCacheTtl, ct);
+
+        return Result.Success(summary);
     }
 
     public async Task<Result<IReadOnlyList<VehicleSummaryDto>>> GetPublishedVehiclesAsync(CancellationToken ct = default)
@@ -152,6 +176,7 @@ public sealed class FleetApiService : IFleetApi
             return Result.Failure<VehicleSummaryDto>(result.Error);
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         return Result.Success(await ToSummaryAsync(vehicle, ct));
     }
 
@@ -169,6 +194,7 @@ public sealed class FleetApiService : IFleetApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         await PublishVehiclePublishedAsync(vehicle, ct);
         return Result.Success();
     }
@@ -193,6 +219,7 @@ public sealed class FleetApiService : IFleetApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         await _eventOutbox.PublishAsync(
             new VehicleUnpublished(
                 Guid.CreateVersion7(),
@@ -237,6 +264,7 @@ public sealed class FleetApiService : IFleetApi
         }
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         var urlResult = _imageStorage.GetUrl(uploadResult.Value.StorageKey, StorageVisibility.Public);
         if (urlResult.IsFailure)
             return Result.Failure<VehicleImageDto>(urlResult.Error);
@@ -269,15 +297,27 @@ public sealed class FleetApiService : IFleetApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         return await _imageStorage.DeleteAsync(image.StorageKey, StorageVisibility.Public, ct);
     }
 
     public async Task<Result<IReadOnlyList<BrandDto>>> GetBrandsAsync(CancellationToken ct = default)
     {
+        if (_cacheService is not null)
+        {
+            var cached = await _cacheService.GetAsync<List<BrandDto>>(BrandsCacheKey, ct);
+            if (cached is not null)
+                return Result.Success<IReadOnlyList<BrandDto>>(cached);
+        }
+
         var brands = await _dbContext.VehicleBrands.AsNoTracking()
             .OrderBy(brand => brand.Name)
             .Select(brand => new BrandDto(brand.Id, brand.Name))
             .ToListAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.SetAsync(BrandsCacheKey, brands, ReferenceCacheTtl, ct);
+
         return Result.Success<IReadOnlyList<BrandDto>>(brands);
     }
 
@@ -303,6 +343,7 @@ public sealed class FleetApiService : IFleetApi
         var brand = new VehicleBrand(Guid.CreateVersion7(), name);
         await _dbContext.VehicleBrands.AddAsync(brand, ct);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateBrandsCacheAsync(ct);
         return Result.Success(new BrandDto(brand.Id, brand.Name));
     }
 
@@ -323,6 +364,7 @@ public sealed class FleetApiService : IFleetApi
 
         brand.UpdateName(name);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateBrandsCacheAsync(ct);
         return Result.Success(new BrandDto(brand.Id, brand.Name));
     }
 
@@ -339,11 +381,20 @@ public sealed class FleetApiService : IFleetApi
 
         _dbContext.VehicleBrands.Remove(brand);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateBrandsCacheAsync(ct);
         return Result.Success();
     }
 
     public async Task<Result<IReadOnlyList<ModelDto>>> GetModelsAsync(Guid? brandId = null, CancellationToken ct = default)
     {
+        var cacheKey = ModelsCacheKey(brandId);
+        if (_cacheService is not null)
+        {
+            var cached = await _cacheService.GetAsync<List<ModelDto>>(cacheKey, ct);
+            if (cached is not null)
+                return Result.Success<IReadOnlyList<ModelDto>>(cached);
+        }
+
         IQueryable<VehicleModel> query = _dbContext.VehicleModels.AsNoTracking();
         if (brandId.HasValue)
             query = query.Where(model => model.BrandId == brandId.Value);
@@ -351,6 +402,10 @@ public sealed class FleetApiService : IFleetApi
         var models = await query.OrderBy(model => model.Name)
             .Select(model => new ModelDto(model.Id, model.BrandId, model.Name))
             .ToListAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.SetAsync(cacheKey, models, ReferenceCacheTtl, ct);
+
         return Result.Success<IReadOnlyList<ModelDto>>(models);
     }
 
@@ -381,6 +436,7 @@ public sealed class FleetApiService : IFleetApi
         var model = new VehicleModel(Guid.CreateVersion7(), dto.BrandId, name);
         await _dbContext.VehicleModels.AddAsync(model, ct);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateModelsCacheAsync(model.BrandId, ct: ct);
         return Result.Success(new ModelDto(model.Id, model.BrandId, model.Name));
     }
 
@@ -403,8 +459,10 @@ public sealed class FleetApiService : IFleetApi
         if (duplicate)
             return Result.Failure<ModelDto>(FleetErrors.ModelDuplicate);
 
+        var previousBrandId = model.BrandId;
         model.Update(dto.BrandId, name);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateModelsCacheAsync(dto.BrandId, previousBrandId, ct);
         return Result.Success(new ModelDto(model.Id, model.BrandId, model.Name));
     }
 
@@ -416,8 +474,10 @@ public sealed class FleetApiService : IFleetApi
         if (await _dbContext.Vehicles.AnyAsync(vehicle => vehicle.ModelId == modelId, ct))
             return Result.Failure(FleetErrors.ModelInUse);
 
+        var brandId = model.BrandId;
         _dbContext.VehicleModels.Remove(model);
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateModelsCacheAsync(brandId, ct: ct);
         return Result.Success();
     }
 
@@ -440,7 +500,36 @@ public sealed class FleetApiService : IFleetApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+        await InvalidateVehicleSummaryAsync(vehicleId, ct);
         return Result.Success();
+    }
+
+    private static string VehicleSummaryCacheKey(Guid vehicleId) => $"fleet:vehicle:summary:{vehicleId:D}";
+
+    private static string ModelsCacheKey(Guid? brandId) =>
+        brandId.HasValue ? $"fleet:models:{brandId.Value:D}" : "fleet:models:all";
+
+    private async Task InvalidateVehicleSummaryAsync(Guid vehicleId, CancellationToken ct)
+    {
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(VehicleSummaryCacheKey(vehicleId), ct);
+    }
+
+    private async Task InvalidateBrandsCacheAsync(CancellationToken ct)
+    {
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(BrandsCacheKey, ct);
+    }
+
+    private async Task InvalidateModelsCacheAsync(Guid brandId, Guid? previousBrandId = null, CancellationToken ct = default)
+    {
+        if (_cacheService is null)
+            return;
+
+        await _cacheService.RemoveAsync(ModelsCacheKey(null), ct);
+        await _cacheService.RemoveAsync(ModelsCacheKey(brandId), ct);
+        if (previousBrandId.HasValue && previousBrandId.Value != brandId)
+            await _cacheService.RemoveAsync(ModelsCacheKey(previousBrandId.Value), ct);
     }
 
     private async Task PublishVehiclePublishedAsync(Vehicle vehicle, CancellationToken ct)

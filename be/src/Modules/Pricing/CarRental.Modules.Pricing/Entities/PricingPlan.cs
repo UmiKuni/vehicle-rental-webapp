@@ -3,6 +3,7 @@ using System.Text.Json;
 using CarRental.BuildingBlocks.Domain;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Pricing.Contracts.Dtos;
 using CarRental.Modules.Pricing.Contracts.Enums;
 using CarRental.Modules.Pricing.Contracts.Events;
 
@@ -59,6 +60,26 @@ internal class PricingPlan : AggregateRoot<Guid>
 
         var plan = new PricingPlan(Guid.CreateVersion7(), vehicleId, hourlyRate, weekdayRate, weekendRate, depositAmount, kmLimit);
         plan.RaisePricingUpdated(now);
+
+        return plan;
+    }
+
+    internal static PricingPlan FromDto(PricingPlanDto dto)
+    {
+        var plan = new PricingPlan(
+            Guid.Empty,
+            dto.VehicleId,
+            dto.HourlyRate,
+            dto.WeekdayRate,
+            dto.WeekendRate,
+            dto.DepositAmount,
+            dto.KmLimit);
+
+        foreach (var rule in dto.FeeRules)
+        {
+            if (Enum.TryParse<FeeType>(rule.Type, ignoreCase: true, out var feeType))
+                plan._feeRules.Add(new FeeRule(Guid.Empty, Guid.Empty, feeType, rule.Amount));
+        }
 
         return plan;
     }
