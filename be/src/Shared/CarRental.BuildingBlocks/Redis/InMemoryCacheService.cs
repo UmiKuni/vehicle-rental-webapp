@@ -97,5 +97,11 @@ public sealed class InMemoryCacheService : ICacheService
         var updated = _versions.AddOrUpdate(key, 1L, static (_, current) => current + 1L);
         return Task.FromResult(updated);
     }
+
+    public void Clear()
+    {
+        _entries.Clear();
+        _versions.Clear();
+    }
 }
 

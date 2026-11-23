@@ -35,4 +35,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CarRental.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

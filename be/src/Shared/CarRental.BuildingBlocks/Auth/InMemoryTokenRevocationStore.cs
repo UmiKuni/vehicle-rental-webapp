@@ -80,5 +80,11 @@ public sealed class InMemoryTokenRevocationStore : ITokenRevocationStore
 
         return Task.FromResult<DateTimeOffset?>(entry.ValidAfter);
     }
+
+    public void Clear()
+    {
+        _revokedJtis.Clear();
+        _tokensValidAfter.Clear();
+    }
 }
 

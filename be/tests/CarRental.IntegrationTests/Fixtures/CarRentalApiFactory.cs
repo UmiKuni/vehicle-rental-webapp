@@ -1,8 +1,12 @@
 using System.Data.Common;
+using CarRental.Api.Infrastructure.RateLimiting;
+using CarRental.BuildingBlocks.Auth;
+using CarRental.BuildingBlocks.Redis;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Respawn;
@@ -99,6 +103,15 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         {
             await _respawner.ResetAsync(_dbConnection);
         }
+
+        if (Services.GetService<ICacheService>() is InMemoryCacheService memCache)
+            memCache.Clear();
+
+        if (Services.GetService<ITokenRevocationStore>() is InMemoryTokenRevocationStore memRevocation)
+            memRevocation.Clear();
+
+        if (Services.GetService<IRateLimiter>() is InMemoryRateLimiter memRateLimiter)
+            memRateLimiter.Clear();
     }
 
     public new async Task DisposeAsync()
