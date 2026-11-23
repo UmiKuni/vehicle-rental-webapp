@@ -121,4 +121,52 @@ public class UsersIntegrationTests : IntegrationTestBase
         user.CustomerProfile!.FullName.Should().Be("Nguyen Van Test");
         user.CustomerProfile.Address.Should().Be("789 Le Duan, District 1, HCMC");
     }
+
+    [Fact]
+    public async Task Logout_ValidToken_ShouldImmediatelyRevokeAccessToken()
+    {
+        var regResponse = await Client.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterUserDto("logout_revoke@example.com", "0906667788", "SecurePassword123!"));
+        regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
+        authResult.Should().NotBeNull();
+
+        using var authClient = Factory.CreateClient();
+        authClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
+
+        var meBefore = await authClient.GetAsync("/api/auth/me");
+        meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var logoutResponse = await authClient.PostAsJsonAsync(
+            "/api/auth/logout",
+            new RefreshTokenDto(authResult.RefreshToken));
+        logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meAfter = await authClient.GetAsync("/api/auth/me");
+        meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Ban_ActiveUser_ShouldImmediatelyInvalidateExistingAccessToken()
+    {
+        var (customerClient, customerId) = await CreateAuthenticatedCustomerClientAsync(
+            "ban_revoke@example.com",
+            "0907778899",
+            verified: false);
+
+        var meBefore = await customerClient.GetAsync("/api/auth/me");
+        meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var (adminClient, _) = await CreateAuthenticatedAdminClientAsync(
+            "ban_admin@example.com",
+            "0908889900");
+
+        var banResponse = await adminClient.PutAsync($"/api/users/{customerId}/ban", content: null);
+        banResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meAfter = await customerClient.GetAsync("/api/auth/me");
+        meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 }
