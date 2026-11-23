@@ -10,12 +10,15 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.pwa-mobile-dist/
+.pwa-test-dist/
 *.local
 
 # Environment variables
 .env
 .env.*
 !.env.example
+!.env.mobile
 
 # Editor directories and files
 .vscode/*

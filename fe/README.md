@@ -158,6 +158,22 @@ npm run build
 npm run preview
 ```
 
+### 5. Test the installable app on a phone
+
+Start the backend on `http://localhost:8080`, then build and serve the mobile PWA profile:
+
+```bash
+npm run build:mobile
+npm run preview:mobile
+```
+
+The mobile profile calls `/api` and `/hubs` on the same origin; Vite proxies those paths to `VITE_DEV_API_PROXY_TARGET` from `.env.mobile` (defaults to `http://localhost:8080`).
+
+- On the same Wi-Fi, open `http://<computer-LAN-IP>:3000` to inspect the UI.
+- To install it as a PWA, expose port 3000 over HTTPS. With ngrok configured, run `ngrok http 3000 --host-header=localhost:3000` and open its HTTPS forwarding URL on the phone. On Android Chrome, use **Install app** / **Add to Home screen**. On iPhone, open the link in Safari and choose **Share → Add to Home Screen**.
+
+The HTTPS tunnel is public while it runs; stop it after the device test. The LAN HTTP URL is useful for UI checks, but browsers require HTTPS (or localhost) for PWA installation.
+
 ---
 
 ## 🔍 Linting & Formatting
