@@ -1,4 +1,6 @@
 using CarRental.Modules.Users.Errors;
+using CarRental.BuildingBlocks.Auth;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Storage;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
@@ -20,6 +22,8 @@ public class UsersApiService : IUsersApi
     private readonly JwtOptions _jwtOptions;
     private readonly TimeProvider _clock;
     private readonly IImageStorage _imageStorage;
+    private readonly ITokenRevocationStore? _tokenRevocationStore;
+    private readonly ICacheService? _cacheService;
 
     public UsersApiService(
         UsersDbContext dbContext,
@@ -27,7 +31,9 @@ public class UsersApiService : IUsersApi
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
         TimeProvider clock,
-        IImageStorage imageStorage)
+        IImageStorage imageStorage,
+        ITokenRevocationStore? tokenRevocationStore = null,
+        ICacheService? cacheService = null)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
@@ -35,6 +41,8 @@ public class UsersApiService : IUsersApi
         _jwtOptions = jwtOptions.Value;
         _clock = clock;
         _imageStorage = imageStorage;
+        _tokenRevocationStore = tokenRevocationStore;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default)
@@ -131,17 +139,36 @@ public class UsersApiService : IUsersApi
         return await IssueTokensAsync(user, existing, ct, deviceInfo);
     }
 
-    public async Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            return Result.Success();
+    public Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
+        => LogoutAsync(refreshToken, null, null, ct);
 
-        var hash = _tokenService.HashRefreshToken(refreshToken);
-        var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
-        if (existing is not null && existing.IsActiveAt(_clock.GetUtcNow()))
+    public async Task<Result> LogoutAsync(
+        string refreshToken,
+        string? accessTokenJti,
+        DateTimeOffset? accessTokenExpiresAt,
+        CancellationToken ct = default)
+    {
+        var now = _clock.GetUtcNow();
+
+        if (!string.IsNullOrWhiteSpace(refreshToken))
         {
-            existing.Revoke(null, _clock.GetUtcNow());
-            await _dbContext.SaveChangesAsync(ct);
+            var hash = _tokenService.HashRefreshToken(refreshToken);
+            var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
+            if (existing is not null && existing.IsActiveAt(now))
+            {
+                existing.Revoke(null, now);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(accessTokenJti) && _tokenRevocationStore is not null)
+        {
+            var remaining = accessTokenExpiresAt.HasValue
+                ? accessTokenExpiresAt.Value - now + TimeSpan.FromSeconds(30)
+                : TimeSpan.FromMinutes(_jwtOptions.AccessTokenMinutes);
+
+            if (remaining > TimeSpan.Zero)
+                await _tokenRevocationStore.RevokeJtiAsync(accessTokenJti, remaining, ct);
         }
 
         return Result.Success();
@@ -203,6 +230,16 @@ public class UsersApiService : IUsersApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_tokenRevocationStore is not null)
+        {
+            var cutoffTtl = TimeSpan.FromMinutes(_jwtOptions.AccessTokenMinutes) + TimeSpan.FromMinutes(1);
+            await _tokenRevocationStore.SetTokensValidAfterAsync(userId, _clock.GetUtcNow(), cutoffTtl, ct);
+        }
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success();
     }
 
@@ -218,6 +255,10 @@ public class UsersApiService : IUsersApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success();
     }
 
@@ -304,6 +345,10 @@ public class UsersApiService : IUsersApi
         }
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success(MapToVerificationStatusDto(user));
     }
 
@@ -327,6 +372,10 @@ public class UsersApiService : IUsersApi
             return Result.Failure<UserVerificationStatusDto>(verifyResult.Error);
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success(MapToVerificationStatusDto(user));
     }
 

@@ -1,4 +1,6 @@
 using CarRental.Api.Extensions;
+using CarRental.Api.Infrastructure.RateLimiting;
+using CarRental.Api.Infrastructure.Redis;
 using CarRental.Api.Infrastructure.Storage;
 using CarRental.Modules.Audit;
 using CarRental.Modules.Audit.Endpoints;
@@ -33,6 +35,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddImageStorage(builder.Configuration, builder.Environment);
+builder.Services.AddRedisInfrastructure(builder.Configuration, builder.Environment);
+builder.Services.AddDistributedRateLimiting(builder.Configuration);
 
 // Register modular monolith modules
 builder.Services
@@ -124,6 +128,7 @@ app.UseExceptionHandler(exceptionApp =>
 });
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RateLimitingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))

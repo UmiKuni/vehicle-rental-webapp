@@ -1,6 +1,7 @@
 using System.Reflection;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
@@ -233,5 +234,46 @@ public class PricingApiServiceTests
             fleetMock.Object,
             outboxMock.Object,
             clockMock.Object);
+    }
+
+    [Fact]
+    public async Task GetPricingAndGetQuote_ShouldUseCachedPricingPlan()
+    {
+        var vehicleId = Guid.NewGuid();
+        var cache = new InMemoryCacheService();
+        var cachedPlan = new PricingPlanDto(
+            vehicleId,
+            null,
+            Money.Of(1_000_000),
+            Money.Of(1_200_000),
+            Money.Of(3_000_000),
+            300,
+            [new FeeRuleDto("Cleaning", Money.Of(100_000))]);
+
+        await cache.SetAsync($"pricing:plan:{vehicleId:D}", cachedPlan, TimeSpan.FromMinutes(10));
+
+        var dbContext = new PricingDbContext(new DbContextOptionsBuilder<PricingDbContext>().Options);
+        var clockMock = new Mock<TimeProvider>();
+        clockMock.Setup(x => x.GetUtcNow()).Returns(Now);
+        var service = new PricingApiService(
+            dbContext,
+            new Mock<IFleetApi>().Object,
+            new Mock<IEventOutbox>().Object,
+            clockMock.Object,
+            cache);
+
+        var pricingResult = await service.GetPricingAsync(vehicleId);
+        pricingResult.IsSuccess.Should().BeTrue();
+        pricingResult.Value.WeekdayRate.Should().Be(Money.Of(1_000_000));
+
+        // 2026-10-20 (Tuesday) to 2026-10-21 (Wednesday): 1 weekday = 1,000,000 + 100,000 cleaning = 1,100,000
+        var period = DateTimeRange.Create(
+            new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.FromHours(7)),
+            new DateTimeOffset(2026, 10, 21, 0, 0, 0, TimeSpan.FromHours(7))).Value;
+
+        var quoteResult = await service.GetQuoteAsync(vehicleId, period);
+        quoteResult.IsSuccess.Should().BeTrue();
+        quoteResult.Value.Total.Should().Be(Money.Of(1_100_000));
+        quoteResult.Value.DepositAmount.Should().Be(Money.Of(3_000_000));
     }
 }

@@ -124,6 +124,48 @@ public class ModuleEncapsulationTests
     }
 
     [Fact]
+    public void ModuleProjects_MustNotReference_StackExchangeRedis()
+    {
+        var solutionRoot = ArchitectureTestHelper.FindSolutionRoot();
+        var modulesDir = Path.Combine(solutionRoot, "src", "Modules");
+
+        var moduleCsprojFiles = Directory.GetFiles(modulesDir, "CarRental.Modules.*.csproj", SearchOption.AllDirectories)
+            .ToList();
+
+        moduleCsprojFiles.Should().NotBeEmpty();
+
+        var violations = new List<string>();
+
+        foreach (var csprojFile in moduleCsprojFiles)
+        {
+            var doc = XDocument.Load(csprojFile);
+
+            var forbiddenPackages = doc.Descendants("PackageReference")
+                .Select(pr => pr.Attribute("Include")?.Value)
+                .Where(v => string.Equals(v, "StackExchange.Redis", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var pkg in forbiddenPackages)
+            {
+                violations.Add($"{Path.GetFileName(csprojFile)} references forbidden package '{pkg}'.");
+            }
+        }
+
+        foreach (var moduleAssembly in ArchitectureTestHelper.GetModuleAssemblies().Concat(ArchitectureTestHelper.GetContractsAssemblies()))
+        {
+            var referencedAssemblies = moduleAssembly.GetReferencedAssemblies()
+                .Select(a => a.Name)
+                .Where(n => string.Equals(n, "StackExchange.Redis", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var refName in referencedAssemblies)
+            {
+                violations.Add($"{moduleAssembly.GetName().Name} references forbidden assembly '{refName}'.");
+            }
+        }
+
+        violations.Should().BeEmpty("Feature modules must depend only on BuildingBlocks Redis abstractions, never StackExchange.Redis.");
+    }
+
+    [Fact]
     public void ManagedModules_ImplementationTypes_ShouldBeInternal()
     {
         string[] managedModules = ["Pricing", "Availability", "Bookings", "Payments", "Handover", "Reporting"];

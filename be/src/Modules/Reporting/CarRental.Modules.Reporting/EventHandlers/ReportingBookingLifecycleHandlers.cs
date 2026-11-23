@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Handover.Contracts.Enums;
 using CarRental.Modules.Handover.Contracts.Events;
@@ -17,7 +18,8 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     public Task Handle(BookingPaid message, IServiceProvider services, CancellationToken ct = default) =>
         Handle(
@@ -25,7 +27,8 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     public Task Handle(BookingRejected message, IServiceProvider services, CancellationToken ct = default) =>
         Handle(
@@ -33,7 +36,8 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     public Task Handle(BookingExpired message, IServiceProvider services, CancellationToken ct = default) =>
         Handle(
@@ -41,7 +45,8 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     public Task Handle(BookingCompleted message, IServiceProvider services, CancellationToken ct = default) =>
         Handle(
@@ -49,7 +54,8 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     public Task Handle(HandoverConfirmed message, IServiceProvider services, CancellationToken ct = default) =>
         Handle(
@@ -57,14 +63,16 @@ public sealed class ReportingBookingLifecycleHandlers
             services.GetRequiredService<IReportingRepository>(),
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     internal Task Handle(
         BookingConfirmed message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -72,14 +80,16 @@ public sealed class ReportingBookingLifecycleHandlers
             dbContext,
             clock,
             p => p.MarkConfirmed(),
-            ct);
+            ct,
+            cacheService);
 
     internal Task Handle(
         BookingPaid message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -87,14 +97,16 @@ public sealed class ReportingBookingLifecycleHandlers
             dbContext,
             clock,
             p => p.MarkPaid(message.OccurredAt),
-            ct);
+            ct,
+            cacheService);
 
     internal Task Handle(
         BookingRejected message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -102,14 +114,16 @@ public sealed class ReportingBookingLifecycleHandlers
             dbContext,
             clock,
             p => p.MarkRejected(),
-            ct);
+            ct,
+            cacheService);
 
     internal Task Handle(
         BookingExpired message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -117,14 +131,16 @@ public sealed class ReportingBookingLifecycleHandlers
             dbContext,
             clock,
             p => p.MarkExpired(),
-            ct);
+            ct,
+            cacheService);
 
     internal Task Handle(
         BookingCompleted message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -132,14 +148,16 @@ public sealed class ReportingBookingLifecycleHandlers
             dbContext,
             clock,
             p => p.MarkCompleted(message.OccurredAt),
-            ct);
+            ct,
+            cacheService);
 
     internal Task Handle(
         HandoverConfirmed message,
         IReportingRepository repository,
         ReportingDbContext dbContext,
         TimeProvider clock,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        ICacheService? cacheService = null) =>
         ReportingEventHelpers.HandleProjectionTransitionAsync(
             message.EventId,
             message.BookingId,
@@ -151,5 +169,6 @@ public sealed class ReportingBookingLifecycleHandlers
                 if (string.Equals(message.Type, nameof(HandoverType.Pickup), StringComparison.OrdinalIgnoreCase))
                     p.MarkInProgress();
             },
-            ct);
+            ct,
+            cacheService);
 }

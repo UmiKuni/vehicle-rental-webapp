@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Audit.Contracts;
@@ -49,9 +51,10 @@ public static class UsersEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/logout", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
+        group.MapPost("/logout", async (RefreshTokenDto dto, ClaimsPrincipal principal, IUsersApi api, CancellationToken ct) =>
         {
-            await api.LogoutAsync(dto.RefreshToken, ct);
+            var (jti, expiresAt) = ExtractTokenRevocationInfo(principal);
+            await api.LogoutAsync(dto.RefreshToken, jti, expiresAt, ct);
             return Results.NoContent();
         })
         .WithName("LogoutUser")
@@ -95,9 +98,10 @@ public static class UsersEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        authGroup.MapPost("/logout", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
+        authGroup.MapPost("/logout", async (RefreshTokenDto dto, ClaimsPrincipal principal, IUsersApi api, CancellationToken ct) =>
         {
-            await api.LogoutAsync(dto.RefreshToken, ct);
+            var (jti, expiresAt) = ExtractTokenRevocationInfo(principal);
+            await api.LogoutAsync(dto.RefreshToken, jti, expiresAt, ct);
             return Results.NoContent();
         })
         .WithName("AuthLogoutUser")
@@ -470,5 +474,16 @@ public static class UsersEndpoints
         return Guid.TryParse(claim, out var userId)
             ? userId
             : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
+    }
+
+    private static (string? Jti, DateTimeOffset? ExpiresAt) ExtractTokenRevocationInfo(ClaimsPrincipal principal)
+    {
+        var jti = principal.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        DateTimeOffset? expiresAt = null;
+        var expClaim = principal.FindFirstValue(JwtRegisteredClaimNames.Exp);
+        if (long.TryParse(expClaim, NumberStyles.Integer, CultureInfo.InvariantCulture, out var expSeconds))
+            expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
+
+        return (jti, expiresAt);
     }
 }

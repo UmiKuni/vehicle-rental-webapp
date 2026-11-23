@@ -1,8 +1,10 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Fleet.Contracts.Events;
 using CarRental.Modules.Pricing.Contracts.Events;
 using CarRental.Modules.Reviews.Contracts.Events;
 using CarRental.Modules.Search.Data;
 using CarRental.Modules.Search.Entities;
+using CarRental.Modules.Search.Services;
 using Microsoft.EntityFrameworkCore;
 using Wolverine.Attributes;
 
@@ -16,6 +18,7 @@ public sealed class SearchEventHandlers
     public async Task Handle(
         VehiclePublished message,
         SearchDbContext dbContext,
+        ICacheService cacheService,
         CancellationToken ct)
     {
         await ProjectionLock.WaitAsync(ct);
@@ -30,7 +33,10 @@ public sealed class SearchEventHandlers
                     message.Location,
                     message.Address,
                     message.OccurredAt))
+            {
                 await dbContext.SaveChangesAsync(ct);
+                await cacheService.IncrementVersionAsync(SearchCacheKeys.VersionKey, ct);
+            }
         }
         finally
         {
@@ -41,6 +47,7 @@ public sealed class SearchEventHandlers
     public async Task Handle(
         VehicleUnpublished message,
         SearchDbContext dbContext,
+        ICacheService cacheService,
         CancellationToken ct)
     {
         await ProjectionLock.WaitAsync(ct);
@@ -48,7 +55,10 @@ public sealed class SearchEventHandlers
         {
             var document = await GetOrCreateAsync(message.VehicleId, dbContext, ct);
             if (document.ApplyUnpublished(message.OccurredAt))
+            {
                 await dbContext.SaveChangesAsync(ct);
+                await cacheService.IncrementVersionAsync(SearchCacheKeys.VersionKey, ct);
+            }
         }
         finally
         {
@@ -59,6 +69,7 @@ public sealed class SearchEventHandlers
     public async Task Handle(
         PricingUpdated message,
         SearchDbContext dbContext,
+        ICacheService cacheService,
         CancellationToken ct)
     {
         await ProjectionLock.WaitAsync(ct);
@@ -66,7 +77,10 @@ public sealed class SearchEventHandlers
         {
             var document = await GetOrCreateAsync(message.VehicleId, dbContext, ct);
             if (document.ApplyPrice(message.PriceFrom, message.OccurredAt))
+            {
                 await dbContext.SaveChangesAsync(ct);
+                await cacheService.IncrementVersionAsync(SearchCacheKeys.VersionKey, ct);
+            }
         }
         finally
         {
@@ -77,6 +91,7 @@ public sealed class SearchEventHandlers
     public async Task Handle(
         RatingSummaryUpdated message,
         SearchDbContext dbContext,
+        ICacheService cacheService,
         CancellationToken ct)
     {
         await ProjectionLock.WaitAsync(ct);
@@ -84,7 +99,10 @@ public sealed class SearchEventHandlers
         {
             var document = await GetOrCreateAsync(message.VehicleId, dbContext, ct);
             if (document.ApplyRating(message.AverageRating, message.TotalReviews, message.OccurredAt))
+            {
                 await dbContext.SaveChangesAsync(ct);
+                await cacheService.IncrementVersionAsync(SearchCacheKeys.VersionKey, ct);
+            }
         }
         finally
         {

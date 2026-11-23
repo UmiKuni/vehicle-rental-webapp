@@ -1,6 +1,8 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Reporting.Data;
 using CarRental.Modules.Reporting.Data.Repositories;
 using CarRental.Modules.Reporting.Entities;
+using CarRental.Modules.Reporting.Services;
 
 namespace CarRental.Modules.Reporting.EventHandlers;
 
@@ -32,7 +34,8 @@ internal static class ReportingEventHelpers
         TimeProvider clock,
         Action<DailyBookingStats> applyStats,
         Action<BookingReportProjection> applyProjection,
-        CancellationToken ct)
+        CancellationToken ct,
+        ICacheService? cacheService = null)
     {
         if (eventId == Guid.Empty)
             return;
@@ -52,6 +55,7 @@ internal static class ReportingEventHelpers
 
             repository.MarkEventProcessed(ProcessedEvent.Create(eventId, clock.GetUtcNow()));
             await dbContext.SaveChangesAsync(ct);
+            await InvalidateReportingCacheAsync(cacheService, clock, occurredAt, projection, ct);
         }
         finally
         {
@@ -66,7 +70,8 @@ internal static class ReportingEventHelpers
         ReportingDbContext dbContext,
         TimeProvider clock,
         Action<BookingReportProjection> transition,
-        CancellationToken ct)
+        CancellationToken ct,
+        ICacheService? cacheService = null)
     {
         if (eventId == Guid.Empty)
             return;
@@ -77,19 +82,55 @@ internal static class ReportingEventHelpers
             if (await repository.HasEventBeenProcessedAsync(eventId, ct))
                 return;
 
+            BookingReportProjection? projection = null;
             if (bookingId != Guid.Empty)
             {
-                var projection = await repository.GetBookingProjectionAsync(bookingId, ct);
+                projection = await repository.GetBookingProjectionAsync(bookingId, ct);
                 if (projection is not null)
                     transition(projection);
             }
 
             repository.MarkEventProcessed(ProcessedEvent.Create(eventId, clock.GetUtcNow()));
             await dbContext.SaveChangesAsync(ct);
+            await InvalidateReportingCacheAsync(cacheService, clock, null, projection, ct);
         }
         finally
         {
             ProjectionLock.Release();
+        }
+    }
+
+    public static async Task InvalidateReportingCacheAsync(
+        ICacheService? cacheService,
+        TimeProvider clock,
+        DateTimeOffset? occurredAt,
+        BookingReportProjection? projection,
+        CancellationToken ct)
+    {
+        if (cacheService is null)
+            return;
+
+        var nowVn = clock.GetUtcNow().ToOffset(DailyBookingStats.PlatformTimeZoneOffset);
+        var dashboardMonths = new HashSet<(int Year, int Month)> { (nowVn.Year, nowVn.Month) };
+        if (occurredAt.HasValue)
+        {
+            var occurredVn = occurredAt.Value.ToOffset(DailyBookingStats.PlatformTimeZoneOffset);
+            dashboardMonths.Add((occurredVn.Year, occurredVn.Month));
+        }
+
+        foreach (var (year, month) in dashboardMonths)
+            await cacheService.RemoveAsync(ReportingCacheKeys.AdminDashboard(year, month), ct);
+
+        if (projection is not null)
+        {
+            var startVn = projection.StartTime.ToOffset(DailyBookingStats.PlatformTimeZoneOffset);
+            var ownerMonths = new HashSet<(int Year, int Month)>(dashboardMonths)
+            {
+                (startVn.Year, startVn.Month)
+            };
+
+            foreach (var (year, month) in ownerMonths)
+                await cacheService.RemoveAsync(ReportingCacheKeys.OwnerRevenue(projection.OwnerId, year, month), ct);
         }
     }
 }

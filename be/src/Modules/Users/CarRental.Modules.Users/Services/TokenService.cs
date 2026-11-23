@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -23,7 +24,8 @@ public sealed class TokenService(IOptions<JwtOptions> options, TimeProvider cloc
 
     public (string Token, DateTimeOffset ExpiresAt) CreateAccessToken(User user)
     {
-        var expiresAt = _clock.GetUtcNow().AddMinutes(_options.AccessTokenMinutes);
+        var now = _clock.GetUtcNow();
+        var expiresAt = now.AddMinutes(_options.AccessTokenMinutes);
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.Value.ToString()),
@@ -34,7 +36,8 @@ public sealed class TokenService(IOptions<JwtOptions> options, TimeProvider cloc
             new Claim("id_verified", user.IsIdVerified ? "true" : "false"),
             new Claim("driver_license_verified", user.IsDriverLicenseVerified ? "true" : "false"),
             new Claim("verified_user", user.IsVerified ? "true" : "false"),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
         };
 
         var credentials = new SigningCredentials(

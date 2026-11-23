@@ -90,6 +90,19 @@ internal sealed class VehicleCalendarRepository : IVehicleCalendarRepository
                 && (!e.ExpiresAt.HasValue || e.ExpiresAt.Value <= now)))
             .ToListAsync(ct);
 
+    public Task<int> DeleteExpiredHoldsAsync(
+        Guid vehicleId,
+        DateTimeOffset now,
+        CancellationToken ct = default) =>
+        _dbContext.CalendarEntries
+            .Where(e => e.VehicleId == vehicleId
+                        && e.Type == CalendarEntryType.Hold
+                        && (!e.ExpiresAt.HasValue || e.ExpiresAt.Value <= now))
+            .ExecuteDeleteAsync(ct);
+
+    public void ClearChangeTracker() =>
+        _dbContext.ChangeTracker.Clear();
+
     public void Add(VehicleCalendar calendar) =>
         _dbContext.VehicleCalendars.Add(calendar);
 }
