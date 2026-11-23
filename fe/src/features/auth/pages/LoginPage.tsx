@@ -14,12 +14,13 @@ import { useAuth } from '@/shared/contexts/AuthContext'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [portalChoice, setPortalChoice] = useState<'admin' | 'customer' | null>(null)
+  const [portalChoice, setPortalChoice] = useState<'admin' | 'owner' | 'customer' | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
   const isAdminLogin = location.pathname === ROUTES.ADMIN_LOGIN
-  const isStandaloneLogin = location.pathname === ROUTES.LOGIN
+  const isOwnerLogin = location.pathname === ROUTES.OWNER_LOGIN
+  const isStandaloneLogin = location.pathname === ROUTES.LOGIN || isOwnerLogin
   const { mutate: login, isPending, error } = useLogin(setPortalChoice)
 
   const {
@@ -56,21 +57,21 @@ export default function LoginPage() {
             <div className="grid size-9 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-[18px]" /></div>
             <div>
               <span className="text-sm font-bold tracking-[-.02em] text-white">{APP_NAME}</span>
-              <p className="mb-0 mt-0.5 text-[10px] font-medium tracking-[.08em] text-[#9bb5b3]">{isAdminLogin ? 'ADMIN CONSOLE' : 'CUSTOMER PORTAL'}</p>
+              <p className="mb-0 mt-0.5 text-[10px] font-medium tracking-[.08em] text-[#9bb5b3]">{isAdminLogin ? 'ADMIN CONSOLE' : isOwnerLogin ? 'OWNER WORKSPACE' : 'CUSTOMER PORTAL'}</p>
             </div>
           </div>
 
           <div className="my-12 max-w-sm">
-            <p className="mb-4 text-[11px] font-bold uppercase tracking-[.14em] text-[#8fb8b4]">{isAdminLogin ? 'PLATFORM OPERATIONS' : 'VEHICLE RENTALS'}</p>
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[.14em] text-[#8fb8b4]">{isAdminLogin ? 'PLATFORM OPERATIONS' : isOwnerLogin ? 'OWNER OPERATIONS' : 'VEHICLE RENTALS'}</p>
             <h1 className="text-[32px] font-bold leading-[1.12] tracking-[-.045em] text-white lg:text-[38px]">
-              {isAdminLogin ? 'Rental operations, in one place.' : 'A simpler way to rent a vehicle.'}
+              {isAdminLogin ? 'Rental operations, in one place.' : isOwnerLogin ? 'Your fleet and bookings, in one workspace.' : 'A simpler way to rent a vehicle.'}
             </h1>
             <p className="mb-0 mt-4 max-w-[34ch] text-sm font-medium leading-6 text-[#bdc9c7]">
-              {isAdminLogin ? 'Review fleet listings, maintain the vehicle catalog and manage account access.' : 'Find a vehicle, arrange your booking and keep your trip details together.'}
+              {isAdminLogin ? 'Review fleet listings, maintain the vehicle catalog and manage account access.' : isOwnerLogin ? 'Manage vehicle listings, respond to booking requests and review your earnings.' : 'Find a vehicle, arrange your booking and keep your trip details together.'}
             </p>
           </div>
 
-          <p className="mb-0 border-t border-white/15 pt-4 text-[11px] font-medium text-[#9bb0ae]">{isAdminLogin ? 'Authorized staff only' : 'Your account · bookings · vehicle details'}</p>
+          <p className="mb-0 border-t border-white/15 pt-4 text-[11px] font-medium text-[#9bb0ae]">{isAdminLogin ? 'Authorized staff only' : isOwnerLogin ? 'Approved owner accounts only' : 'Your account · bookings · vehicle details'}</p>
         </div>
 
         {/* Right Form Column (App Native Form) */}
@@ -78,14 +79,14 @@ export default function LoginPage() {
           {/* Mobile-only App Icon Header */}
           <div className="mb-5 flex items-center gap-2.5 md:hidden">
             <div className="grid size-8 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-4" /></div>
-            <span className="text-sm font-bold tracking-tight text-foreground">{isAdminLogin ? `${APP_NAME} Admin` : APP_NAME}</span>
+            <span className="text-sm font-bold tracking-tight text-foreground">{isAdminLogin ? `${APP_NAME} Admin` : isOwnerLogin ? `${APP_NAME} Owner` : APP_NAME}</span>
           </div>
 
           {/* Segmented Control Switcher (Login / Register) */}
-          {isAdminLogin ? (
+          {(isAdminLogin || isOwnerLogin) ? (
             <div className="mb-6 grid grid-cols-2 border-b border-slate-200 dark:border-zinc-700">
               <span aria-current="page" className="flex min-h-11 items-center justify-center border-b-2 border-[#287f7e] px-3 text-[13px] font-bold text-[#173b3d] dark:text-white">
-                Admin
+                {isAdminLogin ? 'Admin' : 'Owner'}
               </span>
               <Link to={ROUTES.LOGIN} className="flex min-h-11 items-center justify-center px-3 text-[13px] font-semibold text-slate-600 transition hover:text-[#173b3d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#287f7e] dark:text-zinc-300 dark:hover:text-white">
                 Customer sign in
@@ -100,15 +101,15 @@ export default function LoginPage() {
 
           {/* Greeting */}
           <div className="mb-5">
-            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">{isAdminLogin ? 'Admin sign in' : 'Sign in'}</h2>
+            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">{isAdminLogin ? 'Admin sign in' : isOwnerLogin ? 'Owner sign in' : 'Sign in'}</h2>
             <p className="mt-1 text-sm font-medium leading-5 text-muted-foreground">
-              {isAdminLogin ? 'Use an administrator account to continue to the control panel.' : 'Sign in to continue booking and manage your trips.'}
+              {isAdminLogin ? 'Use an administrator account to continue to the control panel.' : isOwnerLogin ? 'Sign in with an approved owner account to manage your fleet and booking requests.' : 'Sign in to continue booking and manage your trips.'}
             </p>
           </div>
 
-          {!isAdminLogin && (
+          {!isAdminLogin && !isOwnerLogin && (
             <div className="-mt-2 mb-4 text-[13px] text-muted-foreground">
-              Platform administrator? <Link to={ROUTES.ADMIN_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Sign in to admin</Link>
+              Platform portals: <Link to={ROUTES.OWNER_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Owner sign in</Link> <span className="px-1">·</span><Link to={ROUTES.ADMIN_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Admin sign in</Link>
             </div>
           )}
 
@@ -179,12 +180,14 @@ export default function LoginPage() {
           <section role="dialog" aria-modal="true" aria-labelledby="portal-choice-title" className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-[0_16px_48px_rgba(0,0,0,.18)] dark:border-zinc-700 dark:bg-zinc-900">
             <p className="mb-2 text-xs font-semibold text-[#176f70]">Account type</p>
             <h2 id="portal-choice-title" className="m-0 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
-              {portalChoice === 'customer' ? 'Switch to the customer portal?' : 'Open the admin workspace?'}
+              {portalChoice === 'customer' ? 'Switch to the customer portal?' : portalChoice === 'owner' ? 'Open the owner workspace?' : 'Open the admin workspace?'}
             </h2>
             <p className="mb-0 mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
               {portalChoice === 'customer'
                 ? 'This is a customer account. The mobile portal is designed for browsing vehicles, bookings and your profile.'
-                : 'This is an administrator account. The admin workspace is designed for fleet and platform management.'}
+                : portalChoice === 'owner'
+                  ? 'This account has the Owner role. The owner workspace is separate from customer bookings and profile flows.'
+                  : 'This is an administrator account. The admin workspace is designed for fleet and platform management.'}
             </p>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               {portalChoice === 'customer' ? (
@@ -192,7 +195,7 @@ export default function LoginPage() {
               ) : (
                 <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
               )}
-              <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="h-10 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to mobile portal' : 'Continue to admin workspace'}</button>
+              <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : portalChoice === 'owner' ? ROUTES.OWNER_DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="h-10 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to customer portal' : portalChoice === 'owner' ? 'Continue to owner workspace' : 'Continue to admin workspace'}</button>
             </div>
           </section>
         </div>

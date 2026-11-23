@@ -1,6 +1,7 @@
 import apiClient from '@/shared/lib/axios'
 import type { KycProfile, KycSubmitPayload } from '@/types/kyc.types'
 import type { AuthUser } from '@/types/auth.types'
+import { normalizeUserRole } from '@/types/auth.types'
 
 interface BackendIdentity { userId: string; email: string; role: string }
 interface BackendProfile { userId: string; email: string; phone: string; fullName: string; address: string }
@@ -47,12 +48,14 @@ async function currentProfile() {
 }
 
 function mapProfile(identity: BackendIdentity, profile: BackendProfile): AuthUser & { address: string; phone: string } {
+  const role = normalizeUserRole(identity.role)
+  if (!role || role === 'GUEST') throw new Error('This account does not have an active application role.')
   return {
     id: identity.userId,
     username: identity.email,
     email: identity.email,
     fullName: profile.fullName || identity.email,
-    role: identity.role.toUpperCase() as AuthUser['role'],
+    role,
     address: profile.address ?? '',
     phone: profile.phone ?? '',
   }

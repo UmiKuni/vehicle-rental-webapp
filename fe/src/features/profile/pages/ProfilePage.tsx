@@ -115,11 +115,12 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: strin
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const { data: profile, isLoading: profileLoading } = useProfile()
-  const { data: kyc, isLoading: kycLoading } = useKycStatus()
+  const isCustomer = user?.role === 'CUSTOMER'
+  const { data: kyc, isLoading: kycLoading } = useKycStatus(isCustomer)
 
-  if (profileLoading || kycLoading) return <ProfileSkeleton />
+  if (profileLoading || (isCustomer && kycLoading)) return <ProfileSkeleton />
 
-  const kycStatus = kyc?.status ?? 'UNVERIFIED'
+  const kycStatus = isCustomer ? kyc?.status ?? 'UNVERIFIED' : undefined
 
   return (
     <div className="pb-24 space-y-4">
@@ -134,7 +135,7 @@ export default function ProfilePage() {
             <div
               className={cn(
                 'absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background',
-                kycStatus === 'VERIFIED' ? 'bg-emerald-500' : 'bg-zinc-400'
+                kycStatus === 'VERIFIED' ? 'bg-emerald-500' : isCustomer ? 'bg-zinc-400' : 'bg-slate-300'
               )}
             />
           </div>
@@ -146,7 +147,7 @@ export default function ProfilePage() {
             </h1>
             <p className="text-xs text-muted-foreground truncate">@{user?.username} · {user?.role}</p>
             <div className="mt-1.5">
-              <VerificationBadge status={kycStatus} size="sm" />
+              {isCustomer && kycStatus && <VerificationBadge status={kycStatus} size="sm" />}
             </div>
           </div>
 
@@ -160,9 +161,9 @@ export default function ProfilePage() {
       {/* ── Quick Dev/Demo State Switcher ── */}
 
       {/* ── KYC Status Banner ── */}
-      {kycStatus === 'UNVERIFIED' && <KycUnverifiedCta />}
-      {kycStatus === 'PENDING' && <KycPendingBanner kyc={kyc!} />}
-      {kycStatus === 'REJECTED' && <KycRejectedBanner reason={kyc?.rejectionReason} />}
+      {isCustomer && kycStatus === 'UNVERIFIED' && <KycUnverifiedCta />}
+      {isCustomer && kycStatus === 'PENDING' && <KycPendingBanner kyc={kyc!} />}
+      {isCustomer && kycStatus === 'REJECTED' && <KycRejectedBanner reason={kyc?.rejectionReason} />}
 
       {/* ── Account Info Card ── */}
       <div className="mx-4 rounded-2xl border border-border bg-card p-4 space-y-0.5">
@@ -175,7 +176,7 @@ export default function ProfilePage() {
       </div>
 
       {/* ── KYC Info Card (if verified or pending) ── */}
-      {(kycStatus === 'VERIFIED' || kycStatus === 'PENDING') && kyc && (
+      {isCustomer && (kycStatus === 'VERIFIED' || kycStatus === 'PENDING') && kyc && (
         <div className="mx-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Verification Profile
@@ -192,10 +193,10 @@ export default function ProfilePage() {
           <Settings className="size-4 shrink-0" />
           <span className="text-sm font-semibold">Edit profile</span>
         </Link>
-        <Link to={ROUTES.NOTIFICATIONS} className="flex w-full items-center gap-3 px-4 py-3.5 text-foreground hover:bg-muted/60 transition-colors">
+        {isCustomer && <Link to={ROUTES.NOTIFICATIONS} className="flex w-full items-center gap-3 px-4 py-3.5 text-foreground hover:bg-muted/60 transition-colors">
           <Bell className="size-4 shrink-0" />
           <span className="text-sm font-semibold">Notifications</span>
-        </Link>
+        </Link>}
         <button
           onClick={logout}
           className="flex w-full items-center gap-3 px-4 py-3.5 text-destructive hover:bg-destructive/5 transition-colors"

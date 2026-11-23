@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import type { ReactNode } from 'react'
+import { normalizeUserRole } from '@/types/auth.types'
 import type { AuthState, AuthUser } from '@/types/auth.types'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
 import { safeBase64Decode } from '@/shared/utils'
@@ -37,16 +38,16 @@ function parseUserFromToken(): AuthUser | null {
     }
 
     const email = payload.email ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ?? ''
-    const role = payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'Customer'
+    const role = normalizeUserRole(payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'])
     const id = payload.sub ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-    if (!id) return null
+    if (!id || !role || role === 'GUEST') return null
 
     return {
       id,
       username: email,
       email,
       fullName: email.split('@')[0] || 'Customer',
-      role: String(role).toUpperCase() as AuthUser['role'],
+      role,
     }
   } catch {
     return null

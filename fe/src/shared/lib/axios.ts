@@ -5,6 +5,12 @@ import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
 // Create axios instance
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 
+function getLoginPath(pathname: string) {
+  if (pathname.startsWith('/admin')) return '/admin/login'
+  if (pathname.startsWith('/owner')) return '/owner/login'
+  return '/profile/auth'
+}
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
@@ -60,7 +66,7 @@ apiClient.interceptors.response.use(
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
         if (!window.location.pathname.endsWith('/login') && window.location.pathname !== '/login') {
-          const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/profile/auth'
+          const loginPath = getLoginPath(window.location.pathname)
           window.location.href = loginPath
         }
         return Promise.reject(error)
@@ -110,7 +116,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null)
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
-        const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/profile/auth'
+        const loginPath = getLoginPath(window.location.pathname)
         if (window.location.pathname !== loginPath) window.location.href = loginPath
         return Promise.reject(refreshError)
       } finally {

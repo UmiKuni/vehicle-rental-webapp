@@ -23,6 +23,7 @@ interface BookingModalProps {
 
 export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, initialEndDate }: BookingModalProps) {
   const { user } = useAuth()
+  const isOwnerAccount = user?.role === 'OWNER'
   const navigate = useNavigate()
   const location = useLocation()
   const { mutate: createBooking, isPending } = useCreateBooking()
@@ -37,7 +38,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   const availability = useQuery({
     queryKey: ['vehicle-availability', vehicle?.id, startDate, endDate],
     queryFn: () => availabilityApi.check(vehicle!.id, startDate, endDate),
-    enabled: !!vehicle && validDates,
+    enabled: !!vehicle && validDates && !isOwnerAccount,
     staleTime: 30_000,
   })
   const quote = useQuery({
@@ -49,13 +50,13 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   const eligibility = useQuery({
     queryKey: ['booking-eligibility', user?.id],
     queryFn: async () => (await apiClient.get<{ isEligible: boolean; ineligibilityReason?: string | null }>(`/users/eligibility/${user!.id}`)).data,
-    enabled: !!user && !!vehicle,
+    enabled: !!user && !!vehicle && !isOwnerAccount,
     staleTime: 60_000,
   })
   const contact = useQuery({
     queryKey: ['user-contact', user?.id],
     queryFn: async () => (await apiClient.get<{ fullName: string; phone: string }>(`/users/contact/${user!.id}`)).data,
-    enabled: !!user && !!vehicle,
+    enabled: !!user && !!vehicle && !isOwnerAccount,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -91,6 +92,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
       requestLogin()
       return
     }
+    if (isOwnerAccount) return
     if (!validDates || !pickupLocation.trim() || eligibility.isLoading || eligibility.isError || !eligibility.data?.isEligible || availability.isLoading || availability.data?.isAvailable === false || quote.isLoading || quote.isError) return
 
     createBooking(
@@ -154,6 +156,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
           )}
 
           {user && eligibility.isPending && <p className="text-xs text-muted-foreground">Checking booking eligibility…</p>}
+          {isOwnerAccount && <div className="rounded-xl border border-[#b8d8cb] bg-[#edf7f2] p-3 text-xs leading-5 text-[#315c4e]">This account uses the owner workspace. Customer booking is kept in the customer account flow. <Link to={ROUTES.OWNER_DASHBOARD} className="font-bold underline">Open owner workspace</Link></div>}
           {user && eligibility.isError && <div role="alert" className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">Could not check booking eligibility. <button type="button" className="underline" onClick={() => void eligibility.refetch()}>Retry</button></div>}
           {user && eligibility.data && !eligibility.data.isEligible && (
             <div className="rounded-2xl border border-amber-300/60 bg-amber-500/10 p-3 text-xs flex items-start gap-2.5">
@@ -212,7 +215,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
               form="booking-form"
               type="submit"
               loading={isPending}
-              disabled={!validDates || !pickupLocation.trim() || eligibility.isLoading || eligibility.isError || !eligibility.data?.isEligible || availability.isLoading || availability.isError || availability.data?.isAvailable === false || quote.isLoading || quote.isError}
+              disabled={isOwnerAccount || !validDates || !pickupLocation.trim() || eligibility.isLoading || eligibility.isError || !eligibility.data?.isEligible || availability.isLoading || availability.isError || availability.data?.isAvailable === false || quote.isLoading || quote.isError}
               className="w-full h-12 rounded-xl bg-[#1a8a9d] hover:bg-[#147485] text-white font-bold text-sm shadow-md transition-all active-press"
             >
               Confirm Booking · {new Intl.NumberFormat('en-US').format(totalAmount)} VND

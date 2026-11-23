@@ -127,11 +127,13 @@ public sealed class FleetApiService : IFleetApi
         return Result.Success(await ToSummaryAsync(vehicle, ct));
     }
 
-    public async Task<Result<VehicleSummaryDto>> UpdateVehicleAsync(Guid vehicleId, UpdateVehicleDto dto, CancellationToken ct = default)
+    public async Task<Result<VehicleSummaryDto>> UpdateVehicleAsync(Guid vehicleId, Guid ownerId, UpdateVehicleDto dto, CancellationToken ct = default)
     {
         var vehicle = await FindVehicleAsync(vehicleId, ct);
         if (vehicle is null)
             return Result.Failure<VehicleSummaryDto>(NotFound());
+        if (vehicle.OwnerId != ownerId)
+            return Result.Failure<VehicleSummaryDto>(FleetErrors.OwnerRequired);
 
         var referenceResult = await ValidateReferencesAsync(dto.BrandId, dto.ModelId, ct);
         if (referenceResult.IsFailure)
@@ -155,8 +157,8 @@ public sealed class FleetApiService : IFleetApi
         return Result.Success(await ToSummaryAsync(vehicle, ct));
     }
 
-    public Task<Result> SubmitForApprovalAsync(Guid vehicleId, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.SubmitForApproval(), ct);
+    public Task<Result> SubmitForApprovalAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default) =>
+        ExecuteOwnerVehicleActionAsync(vehicleId, ownerId, vehicle => vehicle.SubmitForApproval(), ct);
 
     public async Task<Result> ApproveAsync(Guid vehicleId, Guid adminId, CancellationToken ct = default)
     {
@@ -176,11 +178,11 @@ public sealed class FleetApiService : IFleetApi
     public Task<Result> RejectAsync(Guid vehicleId, Guid adminId, RejectVehicleDto dto, CancellationToken ct = default) =>
         ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Reject(adminId, dto.Reason, _clock.GetUtcNow()), ct);
 
-    public Task<Result> HideAsync(Guid vehicleId, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Hide(), ct);
+    public Task<Result> HideAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default) =>
+        ExecuteOwnerVehicleActionAsync(vehicleId, ownerId, vehicle => vehicle.Hide(), ct);
 
-    public Task<Result> ShowAsync(Guid vehicleId, CancellationToken ct = default) =>
-        ExecuteVehicleActionAsync(vehicleId, vehicle => vehicle.Show(), ct);
+    public Task<Result> ShowAsync(Guid vehicleId, Guid ownerId, CancellationToken ct = default) =>
+        ExecuteOwnerVehicleActionAsync(vehicleId, ownerId, vehicle => vehicle.Show(), ct);
 
     public async Task<Result> UnpublishAsync(Guid vehicleId, Guid adminId, UnpublishVehicleDto dto, CancellationToken ct = default)
     {
@@ -434,6 +436,26 @@ public sealed class FleetApiService : IFleetApi
         var vehicle = await FindVehicleAsync(vehicleId, ct);
         if (vehicle is null)
             return Result.Failure(NotFound());
+
+        var result = action(vehicle);
+        if (result.IsFailure)
+            return result;
+
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    private async Task<Result> ExecuteOwnerVehicleActionAsync(
+        Guid vehicleId,
+        Guid ownerId,
+        Func<Vehicle, Result> action,
+        CancellationToken ct)
+    {
+        var vehicle = await FindVehicleAsync(vehicleId, ct);
+        if (vehicle is null)
+            return Result.Failure(NotFound());
+        if (vehicle.OwnerId != ownerId)
+            return Result.Failure(FleetErrors.OwnerRequired);
 
         var result = action(vehicle);
         if (result.IsFailure)
