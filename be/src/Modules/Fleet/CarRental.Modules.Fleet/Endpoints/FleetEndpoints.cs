@@ -154,25 +154,31 @@ public static class FleetEndpoints
             .Produces<VehicleSummaryDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapGet("/owners/{ownerId:guid}/vehicles", async (Guid ownerId, IFleetApi api, CancellationToken ct) =>
-            (await api.GetOwnerVehiclesAsync(ownerId, ct)).ToHttpResult())
-            .Produces<IReadOnlyList<VehicleSummaryDto>>(StatusCodes.Status200OK);
+        group.MapGet("/owners/{ownerId:guid}/vehicles", async (Guid ownerId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+        {
+            if (!principal.IsInRole("Admin") && (!principal.IsInRole("Owner") || ownerId != GetUserId(principal)))
+                return Results.Forbid();
+            return (await api.GetOwnerVehiclesAsync(ownerId, ct)).ToHttpResult();
+        })
+            .RequireAuthorization()
+            .Produces<IReadOnlyList<VehicleSummaryDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
-        group.MapPost("/vehicles", async (CreateVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-            (await api.CreateVehicleAsync(dto, ct)).ToCreatedHttpResult(v => $"/api/fleet/vehicles/{v.VehicleId}"))
+        group.MapPost("/vehicles", async (CreateVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            (await api.CreateVehicleAsync(dto with { OwnerId = GetUserId(principal) }, ct)).ToCreatedHttpResult(v => $"/api/fleet/vehicles/{v.VehicleId}"))
             .RequireAuthorization("OwnerOnly")
             .Produces<VehicleSummaryDto>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapPut("/vehicles/{vehicleId:guid}", async (Guid vehicleId, UpdateVehicleDto dto, IFleetApi api, CancellationToken ct) =>
-            (await api.UpdateVehicleAsync(vehicleId, dto, ct)).ToHttpResult())
+        group.MapPut("/vehicles/{vehicleId:guid}", async (Guid vehicleId, UpdateVehicleDto dto, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            (await api.UpdateVehicleAsync(vehicleId, GetUserId(principal), dto, ct)).ToHttpResult())
             .RequireAuthorization("OwnerOnly")
             .Produces<VehicleSummaryDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost("/vehicles/{vehicleId:guid}/submit", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            (await api.SubmitForApprovalAsync(vehicleId, ct)).ToHttpResult())
+        group.MapPost("/vehicles/{vehicleId:guid}/submit", async (Guid vehicleId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            (await api.SubmitForApprovalAsync(vehicleId, GetUserId(principal), ct)).ToHttpResult())
             .RequireAuthorization("OwnerOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -216,15 +222,15 @@ public static class FleetEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost("/vehicles/{vehicleId:guid}/hide", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            (await api.HideAsync(vehicleId, ct)).ToHttpResult())
+        group.MapPost("/vehicles/{vehicleId:guid}/hide", async (Guid vehicleId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            (await api.HideAsync(vehicleId, GetUserId(principal), ct)).ToHttpResult())
             .RequireAuthorization("OwnerOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPost("/vehicles/{vehicleId:guid}/show", async (Guid vehicleId, IFleetApi api, CancellationToken ct) =>
-            (await api.ShowAsync(vehicleId, ct)).ToHttpResult())
+        group.MapPost("/vehicles/{vehicleId:guid}/show", async (Guid vehicleId, ClaimsPrincipal principal, IFleetApi api, CancellationToken ct) =>
+            (await api.ShowAsync(vehicleId, GetUserId(principal), ct)).ToHttpResult())
             .RequireAuthorization("OwnerOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
