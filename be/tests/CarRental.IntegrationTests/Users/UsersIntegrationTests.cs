@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using CarRental.IntegrationTests.Fixtures;
 using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -168,5 +170,20 @@ public class UsersIntegrationTests : IntegrationTestBase
 
         var meAfter = await customerClient.GetAsync("/api/auth/me");
         meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_MissingBody_ShouldReturn400BadRequestProblemDetails()
+    {
+        using var content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+
+        var response = await Client.PostAsync("/api/auth/login", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("status").GetInt32().Should().Be(400);
+        body.RootElement.GetProperty("errorCode").GetString().Should().Be("request.missing_body");
     }
 }

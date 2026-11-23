@@ -1,4 +1,5 @@
 using CarRental.Api.Extensions;
+using CarRental.Api.Infrastructure.ExceptionHandling;
 using CarRental.Api.Infrastructure.RateLimiting;
 using CarRental.Api.Infrastructure.Redis;
 using CarRental.Api.Infrastructure.Storage;
@@ -76,6 +77,11 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+builder.Services.Configure<RouteHandlerOptions>(options =>
+{
+    options.ThrowOnBadRequest = true;
+});
+
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -105,27 +111,7 @@ else
         .AllowCredentials());
 }
 
-app.UseExceptionHandler(exceptionApp =>
-{
-    exceptionApp.Run(async context =>
-    {
-        var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("UnhandledException");
-        if (feature?.Error is not null)
-            logger.LogError(feature.Error, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(new
-        {
-            type = "about:blank",
-            title = "Internal Server Error",
-            status = StatusCodes.Status500InternalServerError,
-            errorCode = "server.unhandled_error"
-        }, context.RequestAborted);
-    });
-});
+app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<RateLimitingMiddleware>();
