@@ -1,5 +1,6 @@
 using CarRental.Api.Extensions;
 using CarRental.Api.Infrastructure.ExceptionHandling;
+using CarRental.Api.Infrastructure.OpenApi;
 using CarRental.Api.Infrastructure.RateLimiting;
 using CarRental.Api.Infrastructure.Redis;
 using CarRental.Api.Infrastructure.Storage;
@@ -82,18 +83,7 @@ builder.Services.Configure<RouteHandlerOptions>(options =>
     options.ThrowOnBadRequest = true;
 });
 
-builder.Services.AddOpenApi(options =>
-{
-    options.AddDocumentTransformer((document, context, cancellationToken) =>
-    {
-        document.Servers = new List<Microsoft.OpenApi.Models.OpenApiServer>
-        {
-            new() { Url = "http://localhost:8080", Description = "Local Docker API" },
-            new() { Url = "/", Description = "Relative Origin" }
-        };
-        return Task.CompletedTask;
-    });
-});
+builder.Services.AddCarRentalOpenApi();
 
 var app = builder.Build();
 
@@ -126,7 +116,16 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
         await app.SeedAsync();
 
         app.MapOpenApi();
-        app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+        app.MapScalarApiReference(options =>
+        {
+            options
+                .WithTitle("CarRental API")
+                .WithPreferredScheme("Bearer")
+                .WithHttpBearerAuthentication(bearer =>
+                {
+                    bearer.Token = string.Empty;
+                });
+        }); //http://localhost:8080/scalar/v1
     }
 }
 
