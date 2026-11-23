@@ -29,6 +29,13 @@ public sealed class BookingExpiredConsumer(
             $"booking-expired:{@event.EventId}:{booking.Value.CustomerId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            $"Booking expired: {@event.Reason}",
+            $"inapp:booking-expired:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

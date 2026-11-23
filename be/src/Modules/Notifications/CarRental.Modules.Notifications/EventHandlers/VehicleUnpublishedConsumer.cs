@@ -18,6 +18,13 @@ public sealed class VehicleUnpublishedConsumer(NotificationDeliveryService notif
             $"vehicle-unpublished:{@event.EventId}:{@event.VehicleId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            @event.OwnerId,
+            NotificationType.InApp,
+            $"Your vehicle listing was unpublished: {@event.Reason}",
+            $"inapp:vehicle-unpublished:{@event.EventId}:{@event.VehicleId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

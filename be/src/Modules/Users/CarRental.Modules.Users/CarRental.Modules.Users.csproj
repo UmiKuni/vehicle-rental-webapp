@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
+    <ProjectReference Include="..\..\Audit\CarRental.Modules.Audit.Contracts\CarRental.Modules.Audit.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
   </ItemGroup>
 

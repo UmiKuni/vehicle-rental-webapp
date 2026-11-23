@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:8080
+@seedAdminEmail = admin.seed@example.com
 @seedOwnerEmail = owner.seed@example.com
 @seedPassword = Password123!
 @brandId = 00000000-0000-0000-0000-000000000101
@@ -238,3 +239,87 @@ Authorization: Bearer {{fleetFlowAccessToken}}
 GET {{baseUrl}}/api/fleet/vehicles/{{fleetFlowVehicleId}}
 Accept: application/json
 Authorization: Bearer {{fleetFlowAccessToken}}
+
+###
+
+### ============================================================
+### Admin flow: login -> create brand -> create models
+### ============================================================
+
+@createBrandName = Test Brand {{$randomInt}}
+@createModelName1 = Test Model A {{$randomInt}}
+@createModelName2 = Test Model B {{$randomInt}}
+
+### 1. Login as the seeded admin
+# @name fleetAdminLogin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "{{seedAdminEmail}}",
+    "password": "{{seedPassword}}"
+}
+
+###
+
+@fleetAdminToken = {{fleetAdminLogin.response.body.$.accessToken}}
+
+### 2. Create a brand
+# @name fleetCreateBrand
+POST {{baseUrl}}/api/fleet/brands
+Content-Type: application/json
+Authorization: Bearer {{fleetAdminToken}}
+
+{
+    "name": "{{createBrandName}}"
+}
+
+###
+
+@fleetCreatedBrandId = {{fleetCreateBrand.response.body.$.brandId}}
+
+### 3. Create the first model for the new brand
+# @name fleetCreateModel1
+POST {{baseUrl}}/api/fleet/models
+Content-Type: application/json
+Authorization: Bearer {{fleetAdminToken}}
+
+{
+    "brandId": "{{fleetCreatedBrandId}}",
+    "name": "{{createModelName1}}"
+}
+
+###
+
+@fleetCreatedModelId1 = {{fleetCreateModel1.response.body.$.modelId}}
+
+### 4. Create the second model for the new brand
+# @name fleetCreateModel2
+POST {{baseUrl}}/api/fleet/models
+Content-Type: application/json
+Authorization: Bearer {{fleetAdminToken}}
+
+{
+    "brandId": "{{fleetCreatedBrandId}}",
+    "name": "{{createModelName2}}"
+}
+
+###
+
+@fleetCreatedModelId2 = {{fleetCreateModel2.response.body.$.modelId}}
+
+### 5. List models for the newly created brand
+GET {{baseUrl}}/api/fleet/models?brandId={{fleetCreatedBrandId}}
+Accept: application/json
+
+### 6. Get the newly created brand
+GET {{baseUrl}}/api/fleet/brands/{{fleetCreatedBrandId}}
+Accept: application/json
+
+### 7. Get the first newly created model
+GET {{baseUrl}}/api/fleet/models/{{fleetCreatedModelId1}}
+Accept: application/json
+
+### 8. Get the second newly created model
+GET {{baseUrl}}/api/fleet/models/{{fleetCreatedModelId2}}
+Accept: application/json

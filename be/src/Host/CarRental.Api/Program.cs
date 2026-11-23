@@ -1,6 +1,7 @@
 using CarRental.Api.Extensions;
 using CarRental.Api.Infrastructure.Storage;
 using CarRental.Modules.Audit;
+using CarRental.Modules.Audit.Endpoints;
 using CarRental.Modules.Availability;
 using CarRental.Modules.Availability.Endpoints;
 using CarRental.Modules.Bookings;
@@ -10,6 +11,7 @@ using CarRental.Modules.Fleet.Endpoints;
 using CarRental.Modules.Handover;
 using CarRental.Modules.Handover.Endpoints;
 using CarRental.Modules.Notifications;
+using CarRental.Modules.Notifications.Hubs;
 using CarRental.Modules.Payments;
 using CarRental.Modules.Payments.Endpoints;
 using CarRental.Modules.Pricing;
@@ -149,6 +151,8 @@ app.MapHandoverEndpoints();
 app.MapReviewsEndpoints();
 app.MapSupportEndpoints();
 app.MapReportingEndpoints();
+app.MapAuditEndpoints();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();
 

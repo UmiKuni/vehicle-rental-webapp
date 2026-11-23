@@ -32,10 +32,24 @@ public sealed class TicketResolvedConsumer(
             @event.OccurredAt,
             cancellationToken);
         await notifications.CreateAndDeliverAsync(
+            booking.Value.CustomerId,
+            NotificationType.InApp,
+            content,
+            $"inapp:ticket-resolved:{@event.EventId}:{booking.Value.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
+        await notifications.CreateAndDeliverAsync(
             booking.Value.OwnerId,
             NotificationType.Email,
             content,
             $"ticket-resolved:{@event.EventId}:{booking.Value.OwnerId}",
+            @event.OccurredAt,
+            cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            booking.Value.OwnerId,
+            NotificationType.InApp,
+            content,
+            $"inapp:ticket-resolved:{@event.EventId}:{booking.Value.OwnerId}",
             @event.OccurredAt,
             cancellationToken);
     }
