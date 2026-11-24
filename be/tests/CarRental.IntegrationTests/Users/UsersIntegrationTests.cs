@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using CarRental.IntegrationTests.Fixtures;
 using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -120,5 +122,68 @@ public class UsersIntegrationTests : IntegrationTestBase
         user.CustomerProfile.Should().NotBeNull();
         user.CustomerProfile!.FullName.Should().Be("Nguyen Van Test");
         user.CustomerProfile.Address.Should().Be("789 Le Duan, District 1, HCMC");
+    }
+
+    [Fact]
+    public async Task Logout_ValidToken_ShouldImmediatelyRevokeAccessToken()
+    {
+        var regResponse = await Client.PostAsJsonAsync(
+            "/api/users/register",
+            new RegisterUserDto("logout_revoke@example.com", "0906667788", "SecurePassword123!"));
+        regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
+        authResult.Should().NotBeNull();
+
+        using var authClient = Factory.CreateClient();
+        authClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
+
+        var meBefore = await authClient.GetAsync("/api/users/me");
+        meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var logoutResponse = await authClient.PostAsJsonAsync(
+            "/api/users/logout",
+            new RefreshTokenDto(authResult.RefreshToken));
+        logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meAfter = await authClient.GetAsync("/api/users/me");
+        meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Ban_ActiveUser_ShouldImmediatelyInvalidateExistingAccessToken()
+    {
+        var (customerClient, customerId) = await CreateAuthenticatedCustomerClientAsync(
+            "ban_revoke@example.com",
+            "0907778899",
+            verified: false);
+
+        var meBefore = await customerClient.GetAsync("/api/users/me");
+        meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var (adminClient, _) = await CreateAuthenticatedAdminClientAsync(
+            "ban_admin@example.com",
+            "0908889900");
+
+        var banResponse = await adminClient.PutAsync($"/api/users/{customerId}/ban", content: null);
+        banResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meAfter = await customerClient.GetAsync("/api/users/me");
+        meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_MissingBody_ShouldReturn400BadRequestProblemDetails()
+    {
+        using var content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+
+        var response = await Client.PostAsync("/api/users/login", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty("status").GetInt32().Should().Be(400);
+        body.RootElement.GetProperty("errorCode").GetString().Should().Be("request.missing_body");
     }
 }

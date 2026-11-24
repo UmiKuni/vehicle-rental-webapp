@@ -213,13 +213,13 @@ Toggle the 🌙/☀️ button on the top right. Preference is persisted in `loca
 http://localhost:8080/api
 ```
 
-### Auth Endpoints
+### Authentication Endpoints
 | Method | Path | Body |
 |---|---|---|
-| POST | `/auth/login` | `{ username, password }` |
-| POST | `/auth/logout` | — |
-| POST | `/auth/refresh` | `{ refreshToken }` |
-| GET | `/auth/me` | — |
+| POST | `/users/login` | `{ identifier, password }` |
+| POST | `/users/logout` | `{ refreshToken }` |
+| POST | `/users/refresh` | `{ refreshToken }` |
+| GET | `/users/me` | — |
 
 ### Users Endpoints
 | Method | Path | Params / Body |

@@ -6,6 +6,7 @@ using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Contracts.Dtos;
 using CarRental.Modules.Availability.Contracts.Enums;
 using CarRental.Modules.Availability.Data;
+using CarRental.Modules.Availability.Entities;
 using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Fleet.Contracts.Enums;
 using CarRental.Modules.Fleet.Data;
@@ -232,5 +233,54 @@ public class AvailabilityIntegrationTests : IntegrationTestBase
         }
 
         released.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PlaceHold_WhenExpiredHoldOverlapsInDatabase_ShouldPurgeAndSucceedWithoutExclusionViolation()
+    {
+        var (_, ownerId) = await CreateAuthenticatedOwnerClientAsync(
+            "owner_avail_expired@example.com",
+            "0908889911",
+            taxCode: "0102030414");
+        var vehicleId = await SeedVehicleAsync(ownerId, "51F-666.05");
+
+        var start = DateTimeOffset.UtcNow.AddDays(12);
+        var end = DateTimeOffset.UtcNow.AddDays(14);
+        var range = DateTimeRange.Create(start, end).Value;
+        var expiredBookingId = Guid.NewGuid();
+        var freshBookingId = Guid.NewGuid();
+
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AvailabilityDbContext>();
+            var calendar = VehicleCalendar.Create(vehicleId, DateTimeOffset.UtcNow.AddHours(-2));
+            db.VehicleCalendars.Add(calendar);
+            db.CalendarEntries.Add(new CalendarEntry(
+                Guid.CreateVersion7(),
+                vehicleId,
+                CalendarEntryType.Hold,
+                range,
+                DateTimeOffset.UtcNow.AddMinutes(-10),
+                expiredBookingId));
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = CreateScope())
+        {
+            var api = scope.ServiceProvider.GetRequiredService<IAvailabilityApi>();
+            var placeResult = await api.PlaceHoldAsync(vehicleId, freshBookingId, range, TimeSpan.FromHours(2));
+            placeResult.IsSuccess.Should().BeTrue();
+        }
+
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AvailabilityDbContext>();
+            var entries = await db.CalendarEntries
+                .AsNoTracking()
+                .Where(e => e.VehicleId == vehicleId)
+                .ToListAsync();
+
+            entries.Should().ContainSingle(e => e.BookingId == freshBookingId);
+        }
     }
 }

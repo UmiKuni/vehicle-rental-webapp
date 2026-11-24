@@ -210,4 +210,59 @@ public class BookingsIntegrationTests : IntegrationTestBase
         available.IsSuccess.Should().BeTrue();
         available.Value.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task CreateBookingsConcurrently_OverlappingShouldAllowOnlyOne_NonOverlappingShouldAllowBoth()
+    {
+        var (ownerClient, ownerId) = await CreateAuthenticatedOwnerClientAsync(
+            "owner_book_race@example.com",
+            "0901110099",
+            taxCode: "0102030599");
+        var (customer1Client, _) = await CreateAuthenticatedCustomerClientAsync(
+            "cust_book_race_1@example.com",
+            "0901110091");
+        var (customer2Client, _) = await CreateAuthenticatedCustomerClientAsync(
+            "cust_book_race_2@example.com",
+            "0901110092");
+
+        var vehicleId = await SeedPublishedVehicleWithPricingAsync(ownerClient, ownerId, "51A-700.99");
+
+        // 1. Concurrent overlapping requests for the same vehicle -> exactly one 201 and one 409
+        var overlapStart = DateTimeOffset.UtcNow.AddDays(10);
+        var overlapEnd = overlapStart.AddDays(2);
+
+        var overlapTasks = new[]
+        {
+            customer1Client.PostAsJsonAsync(
+                "/api/bookings",
+                new CreateBookingRequest(vehicleId, overlapStart, overlapEnd, "District 1, HCMC", false, null)),
+            customer2Client.PostAsJsonAsync(
+                "/api/bookings",
+                new CreateBookingRequest(vehicleId, overlapStart, overlapEnd, "District 3, HCMC", false, null))
+        };
+
+        var overlapResponses = await Task.WhenAll(overlapTasks);
+        overlapResponses.Select(r => r.StatusCode)
+            .Should().BeEquivalentTo([HttpStatusCode.Created, HttpStatusCode.Conflict]);
+
+        // 2. Concurrent non-overlapping requests for the same vehicle -> both succeed (201)
+        var slotAStart = DateTimeOffset.UtcNow.AddDays(20);
+        var slotAEnd = slotAStart.AddDays(2);
+        var slotBStart = DateTimeOffset.UtcNow.AddDays(25);
+        var slotBEnd = slotBStart.AddDays(2);
+
+        var nonOverlapTasks = new[]
+        {
+            customer1Client.PostAsJsonAsync(
+                "/api/bookings",
+                new CreateBookingRequest(vehicleId, slotAStart, slotAEnd, "District 1, HCMC", false, null)),
+            customer2Client.PostAsJsonAsync(
+                "/api/bookings",
+                new CreateBookingRequest(vehicleId, slotBStart, slotBEnd, "District 3, HCMC", false, null))
+        };
+
+        var nonOverlapResponses = await Task.WhenAll(nonOverlapTasks);
+        nonOverlapResponses.Select(r => r.StatusCode)
+            .Should().AllBeEquivalentTo(HttpStatusCode.Created);
+    }
 }

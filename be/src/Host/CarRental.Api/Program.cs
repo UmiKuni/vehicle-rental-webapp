@@ -1,4 +1,8 @@
 using CarRental.Api.Extensions;
+using CarRental.Api.Infrastructure.ExceptionHandling;
+using CarRental.Api.Infrastructure.OpenApi;
+using CarRental.Api.Infrastructure.RateLimiting;
+using CarRental.Api.Infrastructure.Redis;
 using CarRental.Api.Infrastructure.Storage;
 using CarRental.Modules.Audit;
 using CarRental.Modules.Audit.Endpoints;
@@ -33,6 +37,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddImageStorage(builder.Configuration, builder.Environment);
+builder.Services.AddRedisInfrastructure(builder.Configuration, builder.Environment);
+builder.Services.AddDistributedRateLimiting(builder.Configuration);
 
 // Register modular monolith modules
 builder.Services
@@ -72,18 +78,12 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-builder.Services.AddOpenApi(options =>
+builder.Services.Configure<RouteHandlerOptions>(options =>
 {
-    options.AddDocumentTransformer((document, context, cancellationToken) =>
-    {
-        document.Servers = new List<Microsoft.OpenApi.Models.OpenApiServer>
-        {
-            new() { Url = "http://localhost:8080", Description = "Local Docker API" },
-            new() { Url = "/", Description = "Relative Origin" }
-        };
-        return Task.CompletedTask;
-    });
+    options.ThrowOnBadRequest = true;
 });
+
+builder.Services.AddCarRentalOpenApi();
 
 var app = builder.Build();
 
@@ -101,29 +101,10 @@ else
         .AllowCredentials());
 }
 
-app.UseExceptionHandler(exceptionApp =>
-{
-    exceptionApp.Run(async context =>
-    {
-        var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("UnhandledException");
-        if (feature?.Error is not null)
-            logger.LogError(feature.Error, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(new
-        {
-            type = "about:blank",
-            title = "Internal Server Error",
-            status = StatusCodes.Status500InternalServerError,
-            errorCode = "server.unhandled_error"
-        }, context.RequestAborted);
-    });
-});
+app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RateLimitingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
@@ -135,7 +116,16 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
         await app.SeedAsync();
 
         app.MapOpenApi();
-        app.MapScalarApiReference(); //http://localhost:8080/scalar/v1
+        app.MapScalarApiReference(options =>
+        {
+            options
+                .WithTitle("CarRental API")
+                .WithPreferredScheme("Bearer")
+                .WithHttpBearerAuthentication(bearer =>
+                {
+                    bearer.Token = string.Empty;
+                });
+        }); //http://localhost:8080/scalar/v1
     }
 }
 

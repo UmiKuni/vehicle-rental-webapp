@@ -343,7 +343,7 @@ EligibilityResult GetBookingEligibility();  // Active + FullName present + CCCD 
 
 **Revocation [ASSUMPTION]:** Redis keys `revoked:jti:{jti}` (TTL = remaining token life) and `user:tokens_valid_after:{userId}` (timestamp; the host rejects tokens with an older `iat`). `ITokenRevocationStore` is defined in a shared place; Users writes, the host reads. `Ban` writes `tokens_valid_after` synchronously. Access tokens live 10–15 minutes. Refresh token entity **[ASSUMPTION]** `RefreshToken` (`Id`, `UserId`, `TokenHash`, `ExpiresAt`, `RevokedAt`, `ReplacedByTokenId`, `DeviceInfo`, `CreatedAt`): random value (not a JWT), stored hashed, rotated on every use, reuse of an old token revokes the chain.
 
-**API:** `POST /api/users/auth/register`, `POST /api/users/auth/login`, `PUT /api/users/me/profile`, `POST /api/users/me/identity-docs` (returns presigned upload URL), `POST /api/users/me/owner-onboarding`, `PUT /api/users/{id}/ban` (Admin).
+**API:** `POST /api/users/register`, `POST /api/users/login`, `PUT /api/users/me/profile`, `POST /api/users/me/identity-docs` (returns presigned upload URL), `POST /api/users/me/owner-onboarding`, `PUT /api/users/{id}/ban` (Admin).
 **Published events:** none required by the source flows. **Contracts:** `IUsersApi.GetBookingEligibilityAsync`, `GetContactAsync`.
 
 ---

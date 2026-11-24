@@ -44,6 +44,8 @@ internal class VehicleCalendar : AggregateRoot<Guid>
         if (range.Start <= now)
             return AvailabilityErrors.PastDate;
 
+        ExpireHolds(now);
+
         if (!IsAvailable(range, now))
             return AvailabilityErrors.SlotUnavailable;
 
@@ -62,7 +64,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             bookingId);
 
         _entries.Add(entry);
-        LastSyncedAt = now;
+        Touch(now);
 
         return Result.Success();
     }
@@ -77,7 +79,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             return AvailabilityErrors.HoldNotFoundOrExpired;
 
         holdEntry.Confirm();
-        LastSyncedAt = now;
+        Touch(now);
 
         return Result.Success();
     }
@@ -88,7 +90,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             return AvailabilityErrors.InvalidBooking;
 
         _entries.RemoveAll(e => e.BookingId == bookingId);
-        LastSyncedAt = now;
+        Touch(now);
 
         return Result.Success();
     }
@@ -105,6 +107,8 @@ internal class VehicleCalendar : AggregateRoot<Guid>
         if (range is null)
             return AvailabilityErrors.InvalidRange;
 
+        ExpireHolds(now);
+
         if (!IsAvailable(range, now))
             return AvailabilityErrors.SlotUnavailable;
 
@@ -118,7 +122,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             reason);
 
         _entries.Add(entry);
-        LastSyncedAt = now;
+        Touch(now);
 
         return entry;
     }
@@ -133,7 +137,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
             return AvailabilityErrors.InvalidEntryType;
 
         _entries.Remove(entry);
-        LastSyncedAt = now;
+        Touch(now);
 
         return Result.Success();
     }
@@ -143,7 +147,7 @@ internal class VehicleCalendar : AggregateRoot<Guid>
         var expiredCount = _entries.RemoveAll(e => e.Type == CalendarEntryType.Hold && !e.IsActive(now));
         if (expiredCount > 0)
         {
-            LastSyncedAt = now;
+            Touch(now);
         }
 
         return expiredCount;
@@ -154,5 +158,12 @@ internal class VehicleCalendar : AggregateRoot<Guid>
         if (range == null) return false;
 
         return !_entries.Any(e => e.IsActive(now) && e.TimeRange.Overlaps(range));
+    }
+
+    private void Touch(DateTimeOffset now)
+    {
+        // Always advance by at least 1 microsecond (10 ticks) so PostgreSQL timestamptz
+        // and EF Core's change tracker never skip the parent row xmin check on same-tick calls.
+        LastSyncedAt = now > LastSyncedAt ? now : LastSyncedAt.AddTicks(10);
     }
 }

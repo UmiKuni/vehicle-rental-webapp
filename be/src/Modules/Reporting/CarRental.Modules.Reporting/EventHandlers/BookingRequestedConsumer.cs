@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Reporting.Data;
@@ -21,7 +22,8 @@ public sealed class BookingRequestedConsumer
             services.GetRequiredService<ReportingDbContext>(),
             services.GetRequiredService<IFleetApi>(),
             services.GetRequiredService<TimeProvider>(),
-            ct);
+            ct,
+            services.GetService<ICacheService>());
 
     internal async Task Handle(
         BookingRequested message,
@@ -29,7 +31,8 @@ public sealed class BookingRequestedConsumer
         ReportingDbContext dbContext,
         IFleetApi fleetApi,
         TimeProvider clock,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        ICacheService? cacheService = null)
     {
         if (message.EventId == Guid.Empty)
             return;
@@ -48,10 +51,10 @@ public sealed class BookingRequestedConsumer
             var stats = await ReportingEventHelpers.GetOrCreateDailyStatsAsync(message.OccurredAt, repository, ct);
             stats.ApplyBookingRequested(message.OccurredAt);
 
-            var existingProjection = await repository.GetBookingProjectionAsync(message.BookingId, ct);
-            if (existingProjection is null)
+            var projection = await repository.GetBookingProjectionAsync(message.BookingId, ct);
+            if (projection is null)
             {
-                var projection = BookingReportProjection.Create(
+                projection = BookingReportProjection.Create(
                     bookingId: message.BookingId,
                     ownerId: message.OwnerId,
                     vehicleId: message.VehicleId,
@@ -66,6 +69,7 @@ public sealed class BookingRequestedConsumer
 
             repository.MarkEventProcessed(ProcessedEvent.Create(message.EventId, clock.GetUtcNow()));
             await dbContext.SaveChangesAsync(ct);
+            await ReportingEventHelpers.InvalidateReportingCacheAsync(cacheService, clock, message.OccurredAt, projection, ct);
         }
         finally
         {

@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Reporting.Contracts;
@@ -13,7 +14,8 @@ internal sealed class ReportingQueryService(
     IReportingRepository repository,
     IUsersApi usersApi,
     IFleetApi fleetApi,
-    TimeProvider clock) : IReportingQueries
+    TimeProvider clock,
+    ICacheService? cacheService = null) : IReportingQueries
 {
     private const decimal PlatformCommissionRate = 0.10m;
     private const int MaxDailyStatsSpanDays = 365;
@@ -21,6 +23,14 @@ internal sealed class ReportingQueryService(
     public async Task<Result<AdminDashboardStatsDto>> GetDashboardStatsAsync(CancellationToken ct = default)
     {
         var vnNow = GetVnNow();
+        var cacheKey = ReportingCacheKeys.AdminDashboard(vnNow.Year, vnNow.Month);
+        if (cacheService is not null)
+        {
+            var cached = await cacheService.GetAsync<AdminDashboardStatsDto>(cacheKey, ct);
+            if (cached is not null)
+                return cached;
+        }
+
         var (monthStartUtc, monthEndUtc, monthStartDate, monthEndDate) = GetVnMonthRangeUtc(vnNow.Year, vnNow.Month);
 
         var totalUsers = await GetTotalUsersSafeAsync(ct);
@@ -36,7 +46,7 @@ internal sealed class ReportingQueryService(
             ? 0m
             : Math.Round(totalCancelled * 100m / totalBookings, 2);
 
-        return new AdminDashboardStatsDto(
+        var dto = new AdminDashboardStatsDto(
             TotalUsers: totalUsers,
             TotalVehicles: totalVehicles,
             ActiveRentals: projectionMetrics.ActiveRentals,
@@ -45,6 +55,11 @@ internal sealed class ReportingQueryService(
             TotalPlatformFeeCollected: totalPlatformFee,
             CompletedTripsThisMonth: projectionMetrics.CompletedTripsThisMonth,
             CancellationRatePercentage: cancellationRate);
+
+        if (cacheService is not null)
+            await cacheService.SetAsync(cacheKey, dto, ReportingCacheKeys.CacheTtl, ct);
+
+        return dto;
     }
 
     public async Task<Result<IReadOnlyList<DailyBookingStatsDto>>> GetDailyStatsAsync(
@@ -77,12 +92,20 @@ internal sealed class ReportingQueryService(
             return periodResult.Error;
 
         var (targetMonth, targetYear) = periodResult.Value;
+        var cacheKey = ReportingCacheKeys.OwnerRevenue(ownerId, targetYear, targetMonth);
+        if (cacheService is not null)
+        {
+            var cached = await cacheService.GetAsync<OwnerRevenueReportDto>(cacheKey, ct);
+            if (cached is not null)
+                return cached;
+        }
+
         var (startUtc, endUtc, _, _) = GetVnMonthRangeUtc(targetYear, targetMonth);
 
         var projections = await repository.GetOwnerTripsInRangeAsync(ownerId, startUtc, endUtc, ct);
         var trips = projections.Select(MapTripRevenueItem).ToList();
 
-        return new OwnerRevenueReportDto(
+        var dto = new OwnerRevenueReportDto(
             OwnerId: ownerId,
             Month: targetMonth,
             Year: targetYear,
@@ -91,6 +114,11 @@ internal sealed class ReportingQueryService(
             PlatformCommissionTotal: trips.Sum(t => t.PlatformCommission),
             NetEarnings: trips.Sum(t => t.NetIncome),
             Trips: trips);
+
+        if (cacheService is not null)
+            await cacheService.SetAsync(cacheKey, dto, ReportingCacheKeys.CacheTtl, ct);
+
+        return dto;
     }
 
     private DateTimeOffset GetVnNow() =>

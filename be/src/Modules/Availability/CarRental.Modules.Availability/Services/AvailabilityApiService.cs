@@ -1,4 +1,5 @@
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Contracts.Dtos;
@@ -9,27 +10,39 @@ using CarRental.Modules.Availability.Entities;
 using CarRental.Modules.Availability.Errors;
 using CarRental.Modules.Fleet.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
 namespace CarRental.Modules.Availability.Services;
 
 internal sealed class AvailabilityApiService : IAvailabilityApi
 {
+    private static readonly TimeSpan VehicleLockTtl = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan VehicleLockWait = TimeSpan.FromSeconds(3);
+    private const int MaxConcurrencyRetries = 2;
+
     private readonly AvailabilityDbContext _dbContext;
     private readonly IVehicleCalendarRepository _repository;
     private readonly IFleetApi _fleetApi;
     private readonly TimeProvider _clock;
+    private readonly IDistributedLockProvider _lockProvider;
+    private readonly ILogger<AvailabilityApiService> _logger;
 
     public AvailabilityApiService(
         AvailabilityDbContext dbContext,
         IVehicleCalendarRepository repository,
         IFleetApi fleetApi,
-        TimeProvider clock)
+        TimeProvider clock,
+        IDistributedLockProvider? lockProvider = null,
+        ILogger<AvailabilityApiService>? logger = null)
     {
         _dbContext = dbContext;
         _repository = repository;
         _fleetApi = fleetApi;
         _clock = clock;
+        _lockProvider = lockProvider ?? new InMemoryDistributedLockProvider();
+        _logger = logger ?? NullLogger<AvailabilityApiService>.Instance;
     }
 
     public async Task<Result<bool>> CheckAvailabilityAsync(
@@ -100,17 +113,42 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         if (range is null)
             return AvailabilityErrors.InvalidRange;
 
-        var now = _clock.GetUtcNow();
-        var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
-
-        var result = calendar.PlaceHold(bookingId, range, ttl, now);
-        if (result.IsFailure)
-            return result;
-
-        return await SaveWithConcurrencyHandlingAsync(
-            AvailabilityErrors.SlotUnavailable,
-            handleUniqueViolation: true,
+        await using var vehicleLock = await _lockProvider.TryAcquireAsync(
+            GetVehicleLockKey(vehicleId),
+            VehicleLockTtl,
+            VehicleLockWait,
             ct);
+
+        if (vehicleLock is null)
+            return AvailabilityErrors.SlotUnavailable;
+
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            var now = _clock.GetUtcNow();
+            await _repository.DeleteExpiredHoldsAsync(vehicleId, now, ct);
+
+            var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
+            var result = calendar.PlaceHold(bookingId, range, ttl, now);
+            if (result.IsFailure)
+                return result;
+
+            var saveOutcome = await TrySaveChangesWithRetryAsync(
+                vehicleId,
+                attempt,
+                AvailabilityErrors.SlotUnavailable,
+                handleUniqueViolation: true,
+                ct);
+
+            if (saveOutcome.ShouldRetry)
+            {
+                _repository.ClearChangeTracker();
+                continue;
+            }
+
+            return saveOutcome.Result;
+        }
+
+        return AvailabilityErrors.SlotUnavailable;
     }
 
     public async Task<Result> ConfirmHoldAsync(
@@ -122,18 +160,42 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         if (validation.IsFailure)
             return validation.Error;
 
-        var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
-        if (calendar is null)
+        await using var vehicleLock = await _lockProvider.TryAcquireAsync(
+            GetVehicleLockKey(vehicleId),
+            VehicleLockTtl,
+            VehicleLockWait,
+            ct);
+
+        if (vehicleLock is null)
             return AvailabilityErrors.HoldNotFoundOrExpired;
 
-        var result = calendar.ConfirmHold(bookingId, _clock.GetUtcNow());
-        if (result.IsFailure)
-            return result;
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
+            if (calendar is null)
+                return AvailabilityErrors.HoldNotFoundOrExpired;
 
-        return await SaveWithConcurrencyHandlingAsync(
-            AvailabilityErrors.HoldNotFoundOrExpired,
-            handleUniqueViolation: false,
-            ct);
+            var result = calendar.ConfirmHold(bookingId, _clock.GetUtcNow());
+            if (result.IsFailure)
+                return result;
+
+            var saveOutcome = await TrySaveChangesWithRetryAsync(
+                vehicleId,
+                attempt,
+                AvailabilityErrors.HoldNotFoundOrExpired,
+                handleUniqueViolation: false,
+                ct);
+
+            if (saveOutcome.ShouldRetry)
+            {
+                _repository.ClearChangeTracker();
+                continue;
+            }
+
+            return saveOutcome.Result;
+        }
+
+        return AvailabilityErrors.HoldNotFoundOrExpired;
     }
 
     public async Task<Result> ReleaseHoldAsync(
@@ -145,16 +207,42 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         if (validation.IsFailure)
             return validation.Error;
 
-        var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
-        if (calendar is null)
-            return Result.Success();
+        await using var vehicleLock = await _lockProvider.TryAcquireAsync(
+            GetVehicleLockKey(vehicleId),
+            VehicleLockTtl,
+            VehicleLockWait,
+            ct);
 
-        var result = calendar.Release(bookingId, _clock.GetUtcNow());
-        if (result.IsFailure)
-            return result;
+        if (vehicleLock is null)
+            _logger.LogWarning("Timed out acquiring lock for ReleaseHoldAsync on Vehicle {VehicleId}; falling back to OCC retries.", vehicleId);
 
-        await _dbContext.SaveChangesAsync(ct);
-        return Result.Success();
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
+            if (calendar is null)
+                return Result.Success();
+
+            var result = calendar.Release(bookingId, _clock.GetUtcNow());
+            if (result.IsFailure)
+                return result;
+
+            var saveOutcome = await TrySaveChangesWithRetryAsync(
+                vehicleId,
+                attempt,
+                AvailabilityErrors.SlotUnavailable,
+                handleUniqueViolation: false,
+                ct);
+
+            if (saveOutcome.ShouldRetry)
+            {
+                _repository.ClearChangeTracker();
+                continue;
+            }
+
+            return saveOutcome.Result;
+        }
+
+        return AvailabilityErrors.SlotUnavailable;
     }
 
     public async Task<Result<CalendarEntryDto>> BlockAsync(
@@ -173,21 +261,44 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         if (authResult.IsFailure)
             return authResult.Error;
 
-        var now = _clock.GetUtcNow();
-        var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
-
-        var blockResult = calendar.Block(type, range, now, reason);
-        if (blockResult.IsFailure)
-            return blockResult.Error;
-
-        var saveResult = await SaveWithConcurrencyHandlingAsync(
-            AvailabilityErrors.SlotUnavailable,
-            handleUniqueViolation: true,
+        await using var vehicleLock = await _lockProvider.TryAcquireAsync(
+            GetVehicleLockKey(vehicleId),
+            VehicleLockTtl,
+            VehicleLockWait,
             ct);
 
-        return saveResult.IsFailure
-            ? saveResult.Error
-            : ToEntryDto(blockResult.Value);
+        if (vehicleLock is null)
+            return AvailabilityErrors.SlotUnavailable;
+
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            var now = _clock.GetUtcNow();
+            await _repository.DeleteExpiredHoldsAsync(vehicleId, now, ct);
+
+            var calendar = await GetOrCreateCalendarAsync(vehicleId, now, ct);
+            var blockResult = calendar.Block(type, range, now, reason);
+            if (blockResult.IsFailure)
+                return blockResult.Error;
+
+            var saveOutcome = await TrySaveChangesWithRetryAsync(
+                vehicleId,
+                attempt,
+                AvailabilityErrors.SlotUnavailable,
+                handleUniqueViolation: true,
+                ct);
+
+            if (saveOutcome.ShouldRetry)
+            {
+                _repository.ClearChangeTracker();
+                continue;
+            }
+
+            return saveOutcome.Result.IsFailure
+                ? saveOutcome.Result.Error
+                : ToEntryDto(blockResult.Value);
+        }
+
+        return AvailabilityErrors.SlotUnavailable;
     }
 
     public async Task<Result> UnblockAsync(
@@ -201,20 +312,53 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         if (ownerId == Guid.Empty)
             return AvailabilityErrors.NotCalendarOwner;
 
-        var calendar = await _repository.GetByEntryIdAsync(blockId, ct);
-        if (calendar is null)
+        var initialCalendar = await _repository.GetByEntryIdAsync(blockId, ct);
+        if (initialCalendar is null)
             return AvailabilityErrors.EntryNotFound;
 
-        var authResult = await EnsureVehicleOwnerAsync(calendar.VehicleId, ownerId, ct);
+        var vehicleId = initialCalendar.VehicleId;
+        var authResult = await EnsureVehicleOwnerAsync(vehicleId, ownerId, ct);
         if (authResult.IsFailure)
             return authResult.Error;
 
-        var result = calendar.Unblock(blockId, _clock.GetUtcNow());
-        if (result.IsFailure)
-            return result;
+        await using var vehicleLock = await _lockProvider.TryAcquireAsync(
+            GetVehicleLockKey(vehicleId),
+            VehicleLockTtl,
+            VehicleLockWait,
+            ct);
 
-        await _dbContext.SaveChangesAsync(ct);
-        return Result.Success();
+        if (vehicleLock is null)
+            _logger.LogWarning("Timed out acquiring lock for UnblockAsync on Vehicle {VehicleId}; falling back to OCC retries.", vehicleId);
+
+        _repository.ClearChangeTracker();
+
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            var calendar = await _repository.GetByVehicleIdAsync(vehicleId, ct);
+            if (calendar is null)
+                return AvailabilityErrors.EntryNotFound;
+
+            var result = calendar.Unblock(blockId, _clock.GetUtcNow());
+            if (result.IsFailure)
+                return result;
+
+            var saveOutcome = await TrySaveChangesWithRetryAsync(
+                vehicleId,
+                attempt,
+                AvailabilityErrors.SlotUnavailable,
+                handleUniqueViolation: false,
+                ct);
+
+            if (saveOutcome.ShouldRetry)
+            {
+                _repository.ClearChangeTracker();
+                continue;
+            }
+
+            return saveOutcome.Result;
+        }
+
+        return AvailabilityErrors.SlotUnavailable;
     }
 
     private async Task<VehicleCalendar> GetOrCreateCalendarAsync(
@@ -248,7 +392,9 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
             : AvailabilityErrors.NotCalendarOwner;
     }
 
-    private async Task<Result> SaveWithConcurrencyHandlingAsync(
+    private async Task<(bool ShouldRetry, Result Result)> TrySaveChangesWithRetryAsync(
+        Guid vehicleId,
+        int attempt,
         Error conflictError,
         bool handleUniqueViolation,
         CancellationToken ct)
@@ -256,17 +402,36 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
         try
         {
             await _dbContext.SaveChangesAsync(ct);
-            return Result.Success();
+            return (false, Result.Success());
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateException ex) when (IsExclusionViolation(ex))
         {
-            return conflictError;
+            return (false, AvailabilityErrors.SlotUnavailable);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            if (attempt < MaxConcurrencyRetries)
+            {
+                _logger.LogDebug(ex, "Optimistic concurrency conflict on Vehicle {VehicleId}; retrying attempt {Attempt}.", vehicleId, attempt + 1);
+                return (true, Result.Success());
+            }
+
+            return (false, conflictError);
         }
         catch (DbUpdateException ex) when (handleUniqueViolation && IsUniqueViolation(ex))
         {
-            return conflictError;
+            if (attempt < MaxConcurrencyRetries)
+            {
+                _logger.LogDebug(ex, "Unique violation while creating calendar for Vehicle {VehicleId}; retrying attempt {Attempt}.", vehicleId, attempt + 1);
+                return (true, Result.Success());
+            }
+
+            return (false, conflictError);
         }
     }
+
+    private static string GetVehicleLockKey(Guid vehicleId) =>
+        $"lock:availability:vehicle:{vehicleId:N}";
 
     private static Result ValidateVehicleAndRange(Guid vehicleId, DateTimeRange? range)
     {
@@ -303,4 +468,7 @@ internal sealed class AvailabilityApiService : IAvailabilityApi
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
+    private static bool IsExclusionViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation };
 }

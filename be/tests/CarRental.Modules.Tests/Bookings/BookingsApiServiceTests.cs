@@ -77,6 +77,7 @@ public class BookingsApiServiceTests
         allErrors.Single(e => e.Name == "CustomerNotEligible").Error.Type.Should().Be(ErrorType.Validation);
         allErrors.Single(e => e.Name == "InvalidState").Error.Type.Should().Be(ErrorType.Conflict);
         allErrors.Single(e => e.Name == "TerminalState").Error.Type.Should().Be(ErrorType.Conflict);
+        allErrors.Single(e => e.Name == "ConcurrentModification").Error.Type.Should().Be(ErrorType.Conflict);
     }
 
     [Fact]
@@ -386,6 +387,40 @@ public class BookingsApiServiceTests
 
         var adminResult = await harness.Service.GetByIdAsync(created.Value.Id, Guid.NewGuid(), isAdmin: true);
         adminResult.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ApproveAsync_And_CancelAsync_WhenConcurrencyConflict_ShouldReturnConcurrentModificationWithoutPublishingEvents()
+    {
+        var harness = CreateHarness();
+        var customerId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+
+        var created = await harness.Service.CreateAsync(
+            customerId,
+            new CreateBookingRequest(vehicleId, Now.AddDays(2), Now.AddDays(4), "HCMC", false, null));
+        created.IsSuccess.Should().BeTrue();
+
+        harness.DbContextMock
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var approveResult = await harness.Service.ApproveAsync(created.Value.Id, harness.OwnerId);
+        approveResult.IsFailure.Should().BeTrue();
+        approveResult.Error.Code.Should().Be("booking.concurrent_modification");
+        approveResult.Error.Type.Should().Be(ErrorType.Conflict);
+
+        var cancelResult = await harness.Service.CancelAsync(created.Value.Id, customerId, "Change of plans");
+        cancelResult.IsFailure.Should().BeTrue();
+        cancelResult.Error.Code.Should().Be("booking.concurrent_modification");
+        cancelResult.Error.Type.Should().Be(ErrorType.Conflict);
+
+        harness.OutboxMock.Verify(
+            x => x.PublishAsync(It.IsAny<BookingConfirmed>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        harness.OutboxMock.Verify(
+            x => x.PublishAsync(It.IsAny<BookingCancelled>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using System.Reflection;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
@@ -428,4 +429,53 @@ public class ReportingQueryServiceTests
             null,
             GeoPoint.Create(10.7769, 106.7009).Value,
             "District 1, HCMC");
+
+    [Fact]
+    public async Task GetDashboardStatsAndOwnerRevenue_ShouldServeCachedValuesOnRepeatedCalls()
+    {
+        var clockMock = new Mock<TimeProvider>();
+        clockMock.Setup(x => x.GetUtcNow()).Returns(Now);
+
+        var repoMock = new Mock<IReportingRepository>();
+        var usersApiMock = new Mock<IUsersApi>();
+        var fleetApiMock = new Mock<IFleetApi>();
+        var cache = new InMemoryCacheService(clockMock.Object);
+
+        usersApiMock
+            .Setup(x => x.GetAllUsersAsync(1, 1, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new PagedResult<AdminUserDto>([], 5, 1, 1)));
+        fleetApiMock
+            .Setup(x => x.GetPublishedVehiclesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<IReadOnlyList<VehicleSummaryDto>>([]));
+        repoMock
+            .Setup(x => x.GetDashboardMetricsAsync(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardProjectionMetrics(1, 2, 3));
+        repoMock
+            .Setup(x => x.GetDailyStatsRangeAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var ownerId = Guid.NewGuid();
+        repoMock
+            .Setup(x => x.GetOwnerTripsInRangeAsync(ownerId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var service = new ReportingQueryService(
+            repoMock.Object,
+            usersApiMock.Object,
+            fleetApiMock.Object,
+            clockMock.Object,
+            cache);
+
+        var dash1 = await service.GetDashboardStatsAsync();
+        var dash2 = await service.GetDashboardStatsAsync();
+        dash1.IsSuccess.Should().BeTrue();
+        dash2.Value.Should().BeEquivalentTo(dash1.Value);
+        repoMock.Verify(x => x.GetDashboardMetricsAsync(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        var rev1 = await service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+        var rev2 = await service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+        rev1.IsSuccess.Should().BeTrue();
+        rev2.Value.Should().BeEquivalentTo(rev1.Value);
+        repoMock.Verify(x => x.GetOwnerTripsInRangeAsync(ownerId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
