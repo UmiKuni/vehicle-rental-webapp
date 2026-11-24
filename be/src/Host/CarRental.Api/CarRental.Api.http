@@ -20,6 +20,17 @@ Accept: application/json
 
 ###
 
+### Login as the seeded admin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "admin.seed@example.com",
+    "password": "Password123!"
+}
+
+###
+
 ### Login as the seeded owner
 POST {{baseUrl}}/api/users/login
 Content-Type: application/json

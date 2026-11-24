@@ -4,16 +4,17 @@ import { CalendarCheck, Car, Sparkles, Plus } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { BookingCard } from '../components/BookingCard'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
+import { ErrorState } from '@/shared/components/common/StateViews'
 import { ROUTES } from '@/shared/constants'
 
 type TabType = 'UPCOMING' | 'HISTORY'
 
 export default function MyBookingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('UPCOMING')
-  const { data: bookings = [], isLoading } = useBookings()
+  const { data: bookings = [], isLoading, isError, refetch } = useBookings()
 
-  const upcomingBookings = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'ACTIVE')
-  const historyBookings = bookings.filter((b) => b.status === 'COMPLETED' || b.status === 'CANCELLED')
+  const upcomingBookings = bookings.filter((b) => ['PENDING', 'CONFIRMED', 'PAID', 'ACTIVE', 'IN_PROGRESS'].includes(b.status))
+  const historyBookings = bookings.filter((b) => ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'].includes(b.status))
 
   const currentList = activeTab === 'UPCOMING' ? upcomingBookings : historyBookings
 
@@ -74,8 +75,10 @@ export default function MyBookingsPage() {
         </div>
       )}
 
+      {isError && <ErrorState message="Could not load your bookings." onRetry={() => void refetch()} />}
+
       {/* Empty State */}
-      {!isLoading && currentList.length === 0 && (
+      {!isLoading && !isError && currentList.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center px-4 rounded-3xl border border-dashed border-border bg-card/50">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground mb-3">
             <Car className="size-8" />
@@ -85,7 +88,7 @@ export default function MyBookingsPage() {
           </h3>
           <p className="mt-1 text-xs text-muted-foreground max-w-xs leading-relaxed">
             {activeTab === 'UPCOMING'
-              ? 'Explore 60+ late-model vehicles ready for your next adventure.'
+              ? 'Browse the vehicles currently listed for rent.'
               : 'Completed and cancelled trips will appear here.'}
           </p>
           <Link

@@ -13,6 +13,15 @@ export function useBookings() {
   })
 }
 
+export function useBooking(id?: string) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.BOOKINGS, id],
+    queryFn: () => bookingApi.getBooking(id!),
+    enabled: !!id,
+    staleTime: 60 * 1000,
+  })
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient()
 
@@ -33,9 +42,10 @@ export function useCancelBooking() {
 
   return useMutation({
     mutationFn: (id: string) => bookingApi.cancelBooking(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BOOKINGS] })
-      toast.success('Booking cancelled successfully')
+      const currency = new Intl.NumberFormat('vi-VN')
+      toast.success(`Booking cancelled. Refund: ${currency.format(result.refundAmount)} VND; penalty: ${currency.format(result.penaltyAmount)} VND.`)
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

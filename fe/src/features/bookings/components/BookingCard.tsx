@@ -1,4 +1,5 @@
-import { Calendar, MapPin, AlertCircle } from 'lucide-react'
+import { Calendar, MapPin, CarFront } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Booking } from '@/types/booking.types'
 import { useCancelBooking } from '../hooks/useBookings'
 import { formatDate } from '@/shared/utils'
@@ -7,11 +8,16 @@ interface BookingCardProps {
   booking: Booking
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
+  PENDING:   { label: 'Pending',   class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   CONFIRMED: { label: 'Confirmed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  PAID:      { label: 'Paid',      class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   ACTIVE:    { label: 'Active',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
+  IN_PROGRESS: { label: 'In progress', class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
   COMPLETED: { label: 'Completed', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
   CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  REJECTED:  { label: 'Rejected',  class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  EXPIRED:   { label: 'Expired',   class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
 }
 
 export function BookingCard({ booking }: BookingCardProps) {
@@ -19,7 +25,8 @@ export function BookingCard({ booking }: BookingCardProps) {
   const statusInfo = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED
 
   const handleCancel = () => {
-    if (window.confirm(`Are you sure you want to cancel booking ${booking.bookingCode}?`)) {
+    const policyNotice = booking.status === 'PAID' ? ' Any refund or penalty will follow the cancellation policy.' : ''
+    if (window.confirm(`Are you sure you want to cancel booking ${booking.bookingCode}?${policyNotice}`)) {
       cancelBooking(booking.id)
     }
   }
@@ -38,19 +45,11 @@ export function BookingCard({ booking }: BookingCardProps) {
 
       {/* Car Info */}
       <div className="flex items-center gap-3">
-        <img
-          src={booking.vehicle.imageUrl}
-          alt={booking.vehicle.name}
-          className="h-16 w-24 rounded-xl object-cover border border-border/80"
-        />
+        {booking.vehicle.imageUrl ? <img src={booking.vehicle.imageUrl} alt={booking.vehicle.name} className="h-16 w-24 rounded-xl object-cover border border-border/80" /> : <div className="grid h-16 w-24 shrink-0 place-items-center rounded-xl border border-border/80 bg-muted text-muted-foreground"><CarFront size={25} /></div>}
         <div className="min-w-0 flex-1">
           <h4 className="font-bold text-foreground text-sm truncate">
             {booking.vehicle.name}
           </h4>
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
-            <MapPin className="size-3 text-[#1a8a9d] shrink-0" />
-            <span>{booking.vehicle.location}</span>
-          </p>
           <p className="text-xs font-bold text-[#1a8a9d] mt-1">
             {new Intl.NumberFormat('en-US').format(booking.totalAmount)} VND
             <span className="text-[10px] text-muted-foreground font-normal"> ({booking.totalDays} {booking.totalDays > 1 ? 'days' : 'day'})</span>
@@ -67,16 +66,28 @@ export function BookingCard({ booking }: BookingCardProps) {
           </span>
         </div>
         <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-border/50">
-          <span>Delivery:</span>
-          <span className="font-semibold text-foreground">
-            {booking.deliveryType === 'STATION' ? 'Station Pickup' : 'Home Delivery'}
-          </span>
+          <span className="inline-flex items-center gap-1"><MapPin size={13} /> Pick-up location:</span>
+          <span className="max-w-[65%] truncate text-right font-semibold text-foreground">{booking.pickupLocation || 'To be confirmed'}</span>
         </div>
       </div>
 
       {/* Actions */}
-      {booking.status === 'CONFIRMED' && (
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
+        <Link to={`/bookings/${booking.id}`} className="mr-auto rounded-lg px-3 py-1.5 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
+        {booking.status === 'CONFIRMED' && (
+          <Link to={`/bookings/${booking.id}/payment`} className="rounded-lg bg-[#1a8a9d] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Payment</Link>
+        )}
+        {booking.status === 'PAID' && (
+          <Link to={`/bookings/${booking.id}/pickup`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
+        )}
+        {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && (
+          <Link to={`/bookings/${booking.id}/return`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
+        )}
+        {booking.status === 'COMPLETED' && (
+          <Link to={`/bookings/${booking.id}/settlement`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
+        )}
+        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'PAID') && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={isPending}
@@ -85,15 +96,9 @@ export function BookingCard({ booking }: BookingCardProps) {
           >
             Cancel Booking
           </button>
-          <a
-            href="tel:19001234"
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-1"
-          >
-            <AlertCircle className="size-3" />
-            Help
-          </a>
         </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

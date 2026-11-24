@@ -27,7 +27,7 @@ public static class PaymentEndpoints
             (await api.InitiateCheckoutAsync(GetUserId(principal), request, ct)).ToHttpResult())
         .WithValidation<InitiatePaymentRequest>()
         .WithName("CreatePaymentCheckout")
-        .RequireAuthorization("AuthenticatedUser")
+        .RequireAuthorization("CustomerOnly")
         .WithSummary("Khởi tạo phiên thanh toán (VNPay / PayPal / Stripe / Transfer)")
         .WithDescription("Initiates an online checkout session with payment gateway (VNPay, PayPal, Stripe, Bank Transfer) for a booking.")
         .Produces<PaymentCheckoutDto>(StatusCodes.Status200OK)

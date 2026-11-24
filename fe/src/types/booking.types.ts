@@ -1,14 +1,18 @@
-import type { Vehicle } from './vehicle.types'
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'PAID' | 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED'
 
-export type BookingStatus = 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
-export type DeliveryType = 'STATION' | 'DOORSTEP'
+export interface BookedVehicle {
+  id: string
+  name: string
+  imageUrl?: string
+  pricePerDay: number
+}
 
 export interface Booking {
   id: string
   bookingCode: string
   vehicleId: string
-  vehicle: Vehicle
-  userId: number
+  vehicle: BookedVehicle
+  userId: number | string
   customerName: string
   customerPhone: string
   startDate: string
@@ -17,8 +21,7 @@ export interface Booking {
   pricePerDay: number
   totalAmount: number
   depositAmount: number
-  deliveryType: DeliveryType
-  deliveryAddress?: string
+  pickupLocation: string
   status: BookingStatus
   createdAt: string
   note?: string
@@ -28,9 +31,6 @@ export interface CreateBookingPayload {
   vehicleId: string
   startDate: string
   endDate: string
-  deliveryType: DeliveryType
-  deliveryAddress?: string
-  customerName: string
-  customerPhone: string
+  pickupLocation: string
   note?: string
 }

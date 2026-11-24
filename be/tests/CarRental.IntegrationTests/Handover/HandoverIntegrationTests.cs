@@ -17,6 +17,7 @@ using CarRental.Modules.Handover.Data;
 using CarRental.Modules.Handover.Entities;
 using CarRental.Modules.Pricing.Contracts.Dtos;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,8 +28,35 @@ namespace CarRental.IntegrationTests.Handover;
 
 public class HandoverIntegrationTests : IntegrationTestBase
 {
+    private readonly FakeBookingState _bookingState = new();
+    private WebApplicationFactory<Program>? _handoverFactory;
+
     public HandoverIntegrationTests(CarRentalApiFactory factory) : base(factory)
     {
+    }
+
+    public override async Task InitializeAsync()
+    {
+        await base.InitializeAsync();
+        _bookingState.Bookings.Clear();
+        _handoverFactory ??= Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton(_bookingState);
+                services.RemoveAll<IBookingApi>();
+                services.AddScoped<IBookingApi, FakeBookingApi>();
+            }));
+    }
+
+    public override async Task DisposeAsync()
+    {
+        if (_handoverFactory is not null)
+        {
+            await _handoverFactory.DisposeAsync();
+            _handoverFactory = null;
+        }
+
+        await base.DisposeAsync();
     }
 
     private async Task<Guid> SeedVehicleAsync(Guid ownerId, string plateNumber)
@@ -94,8 +122,7 @@ public class HandoverIntegrationTests : IntegrationTestBase
         var startTime = new DateTimeOffset(2026, 11, 20, 8, 0, 0, TimeSpan.Zero);
         var endTime = startTime.AddDays(2); // 2 days => 400 km allowed
 
-        var bookingState = new FakeBookingState();
-        bookingState.Bookings[bookingId] = new FakeBookingRecord(
+        _bookingState.Bookings[bookingId] = new FakeBookingRecord(
             bookingId,
             customerId,
             ownerId,
@@ -106,16 +133,8 @@ public class HandoverIntegrationTests : IntegrationTestBase
             1_200_000m,
             5_000_000m);
 
-        using var customFactory = Factory.WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                services.AddSingleton(bookingState);
-                services.RemoveAll<IBookingApi>();
-                services.AddScoped<IBookingApi, FakeBookingApi>();
-            }));
-
-        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => customFactory.CreateClient());
-        using var customerClient = CreateClientWithTokenFrom(customerAuthClient, () => customFactory.CreateClient());
+        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => _handoverFactory!.CreateClient());
+        using var customerClient = CreateClientWithTokenFrom(customerAuthClient, () => _handoverFactory!.CreateClient());
 
         // 1. Create Pickup handover
         var createPickupResp = await ownerClient.PostAsJsonAsync(
@@ -182,7 +201,7 @@ public class HandoverIntegrationTests : IntegrationTestBase
         finalizedPickup.FinalizedAt.Should().NotBeNull();
         finalizedPickup.Photos.Should().HaveCount(5);
 
-        bookingState.Bookings[bookingId].Status.Should().Be("InProgress");
+        _bookingState.Bookings[bookingId].Status.Should().Be("InProgress");
 
         // 6. Immutability after Confirmed -> 409 Conflict
         var postConfirmPhotoResp = await ownerClient.PostAsJsonAsync(
@@ -219,8 +238,8 @@ public class HandoverIntegrationTests : IntegrationTestBase
         var finalizedReturn = await retFinalResp.Content.ReadFromJsonAsync<HandoverDetailDto>();
         finalizedReturn!.Status.Should().Be("Confirmed");
 
-        bookingState.Bookings[bookingId].Status.Should().Be("Completed");
-        bookingState.Bookings[bookingId].OverKmFee.Should().Be(750_000m);
+        _bookingState.Bookings[bookingId].Status.Should().Be("Completed");
+        _bookingState.Bookings[bookingId].OverKmFee.Should().Be(750_000m);
 
         // 8. Verify persistence in HandoverDbContext
         using var scope = CreateScope();
@@ -248,8 +267,7 @@ public class HandoverIntegrationTests : IntegrationTestBase
             "0905557788");
 
         var bookingId = Guid.NewGuid();
-        var bookingState = new FakeBookingState();
-        bookingState.Bookings[bookingId] = new FakeBookingRecord(
+        _bookingState.Bookings[bookingId] = new FakeBookingRecord(
             bookingId,
             customerId,
             ownerId,
@@ -260,18 +278,10 @@ public class HandoverIntegrationTests : IntegrationTestBase
             500_000m,
             2_000_000m);
 
-        using var customFactory = Factory.WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                services.AddSingleton(bookingState);
-                services.RemoveAll<IBookingApi>();
-                services.AddScoped<IBookingApi, FakeBookingApi>();
-            }));
-
-        using var anonClient = customFactory.CreateClient();
-        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => customFactory.CreateClient());
-        using var customerClient = CreateClientWithTokenFrom(customerAuthClient, () => customFactory.CreateClient());
-        using var outsiderClient = CreateClientWithTokenFrom(outsiderAuthClient, () => customFactory.CreateClient());
+        using var anonClient = _handoverFactory!.CreateClient();
+        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => _handoverFactory!.CreateClient());
+        using var customerClient = CreateClientWithTokenFrom(customerAuthClient, () => _handoverFactory!.CreateClient());
+        using var outsiderClient = CreateClientWithTokenFrom(outsiderAuthClient, () => _handoverFactory!.CreateClient());
 
         // Unauthenticated -> 401
         var unauthResp = await anonClient.PostAsJsonAsync("/api/handovers/", new CreateHandoverRequest(bookingId, "Pickup"));
@@ -313,8 +323,7 @@ public class HandoverIntegrationTests : IntegrationTestBase
             "0907779900");
 
         var bookingId = Guid.NewGuid();
-        var bookingState = new FakeBookingState();
-        bookingState.Bookings[bookingId] = new FakeBookingRecord(
+        _bookingState.Bookings[bookingId] = new FakeBookingRecord(
             bookingId,
             customerId,
             ownerId,
@@ -325,15 +334,7 @@ public class HandoverIntegrationTests : IntegrationTestBase
             500_000m,
             2_000_000m);
 
-        using var customFactory = Factory.WithWebHostBuilder(builder =>
-            builder.ConfigureTestServices(services =>
-            {
-                services.AddSingleton(bookingState);
-                services.RemoveAll<IBookingApi>();
-                services.AddScoped<IBookingApi, FakeBookingApi>();
-            }));
-
-        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => customFactory.CreateClient());
+        using var ownerClient = CreateClientWithTokenFrom(ownerAuthClient, () => _handoverFactory!.CreateClient());
 
         var createResp = await ownerClient.PostAsJsonAsync(
             "/api/handovers/",

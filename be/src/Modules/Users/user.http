@@ -4,6 +4,29 @@
 @seedCustomerEmail = customer.seed@example.com
 @seedPassword = Password123!
 
+
+### Register a new customer (sign up)
+# @name registerUser
+POST {{baseUrl}}/api/users/register
+Content-Type: application/json
+{
+    "email": "newcustomer4@example.com",
+    "phone": "0900000992",
+    "password": "Password123!"
+}
+
+### Login as the user
+# @name loginAdmin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+    "identifier": "newcustomer4@example.com",
+    "password": "Password123!"
+}
+
+###
+
 ### Login as the seeded admin
 # @name loginAdmin
 POST {{baseUrl}}/api/users/login
@@ -62,6 +85,7 @@ Content-Type: application/json
     "refreshToken": "{{refreshToken}}"
 }
 
+
 ###
 
 @refreshedRefreshToken = {{refreshOwner.response.body.$.refreshToken}}
@@ -108,10 +132,17 @@ Authorization: Bearer {{accessToken}}
     "refreshToken": "{{refreshedRefreshToken}}"
 }
 
+
 ###
 
 @customerId = {{loginCustomer.response.body.$.userId}}
 @customerToken = {{loginCustomer.response.body.$.accessToken}}
+
+
+### Get the current user's information
+GET {{baseUrl}}/api/users/me
+Accept: application/json
+Authorization: Bearer {{customerToken}}
 
 ### Check customer verification status (initially false)
 GET {{baseUrl}}/api/users/me/verification-status
@@ -120,7 +151,7 @@ Authorization: Bearer {{customerToken}}
 
 ###
 
-### Verify customer's citizen ID (CCCD) (mock)
+### Submit customer's citizen ID (CCCD) for verification
 POST {{baseUrl}}/api/users/me/verify-id
 Content-Type: application/json
 Authorization: Bearer {{customerToken}}
@@ -128,20 +159,56 @@ Authorization: Bearer {{customerToken}}
 {
     "documentNumber": "079095001234",
     "fullName": "Seed Customer",
-    "address": "2 Le Loi, Ho Chi Minh City"
+    "address": "2 Le Loi, Ho Chi Minh City",
+    "storageKey": "identity/seed-customer/cccd.jpg"
 }
 
 ###
 
-### Verify customer's driver's license (GPLX) (mock)
+### Verify customer's driver's license (GPLX)
 POST {{baseUrl}}/api/users/me/verify-driver-license
 Content-Type: application/json
 Authorization: Bearer {{customerToken}}
 
 {
     "licenseNumber": "790123456789",
-    "licenseClass": "B2"
+    "licenseClass": "B2",
+    "storageKey": "identity/seed-customer/gplx.jpg"
 }
+
+###
+
+### Admin: List all pending document verifications
+# @name getPendingVerifications
+GET {{baseUrl}}/api/users/verifications/pending
+Accept: application/json
+Authorization: Bearer {{adminToken}}
+
+###
+
+### Admin: Review and approve an identity document
+# Replace {{documentId}} with the actual document GUID from getPendingVerifications or user verification status
+@documentId = {{getPendingVerifications.response.body.$[1].documentId}}
+
+PUT {{baseUrl}}/api/users/{{customerId}}/documents/{{documentId}}/verify
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "approved": true
+}
+
+###
+
+### Admin: Review and reject an identity document with reason
+# PUT {{baseUrl}}/api/users/{{customerId}}/documents/{{documentId}}/verify
+# Content-Type: application/json
+# Authorization: Bearer {{adminToken}}
+#
+# {
+#     "approved": false,
+#     "rejectReason": "Document image is blurry or expired."
+# }
 
 ###
 

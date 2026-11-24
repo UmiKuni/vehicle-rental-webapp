@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profileApi } from '../api/profile.api'
 import { QUERY_KEYS } from '@/shared/constants'
-import type { KycStatus } from '@/types/kyc.types'
 
 export function useProfile() {
   return useQuery({
@@ -20,14 +19,13 @@ export function useKycStatus(enabled = true) {
   })
 }
 
-export function useSetMockKycStatus() {
+export function useUpdateProfile() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (status: KycStatus) => profileApi.setMockKycStatus(status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.KYC_STATUS] })
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROFILE] })
+    mutationFn: (data: { fullName: string; address: string }) => profileApi.updateProfile(data),
+    onSuccess: (profile) => {
+      queryClient.setQueryData([QUERY_KEYS.PROFILE], profile)
     },
   })
 }

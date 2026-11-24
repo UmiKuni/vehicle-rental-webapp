@@ -20,8 +20,11 @@ export interface PaginatedResponse<T> {
 
 // API Error response (matches Spring Boot error structure)
 export interface ApiError {
-  success: false
-  message: string
+  success?: false
+  message?: string
+  title?: string
+  detail?: string
+  errorCode?: string
   errors?: Record<string, string[]>
   status?: number
   timestamp?: string

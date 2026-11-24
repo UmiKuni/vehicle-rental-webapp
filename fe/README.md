@@ -1,6 +1,6 @@
 # 🚗 Vehicle Rental — Frontend
 
-Admin Dashboard & Mobile PWA for vehicle rental management, built according to **Production-Ready React** standards.
+Single frontend app for the vehicle rental customer experience and the Admin workspace. Both use the same router, API client, and signed-in session, so deployment and switching between modes stay in one FE build.
 
 ---
 
@@ -121,6 +121,10 @@ cp .env.example .env
 npm install
 ```
 
+#### Google Maps location labels (optional)
+
+Enable the Maps JavaScript API in Google Cloud, create a browser key restricted to your app's HTTP referrers and the Maps JavaScript API, then set `VITE_GOOGLE_MAPS_API_KEY` in `fe/.env`. The app uses it to show a city/district for the current GPS location. Without a key, it shows “Near your current location” and never displays coordinates.
+
 ### 2. Run Development Server
 
 ```bash
@@ -128,22 +132,24 @@ npm run dev
 # → http://localhost:3000
 ```
 
-> **Demo login:** username `admin` / password `admin123`
->
-> Mock API runs automatically in development mode — no backend required.
+The API must be running, and an Admin account must exist in the backend. Customer and owner seed accounts do not have admin permissions; `admin / admin123` is not a real API account.
 
-### 3. Connect to Real Backend
+### 3. Customer and Admin workspaces
 
-When the backend (e.g. Spring Boot) is ready:
+- Customer portal: `/` and `/search`
+- Admin entry: `/admin` (opens the workspace or the admin sign-in page)
+- Admin sign-in: `/admin/login`
+- Admin overview: `/admin/dashboard`
+- Admin fleet review: `/admin/vehicles`
+- Admin brand/model catalog: `/admin/catalog`
+- Admin user access: `/admin/users`
 
-1. Update `.env`:
-   ```env
-   VITE_API_BASE_URL=http://localhost:8080/api
-   ```
-2. Disable the mock API in `src/main.tsx`:
-   ```ts
-   // import './shared/lib/mock-api'
-   ```
+The admin workspace and customer PWA share this FE deployment and authentication API, but use separate routes and layouts. Existing `/dashboard` links redirect to the matching `/admin` route.
+- Admin user access: `/users`
+
+Sign in once. Admin accounts can move between the Admin workspace and customer portal using the links in each workspace. The backend still checks authorization for every protected change.
+
+The `.env.example` defaults to the real API (`VITE_USE_MOCK_API=false`). Set `VITE_API_BASE_URL` to the deployed API URL when building for another environment.
 
 ### 4. Build for Production
 
@@ -151,6 +157,22 @@ When the backend (e.g. Spring Boot) is ready:
 npm run build
 npm run preview
 ```
+
+### 5. Test the installable app on a phone
+
+Start the backend on `http://localhost:8080`, then build and serve the mobile PWA profile:
+
+```bash
+npm run build:mobile
+npm run preview:mobile
+```
+
+The mobile profile calls `/api` and `/hubs` on the same origin; Vite proxies those paths to `VITE_DEV_API_PROXY_TARGET` from `.env.mobile` (defaults to `http://localhost:8080`).
+
+- On the same Wi-Fi, open `http://<computer-LAN-IP>:3000` to inspect the UI.
+- To install it as a PWA, expose port 3000 over HTTPS. With ngrok configured, run `ngrok http 3000 --host-header=localhost:3000` and open its HTTPS forwarding URL on the phone. On Android Chrome, use **Install app** / **Add to Home screen**. On iPhone, open the link in Safari and choose **Share → Add to Home Screen**.
+
+The HTTPS tunnel is public while it runs; stop it after the device test. The LAN HTTP URL is useful for UI checks, but browsers require HTTPS (or localhost) for PWA installation.
 
 ---
 
