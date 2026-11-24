@@ -33,17 +33,17 @@ public class RateLimitingIntegrationTests : IntegrationTestBase
         using var client = rateLimitedFactory.CreateClient();
         var payload = new LoginUserDto("rate_limit_user@example.com", "WrongPassword123!");
 
-        var first = await client.PostAsJsonAsync("/api/auth/login", payload);
+        var first = await client.PostAsJsonAsync("/api/users/login", payload);
         first.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         first.Headers.GetValues("X-RateLimit-Limit").Should().ContainSingle("2");
         first.Headers.GetValues("X-RateLimit-Remaining").Should().ContainSingle("1");
 
-        var second = await client.PostAsJsonAsync("/api/auth/login", payload);
+        var second = await client.PostAsJsonAsync("/api/users/login", payload);
         second.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         second.Headers.GetValues("X-RateLimit-Limit").Should().ContainSingle("2");
         second.Headers.GetValues("X-RateLimit-Remaining").Should().ContainSingle("0");
 
-        var third = await client.PostAsJsonAsync("/api/auth/login", payload);
+        var third = await client.PostAsJsonAsync("/api/users/login", payload);
         third.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
         third.Headers.TryGetValues("Retry-After", out var retryAfterValues).Should().BeTrue();
         int.Parse(retryAfterValues!.Single()).Should().BeGreaterThan(0);

@@ -232,8 +232,8 @@
 * `GET /api/search/vehicles` \- Tìm kiếm và lọc xe (Hỗ trợ Phân trang, Bộ lọc PostGIS vị trí địa lý, Thông số, Mức giá).  
 * `GET /api/fleet/vehicles/{id}` \- Xem chi tiết xe (Hình ảnh, thông số, thông tin chủ xe).  
 * `GET /api/reviews/vehicles/{id}` \- Xem các bài đánh giá và điểm trung bình của xe.  
-* `POST /api/users/auth/register` \- Đăng ký tài khoản mới.  
-* `POST /api/users/auth/login` \- Đăng nhập và nhận chuỗi JWT token.
+* `POST /api/users/register` \- Đăng ký tài khoản mới.
+* `POST /api/users/login` \- Đăng nhập và nhận chuỗi JWT token.
 
 ### 2.2 Các thao tác của Khách thuê (C01 \- C10)
 

@@ -73,20 +73,17 @@ internal sealed class RateLimitingMiddleware
         RateLimitingOptions options,
         HttpContext context)
     {
-        if (path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
-            path.Equals("/api/users/login", StringComparison.OrdinalIgnoreCase))
+        if (path.Equals("/api/users/login", StringComparison.OrdinalIgnoreCase))
         {
             return ("auth-login", options.AuthLogin, $"ip:{ResolveClientIp(context)}");
         }
 
-        if (path.Equals("/api/auth/register", StringComparison.OrdinalIgnoreCase) ||
-            path.Equals("/api/users/register", StringComparison.OrdinalIgnoreCase))
+        if (path.Equals("/api/users/register", StringComparison.OrdinalIgnoreCase))
         {
             return ("auth-register", options.AuthRegister, $"ip:{ResolveClientIp(context)}");
         }
 
-        if (path.Equals("/api/auth/refresh", StringComparison.OrdinalIgnoreCase) ||
-            path.Equals("/api/users/refresh", StringComparison.OrdinalIgnoreCase))
+        if (path.Equals("/api/users/refresh", StringComparison.OrdinalIgnoreCase))
         {
             return ("auth-refresh", options.AuthRefresh, $"ip:{ResolveClientIp(context)}");
         }

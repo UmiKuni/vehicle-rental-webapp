@@ -28,8 +28,8 @@ public class OpenApiConfigurationTests
 
         await using var app = builder.Build();
         app.MapOpenApi();
-        app.MapPost("/api/auth/login", (LoginUserDto dto) => Results.Ok());
-        app.MapGet("/api/auth/me", () => Results.Ok()).RequireAuthorization();
+        app.MapPost("/api/users/login", (LoginUserDto dto) => Results.Ok());
+        app.MapGet("/api/users/me", () => Results.Ok()).RequireAuthorization();
         app.MapPost("/api/test/bookings", (CreateBookingRequest req) => Results.Ok()).RequireAuthorization();
 
         await app.StartAsync();
@@ -57,7 +57,7 @@ public class OpenApiConfigurationTests
 
         var paths = root.GetProperty("paths");
 
-        var loginPost = paths.GetProperty("/api/auth/login").GetProperty("post");
+        var loginPost = paths.GetProperty("/api/users/login").GetProperty("post");
         loginPost.TryGetProperty("security", out _).Should().BeFalse();
         var loginExample = loginPost.GetProperty("requestBody")
             .GetProperty("content")
@@ -66,7 +66,7 @@ public class OpenApiConfigurationTests
         loginExample.GetProperty("identifier").GetString().Should().Be("customer.seed@example.com");
         loginExample.GetProperty("password").GetString().Should().Be("Password123!");
 
-        var meGet = paths.GetProperty("/api/auth/me").GetProperty("get");
+        var meGet = paths.GetProperty("/api/users/me").GetProperty("get");
         var meSecurity = meGet.GetProperty("security").EnumerateArray().ToList();
         meSecurity.Should().ContainSingle().Which.TryGetProperty("Bearer", out _).Should().BeTrue();
 
