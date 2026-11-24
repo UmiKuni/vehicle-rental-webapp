@@ -23,3 +23,21 @@ GET {{baseUrl}}/api/search/vehicles?latitude=10.7769&longitude=106.7009&radiusKm
 Accept: application/json
 
 ###
+
+### Search 7-seater vehicles (MPV / SUV)
+GET {{baseUrl}}/api/search/vehicles?seats=7&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Search manual transmission vehicles
+GET {{baseUrl}}/api/search/vehicles?transmission=Manual&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Search electric vehicles (VinFast)
+GET {{baseUrl}}/api/search/vehicles?brand=VinFast&page=1&pageSize=20
+Accept: application/json
+
+###

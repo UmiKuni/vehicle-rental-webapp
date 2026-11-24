@@ -188,7 +188,7 @@ Authorization: Bearer {{adminToken}}
 
 ### Admin: Review and approve an identity document
 # Replace {{documentId}} with the actual document GUID from getPendingVerifications or user verification status
-@documentId = {{getPendingVerifications.response.body.$[0].documentId}}
+@documentId = {{getPendingVerifications.response.body.$[1].documentId}}
 
 PUT {{baseUrl}}/api/users/{{customerId}}/documents/{{documentId}}/verify
 Content-Type: application/json

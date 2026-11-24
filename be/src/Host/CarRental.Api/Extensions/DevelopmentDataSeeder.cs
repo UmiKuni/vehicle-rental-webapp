@@ -49,14 +49,32 @@ public static class DevelopmentDataSeeder
     private static readonly (Guid Id, string Name)[] Brands =
     [
         (Guid.Parse("00000000-0000-0000-0000-000000000101"), "Toyota"),
-        (Guid.Parse("00000000-0000-0000-0000-000000000102"), "VinFast")
+        (Guid.Parse("00000000-0000-0000-0000-000000000102"), "VinFast"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000103"), "Honda"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000104"), "Hyundai"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000105"), "Mazda"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000106"), "Kia"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000107"), "Mitsubishi"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000108"), "Ford")
     ];
 
     private static readonly (Guid Id, Guid BrandId, string Name)[] Models =
     [
         (Guid.Parse("00000000-0000-0000-0000-000000000201"), Brands[0].Id, "Vios"),
         (Guid.Parse("00000000-0000-0000-0000-000000000202"), Brands[0].Id, "Camry"),
-        (Guid.Parse("00000000-0000-0000-0000-000000000203"), Brands[1].Id, "VF 8")
+        (Guid.Parse("00000000-0000-0000-0000-000000000203"), Brands[1].Id, "VF 8"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000204"), Brands[1].Id, "VF 5 Plus"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000205"), Brands[1].Id, "VF 9"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000206"), Brands[2].Id, "City"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000207"), Brands[2].Id, "CR-V"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000208"), Brands[3].Id, "Accent"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000209"), Brands[3].Id, "Santa Fe"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000210"), Brands[4].Id, "Mazda 3"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000211"), Brands[4].Id, "CX-5"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000212"), Brands[5].Id, "Carnival"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000213"), Brands[5].Id, "Seltos"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000214"), Brands[6].Id, "Xpander"),
+        (Guid.Parse("00000000-0000-0000-0000-000000000215"), Brands[7].Id, "Everest")
     ];
 
     public static async Task SeedAsync(this IApplicationBuilder app)
@@ -529,6 +547,141 @@ public static class DevelopmentDataSeeder
             "208 Nguyen Van Cu, District 5, Ho Chi Minh City",
             1_200_000,
             1_400_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.04",
+            Brands[1].Id,
+            Models[3].Id,
+            TransmissionType.Auto,
+            5,
+            new GeoPoint(10.8041, 106.7368),
+            "45 Thao Dien, Thu Duc City, Ho Chi Minh City",
+            600_000,
+            700_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.05",
+            Brands[1].Id,
+            Models[4].Id,
+            TransmissionType.Auto,
+            7,
+            new GeoPoint(10.7294, 106.7196),
+            "101 Ton Dat Tien, District 7, Ho Chi Minh City",
+            2_000_000,
+            2_400_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.06",
+            Brands[2].Id,
+            Models[5].Id,
+            TransmissionType.Manual,
+            5,
+            new GeoPoint(10.8142, 106.6664),
+            "20 Truong Son, Tan Binh, Ho Chi Minh City",
+            500_000,
+            600_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.07",
+            Brands[2].Id,
+            Models[6].Id,
+            TransmissionType.Auto,
+            7,
+            new GeoPoint(10.7845, 106.6961),
+            "120 Hai Ba Trung, District 3, Ho Chi Minh City",
+            1_100_000,
+            1_300_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.08",
+            Brands[3].Id,
+            Models[7].Id,
+            TransmissionType.Manual,
+            5,
+            new GeoPoint(10.8018, 106.6548),
+            "88 Cong Hoa, Tan Binh, Ho Chi Minh City",
+            500_000,
+            600_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.09",
+            Brands[3].Id,
+            Models[8].Id,
+            TransmissionType.Auto,
+            7,
+            new GeoPoint(10.7788, 106.6912),
+            "24 Vo Van Tan, District 3, Ho Chi Minh City",
+            1_350_000,
+            1_550_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.10",
+            Brands[4].Id,
+            Models[10].Id,
+            TransmissionType.Auto,
+            5,
+            new GeoPoint(10.8012, 106.7420),
+            "105 Song Hanh, Thu Duc City, Ho Chi Minh City",
+            950_000,
+            1_150_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.11",
+            Brands[6].Id,
+            Models[13].Id,
+            TransmissionType.Auto,
+            7,
+            new GeoPoint(10.7410, 106.7085),
+            "30 Nguyen Thi Thap, District 7, Ho Chi Minh City",
+            800_000,
+            950_000,
+            clock);
+
+        await SeedVehicleAsync(
+            fleet,
+            pricing,
+            ownerId,
+            "51A-100.12",
+            Brands[5].Id,
+            Models[11].Id,
+            TransmissionType.Auto,
+            7,
+            new GeoPoint(10.7885, 106.7092),
+            "2 Nguyen Huu Canh, Binh Thanh, Ho Chi Minh City",
+            1_800_000,
+            2_100_000,
             clock);
     }
 
