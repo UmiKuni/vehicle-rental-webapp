@@ -1,0 +1,11 @@
+environment                           = "staging"
+acr_sku                               = "Basic"
+postgres_sku                          = "B_Standard_B1ms"
+postgres_storage_mb                   = 32768
+postgres_backup_retention_days        = 7
+postgres_geo_redundant_backup_enabled = false
+container_app_cpu                     = 0.5
+container_app_memory                  = "1Gi"
+container_app_min_replicas            = 0
+container_app_max_replicas            = 2
+key_vault_purge_protection_enabled    = false

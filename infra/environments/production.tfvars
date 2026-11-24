@@ -1,0 +1,11 @@
+environment                           = "production"
+acr_sku                               = "Standard"
+postgres_sku                          = "GP_Standard_D2ds_v5"
+postgres_storage_mb                   = 32768
+postgres_backup_retention_days        = 7
+postgres_geo_redundant_backup_enabled = true
+container_app_cpu                     = 0.5
+container_app_memory                  = "1Gi"
+container_app_min_replicas            = 1
+container_app_max_replicas            = 10
+key_vault_purge_protection_enabled    = true

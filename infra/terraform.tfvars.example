@@ -1,0 +1,36 @@
+# ==============================================================================
+# Copy this file to 'terraform.tfvars' for local Terraform runs.
+# NEVER commit 'terraform.tfvars' with real secrets to Git.
+# ==============================================================================
+
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+project_name          = "carrental"
+environment           = "staging"
+location              = "southeastasia"
+
+# Optional lowercase alphanumeric suffix (1-6 chars) if default ACR/PG/KV names are taken
+name_suffix = ""
+
+# PostgreSQL Flexible Server (min 12 characters for password)
+postgres_admin_username = "pgadmin"
+postgres_admin_password = "CHANGE_ME_StrongPassword123!"
+
+# JWT Signing Key (required >= 32 characters by UsersModule)
+jwt_signing_key = "CHANGE_ME_AtLeast32CharactersLongJwtSigningKey!"
+
+# Upstash Redis Free Tier connection string (leave empty to use in-memory fallback)
+# Example: "your-db.upstash.io:6379,password=YOUR_UPSTASH_TOKEN,ssl=True,abortConnect=False"
+upstash_redis_connection_string = ""
+
+# Cloudinary Media & KYC storage (set all 3 together, or leave all empty for in-memory fallback)
+cloudinary_cloud_name = ""
+cloudinary_api_key    = ""
+cloudinary_api_secret = ""
+
+# Allowed frontend origins for CORS
+cors_allowed_origins = [
+  "http://localhost:3000"
+]
+
+# Enable /health HTTP probes once CarRental.Api exposes GET /health
+enable_health_probes = false

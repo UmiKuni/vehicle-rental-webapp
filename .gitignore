@@ -120,7 +120,7 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 !*.tfvars.example
-!environments/*.tfvars
+!infra/environments/*.tfvars
 override.tf
 override.tf.json
 *_override.tf
