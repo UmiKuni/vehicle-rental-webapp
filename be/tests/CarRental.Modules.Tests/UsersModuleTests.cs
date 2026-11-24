@@ -503,4 +503,57 @@ public class UsersModuleTests
         hash1.Should().Be(hash2);
         hash1.Should().MatchRegex("^[A-F0-9]{64}$"); // SHA256 hex uppercase string
     }
+
+    [Fact]
+    public void AddIdentityDocument_ShouldSetPendingStatus()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        var result = user.AddIdentityDocument(DocumentType.CCCD, "identity/user1/cccd.jpg");
+
+        result.IsSuccess.Should().BeTrue();
+        user.IdentityDocuments.Should().HaveCount(1);
+        var doc = user.IdentityDocuments.First();
+        doc.VerificationStatus.Should().Be(DocumentVerificationStatus.Pending);
+        user.IsIdVerified.Should().BeFalse();
+        user.IsVerified.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AdminApproval_BothCccdAndGplx_ShouldVerifyUser()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.AddIdentityDocument(DocumentType.CCCD, "identity/user1/cccd.jpg");
+        user.AddIdentityDocument(DocumentType.GPLX, "identity/user1/gplx.jpg");
+
+        var cccdDoc = user.IdentityDocuments.First(d => d.Type == DocumentType.CCCD);
+        var gplxDoc = user.IdentityDocuments.First(d => d.Type == DocumentType.GPLX);
+
+        var adminId = Guid.NewGuid();
+
+        user.VerifyDocument(cccdDoc.Id, adminId, true).IsSuccess.Should().BeTrue();
+        user.IsIdVerified.Should().BeTrue();
+        user.IsDriverLicenseVerified.Should().BeFalse();
+        user.IsVerified.Should().BeFalse();
+
+        user.VerifyDocument(gplxDoc.Id, adminId, true).IsSuccess.Should().BeTrue();
+        user.IsIdVerified.Should().BeTrue();
+        user.IsDriverLicenseVerified.Should().BeTrue();
+        user.IsVerified.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AdminReject_ShouldSetRejectedStatusAndReason()
+    {
+        var user = User.Register("user@test.com", "0901234567", "pwd").Value;
+        user.AddIdentityDocument(DocumentType.CCCD, "identity/user1/cccd.jpg");
+        var cccdDoc = user.IdentityDocuments.First();
+        var adminId = Guid.NewGuid();
+
+        var result = user.VerifyDocument(cccdDoc.Id, adminId, false, "Image not clear");
+
+        result.IsSuccess.Should().BeTrue();
+        cccdDoc.VerificationStatus.Should().Be(DocumentVerificationStatus.Rejected);
+        cccdDoc.RejectReason.Should().Be("Image not clear");
+        user.IsIdVerified.Should().BeFalse();
+    }
 }

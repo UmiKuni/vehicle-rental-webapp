@@ -33,4 +33,11 @@ public interface IUsersApi
         string fileName,
         string contentType,
         CancellationToken ct = default);
+    Task<Result<UserVerificationStatusDto>> ReviewIdentityDocumentAsync(
+        Guid userId,
+        Guid documentId,
+        Guid adminId,
+        ReviewIdentityDocumentDto dto,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PendingVerificationDto>>> GetPendingVerificationsAsync(CancellationToken ct = default);
 }

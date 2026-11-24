@@ -34,6 +34,23 @@ public sealed record UserVerificationStatusDto(
     bool IsVerified,
     IReadOnlyList<IdentityDocumentDto> Documents);
 
+/// <summary>Summary of a pending document verification for admin review.</summary>
+public sealed record PendingVerificationDto(
+    Guid UserId,
+    string Email,
+    string Phone,
+    string FullName,
+    Guid DocumentId,
+    DocumentType DocumentType,
+    string StorageKey,
+    DocumentVerificationStatus Status,
+    string? AccessUrl = null);
+
+/// <summary>Administrative review decision for an identity document.</summary>
+public sealed record ReviewIdentityDocumentDto(
+    bool Approved,
+    string? RejectReason = null);
+
 /// <summary>Administrative summary view of a user account.</summary>
 public sealed record AdminUserDto(
     Guid UserId,

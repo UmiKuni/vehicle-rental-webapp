@@ -392,6 +392,48 @@ public static class UsersEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound);
+
+        admin.MapGet("/verifications/pending", async (
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.GetPendingVerificationsAsync(ct);
+            return result.ToHttpResult();
+        })
+        .WithName("GetPendingVerifications")
+        .WithSummary("List all identity documents awaiting verification review (Admin only).")
+        .Produces<IReadOnlyList<PendingVerificationDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        admin.MapPut("/{userId:guid}/documents/{documentId:guid}/verify", async (
+            Guid userId,
+            Guid documentId,
+            ReviewIdentityDocumentDto dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            IAuditRecorder auditRecorder,
+            CancellationToken ct) =>
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "ReviewIdentityDocument",
+                entityName: "IdentityDocument",
+                getEntityId: _ => documentId.ToString(),
+                execute: () => api.ReviewIdentityDocumentAsync(userId, documentId, adminId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
+        .WithName("ReviewIdentityDocument")
+        .WithSummary("Approve or reject a user's uploaded identity document (Admin only).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static CurrentUserDto BuildCurrentUserDto(ClaimsPrincipal principal)
