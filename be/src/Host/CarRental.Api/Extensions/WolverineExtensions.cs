@@ -25,15 +25,37 @@ public static class WolverineExtensions
     /// </summary>
     public static IHostApplicationBuilder AddMessaging(this WebApplicationBuilder builder)
     {
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+        var usePostgresPersistence = builder.Configuration
+            .GetValue("Wolverine:UsePostgresPersistence", !builder.Environment.IsEnvironment("Testing"));
+        var useDurableLocalQueues = usePostgresPersistence && builder.Configuration
+            .GetValue("Wolverine:UseDurableLocalQueues", !builder.Environment.IsEnvironment("Testing"));
+
+        string? connectionString = null;
+        if (usePostgresPersistence)
+        {
+            connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+        }
 
         builder.Host.UseWolverine(opts =>
         {
             opts.ServiceName = "CarRental.Api";
 
-            // Durable outbox/inbox storage in PostgreSQL
-            opts.PersistMessagesWithPostgresql(connectionString, WolverineSchema);
+            if (usePostgresPersistence)
+            {
+                // Durable outbox/inbox storage in PostgreSQL
+                opts.PersistMessagesWithPostgresql(connectionString!, WolverineSchema);
+
+                if (useDurableLocalQueues)
+                {
+                    opts.Policies.UseDurableLocalQueues();
+                }
+
+                opts.Policies.AutoApplyTransactions();
+
+                // Create outbox/inbox tables automatically
+                opts.AutoBuildMessageStorageOnStartup = true;
+            }
 
             // Discover handlers in all module assemblies (CarRental.Modules.*)
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()
@@ -70,25 +92,12 @@ public static class WolverineExtensions
             opts.LocalQueue("audit-events");
             opts.PublishMessage<RecordAuditEntry>().ToLocalQueue("audit-events");
 
-            // Integration tests should not leave durable local queue work to drain after the
-            // test database is torn down. Production retains durable local queues.
-            var useDurableLocalQueues = builder.Configuration
-                .GetValue("Wolverine:UseDurableLocalQueues", !builder.Environment.IsEnvironment("Testing"));
-            if (useDurableLocalQueues)
-            {
-                opts.Policies.UseDurableLocalQueues();
-            }
-            opts.Policies.AutoApplyTransactions();
-
             // Retry policy for transient failures
             opts.OnException<Exception>()
                 .RetryWithCooldown(
                     TimeSpan.FromMilliseconds(200),
                     TimeSpan.FromSeconds(1),
                     TimeSpan.FromSeconds(5));
-
-            // Create outbox/inbox tables automatically
-            opts.AutoBuildMessageStorageOnStartup = true;
         });
 
         builder.Services.AddScoped<IEventOutbox, WolverineEventOutbox>();
