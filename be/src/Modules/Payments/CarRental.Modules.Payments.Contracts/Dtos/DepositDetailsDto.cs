@@ -10,5 +10,6 @@ public sealed record DepositDetailsDto(
     decimal DeductedAmount,
     bool IsFrozen,
     DateTimeOffset? ReleaseAfter,
-    DateTimeOffset? SettledAt);
+    DateTimeOffset? SettledAt,
+    string? Notes = null);
 

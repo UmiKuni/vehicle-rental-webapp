@@ -83,6 +83,10 @@ cp .env.example .env
 | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | _(trống)_ | API keys & signing secret (`whsec_...`) của Stripe |
 | `STRIPE_API_BASE_URL`, `STRIPE_CURRENCY` | `https://api.stripe.com` / `vnd` | URL Stripe API & đơn vị tiền tệ thanh toán |
 | `TRANSFER_BANK_CODE`, `TRANSFER_ACCOUNT_NUMBER`, `TRANSFER_ACCOUNT_NAME`, `TRANSFER_WEBHOOK_SECRET` | _(trống)_ | Thông tin tài khoản nhận VietQR & khóa xác thực webhook ngân hàng (SePay/Casso) |
+| `NOTIFICATIONS_SMTP_HOST`, `NOTIFICATIONS_SMTP_PORT`, `NOTIFICATIONS_SMTP_USERNAME`, `NOTIFICATIONS_SMTP_PASSWORD` | _(trống)_ / `587` | Cấu hình máy chủ SMTP để gửi email thông báo |
+| `NOTIFICATIONS_SMTP_FROMADDRESS`, `NOTIFICATIONS_SMTP_FROMNAME` | _(trống)_ / `CarRental` | Địa chỉ và tên người gửi email |
+| `NOTIFICATIONS_TWILIO_ACCOUNTSID`, `NOTIFICATIONS_TWILIO_AUTHTOKEN` | _(trống)_ | Twilio Account SID và Auth Token để gửi SMS |
+| `NOTIFICATIONS_TWILIO_FROMNUMBER`, `NOTIFICATIONS_TWILIO_MESSAGINGSERVICESID` | _(trống)_ | Số điện thoại hoặc Messaging Service SID dùng làm người gửi SMS |
 
 > [!NOTE]
 > Khi `ASPNETCORE_ENVIRONMENT=Development`, ứng dụng sẽ **tự động áp dụng Migrations** cho toàn bộ 13 DbContexts khi khởi động và kích hoạt tài liệu API tương tác **Scalar**.

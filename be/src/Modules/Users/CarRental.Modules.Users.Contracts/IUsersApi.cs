@@ -13,6 +13,11 @@ public interface IUsersApi
     Task<Result<AuthResultDto>> LoginAsync(LoginUserDto dto, CancellationToken ct = default);
     Task<Result<AuthResultDto>> RefreshAsync(string refreshToken, string? deviceInfo = null, CancellationToken ct = default);
     Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default);
+    Task<Result> LogoutAsync(
+        string refreshToken,
+        string? accessTokenJti,
+        DateTimeOffset? accessTokenExpiresAt,
+        CancellationToken ct = default);
     Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileDto dto, CancellationToken ct = default);
     Task<Result> BanAsync(Guid userId, Guid adminId, CancellationToken ct = default);
     Task<Result> UnbanAsync(Guid userId, Guid adminId, CancellationToken ct = default);
@@ -33,4 +38,11 @@ public interface IUsersApi
         string fileName,
         string contentType,
         CancellationToken ct = default);
+    Task<Result<UserVerificationStatusDto>> ReviewIdentityDocumentAsync(
+        Guid userId,
+        Guid documentId,
+        Guid adminId,
+        ReviewIdentityDocumentDto dto,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PendingVerificationDto>>> GetPendingVerificationsAsync(CancellationToken ct = default);
 }

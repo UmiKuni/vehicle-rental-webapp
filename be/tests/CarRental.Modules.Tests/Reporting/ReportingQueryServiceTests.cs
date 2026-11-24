@@ -1,5 +1,6 @@
 using System.Reflection;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Fleet.Contracts.Dtos;
@@ -329,6 +330,63 @@ public class ReportingQueryServiceTests
         result.Value.NetEarnings.Should().Be(result.Value.GrossRevenue - result.Value.PlatformCommissionTotal);
     }
 
+    [Fact]
+    public async Task GetOwnerRevenueAsync_WhenPartialRefundApplied_ShouldSubtractRefundAndClampAtZero()
+    {
+        var harness = CreateHarness();
+        var ownerId = Guid.NewGuid();
+
+        var partialRefundTrip = BookingReportProjection.Create(
+            Guid.NewGuid(),
+            ownerId,
+            Guid.NewGuid(),
+            "51K-889.99",
+            "Mazda CX-5",
+            new DateTimeOffset(2026, 11, 2, 1, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 5, 13, 0, 0, TimeSpan.Zero),
+            3_000_000m,
+            new DateTimeOffset(2026, 11, 1, 1, 0, 0, TimeSpan.Zero));
+        partialRefundTrip.RecordPayment(3_000_000m, new DateTimeOffset(2026, 11, 1, 2, 0, 0, TimeSpan.Zero));
+        partialRefundTrip.ApplyRefund(1_000_000m);
+
+        var overRefundTrip = BookingReportProjection.Create(
+            Guid.NewGuid(),
+            ownerId,
+            Guid.NewGuid(),
+            "51H-123.45",
+            "Honda Civic",
+            new DateTimeOffset(2026, 11, 10, 1, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero),
+            1_500_000m,
+            new DateTimeOffset(2026, 11, 9, 1, 0, 0, TimeSpan.Zero));
+        overRefundTrip.RecordPayment(3_500_000m, new DateTimeOffset(2026, 11, 9, 2, 0, 0, TimeSpan.Zero));
+        overRefundTrip.ApplyRefund(2_000_000m);
+
+        harness.RepositoryMock
+            .Setup(x => x.GetOwnerTripsInRangeAsync(
+                ownerId,
+                new DateTimeOffset(2026, 10, 31, 17, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 11, 30, 17, 0, 0, TimeSpan.Zero),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([partialRefundTrip, overRefundTrip]);
+
+        var result = await harness.Service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TotalTrips.Should().Be(2);
+        result.Value.Trips[0].GrossRent.Should().Be(2_000_000m);
+        result.Value.Trips[0].PlatformCommission.Should().Be(200_000m);
+        result.Value.Trips[0].NetIncome.Should().Be(1_800_000m);
+
+        result.Value.Trips[1].GrossRent.Should().Be(0m);
+        result.Value.Trips[1].PlatformCommission.Should().Be(0m);
+        result.Value.Trips[1].NetIncome.Should().Be(0m);
+
+        result.Value.GrossRevenue.Should().Be(2_000_000m);
+        result.Value.PlatformCommissionTotal.Should().Be(200_000m);
+        result.Value.NetEarnings.Should().Be(1_800_000m);
+    }
+
     private static (
         ReportingQueryService Service,
         Mock<IReportingRepository> RepositoryMock,
@@ -371,4 +429,53 @@ public class ReportingQueryServiceTests
             null,
             GeoPoint.Create(10.7769, 106.7009).Value,
             "District 1, HCMC");
+
+    [Fact]
+    public async Task GetDashboardStatsAndOwnerRevenue_ShouldServeCachedValuesOnRepeatedCalls()
+    {
+        var clockMock = new Mock<TimeProvider>();
+        clockMock.Setup(x => x.GetUtcNow()).Returns(Now);
+
+        var repoMock = new Mock<IReportingRepository>();
+        var usersApiMock = new Mock<IUsersApi>();
+        var fleetApiMock = new Mock<IFleetApi>();
+        var cache = new InMemoryCacheService(clockMock.Object);
+
+        usersApiMock
+            .Setup(x => x.GetAllUsersAsync(1, 1, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new PagedResult<AdminUserDto>([], 5, 1, 1)));
+        fleetApiMock
+            .Setup(x => x.GetPublishedVehiclesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<IReadOnlyList<VehicleSummaryDto>>([]));
+        repoMock
+            .Setup(x => x.GetDashboardMetricsAsync(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardProjectionMetrics(1, 2, 3));
+        repoMock
+            .Setup(x => x.GetDailyStatsRangeAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var ownerId = Guid.NewGuid();
+        repoMock
+            .Setup(x => x.GetOwnerTripsInRangeAsync(ownerId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var service = new ReportingQueryService(
+            repoMock.Object,
+            usersApiMock.Object,
+            fleetApiMock.Object,
+            clockMock.Object,
+            cache);
+
+        var dash1 = await service.GetDashboardStatsAsync();
+        var dash2 = await service.GetDashboardStatsAsync();
+        dash1.IsSuccess.Should().BeTrue();
+        dash2.Value.Should().BeEquivalentTo(dash1.Value);
+        repoMock.Verify(x => x.GetDashboardMetricsAsync(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        var rev1 = await service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+        var rev2 = await service.GetOwnerRevenueAsync(ownerId, 11, 2026);
+        rev1.IsSuccess.Should().BeTrue();
+        rev2.Value.Should().BeEquivalentTo(rev1.Value);
+        repoMock.Verify(x => x.GetOwnerTripsInRangeAsync(ownerId, It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

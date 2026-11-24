@@ -1,5 +1,6 @@
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Fleet.Contracts;
 using CarRental.Modules.Pricing.Contracts;
@@ -14,32 +15,52 @@ namespace CarRental.Modules.Pricing.Services;
 
 internal sealed class PricingApiService : IPricingApi
 {
+    private static readonly TimeSpan PlanCacheTtl = TimeSpan.FromMinutes(10);
+
     private readonly PricingDbContext _dbContext;
     private readonly IFleetApi _fleetApi;
     private readonly IEventOutbox _eventOutbox;
     private readonly TimeProvider _clock;
+    private readonly ICacheService? _cacheService;
 
     public PricingApiService(
         PricingDbContext dbContext,
         IFleetApi fleetApi,
         IEventOutbox eventOutbox,
-        TimeProvider clock)
+        TimeProvider clock,
+        ICacheService? cacheService = null)
     {
         _dbContext = dbContext;
         _fleetApi = fleetApi;
         _eventOutbox = eventOutbox;
         _clock = clock;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<PricingPlanDto>> GetPricingAsync(
         Guid vehicleId,
         CancellationToken ct = default)
     {
+        if (vehicleId == Guid.Empty)
+            return PricingErrors.NotFound;
+
+        var cacheKey = PricingPlanCacheKey(vehicleId);
+        if (_cacheService is not null)
+        {
+            var cached = await _cacheService.GetAsync<PricingPlanDto>(cacheKey, ct);
+            if (cached is not null)
+                return cached;
+        }
+
         var planResult = await GetPlanOrFailAsync(vehicleId, ct);
         if (planResult.IsFailure)
             return planResult.Error;
 
-        return ToDto(planResult.Value);
+        var dto = ToDto(planResult.Value);
+        if (_cacheService is not null)
+            await _cacheService.SetAsync(cacheKey, dto, PlanCacheTtl, ct);
+
+        return dto;
     }
 
     public async Task<Result<QuoteDto>> GetQuoteAsync(
@@ -47,11 +68,11 @@ internal sealed class PricingApiService : IPricingApi
         DateTimeRange period,
         CancellationToken ct = default)
     {
-        var planResult = await GetPlanOrFailAsync(vehicleId, ct);
-        if (planResult.IsFailure)
-            return planResult.Error;
+        var planDtoResult = await GetPricingAsync(vehicleId, ct);
+        if (planDtoResult.IsFailure)
+            return planDtoResult.Error;
 
-        var quoteResult = planResult.Value.CalculateQuote(period);
+        var quoteResult = PricingPlan.FromDto(planDtoResult.Value).CalculateQuote(period);
         if (quoteResult.IsFailure)
             return quoteResult.Error;
 
@@ -83,10 +104,15 @@ internal sealed class PricingApiService : IPricingApi
         await _dbContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(PricingPlanCacheKey(vehicleId), ct);
+
         await PublishIntegrationEventsAsync(plan, ct);
 
         return ToDto(plan);
     }
+
+    private static string PricingPlanCacheKey(Guid vehicleId) => $"pricing:plan:{vehicleId:D}";
 
     private async Task<Result<PricingPlan>> GetPlanOrFailAsync(Guid vehicleId, CancellationToken ct)
     {

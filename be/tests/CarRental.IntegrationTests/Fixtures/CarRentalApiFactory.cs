@@ -1,8 +1,12 @@
 using System.Data.Common;
+using CarRental.Api.Infrastructure.RateLimiting;
+using CarRental.BuildingBlocks.Auth;
+using CarRental.BuildingBlocks.Redis;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Respawn;
@@ -71,6 +75,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         });
         var connectionString = _dbContainer.GetConnectionString();
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+        builder.UseSetting("Wolverine:UsePostgresPersistence", "false");
         builder.UseSetting("Wolverine:UseDurableLocalQueues", "false");
         builder.UseSetting("Authentication:Jwt:SigningKey", TestJwtSigningKey);
         builder.UseSetting("Authentication:Jwt:Issuer", "CarRental.Api");
@@ -83,6 +88,7 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connectionString,
+                ["Wolverine:UsePostgresPersistence"] = "false",
                 ["Wolverine:UseDurableLocalQueues"] = "false",
                 ["Authentication:Jwt:SigningKey"] = TestJwtSigningKey,
                 ["Authentication:Jwt:Issuer"] = "CarRental.Api",
@@ -99,6 +105,15 @@ public class CarRentalApiFactory : WebApplicationFactory<Program>, IAsyncLifetim
         {
             await _respawner.ResetAsync(_dbConnection);
         }
+
+        if (Services.GetService<ICacheService>() is InMemoryCacheService memCache)
+            memCache.Clear();
+
+        if (Services.GetService<ITokenRevocationStore>() is InMemoryTokenRevocationStore memRevocation)
+            memRevocation.Clear();
+
+        if (Services.GetService<IRateLimiter>() is InMemoryRateLimiter memRateLimiter)
+            memRateLimiter.Clear();
     }
 
     public new async Task DisposeAsync()

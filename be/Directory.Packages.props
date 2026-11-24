@@ -10,6 +10,8 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.2" />
+    <!-- Keep EF design tooling's MSBuild workspace aligned with Wolverine's Roslyn 4.11 dependency. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.11.0" />
 
     <!-- Messaging & Outbox (Wolverine) -->
     <PackageVersion Include="WolverineFx" Version="3.8.1" />
@@ -18,6 +20,7 @@
 
     <!-- Authentication & Security -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.2" />
 
     <!-- Observability & Logging -->

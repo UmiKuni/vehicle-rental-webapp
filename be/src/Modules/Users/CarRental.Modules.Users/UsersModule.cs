@@ -1,3 +1,5 @@
+using CarRental.BuildingBlocks.Auth;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
@@ -11,6 +13,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -74,6 +78,18 @@ public static class UsersModule
                 };
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        // SignalR's browser WebSocket transport sends bearer tokens
+                        // as a query parameter because it cannot set Authorization.
+                        if (context.Request.Path.StartsWithSegments("/hubs/notifications") &&
+                            context.Request.Query.TryGetValue("access_token", out var accessToken))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = async context =>
                     {
                         var userIdClaim = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -83,10 +99,64 @@ public static class UsersModule
                             return;
                         }
 
-                        var db = context.HttpContext.RequestServices.GetRequiredService<UsersDbContext>();
-                        var user = await db.Users.AsNoTracking()
-                            .FirstOrDefaultAsync(u => u.Id == UserId.From(userId), context.HttpContext.RequestAborted);
-                        if (user is null || user.Status == Contracts.Enums.UserStatus.Banned)
+                        var ct = context.HttpContext.RequestAborted;
+                        var services = context.HttpContext.RequestServices;
+                        var revocationStore = services.GetService<ITokenRevocationStore>();
+                        var cacheService = services.GetService<ICacheService>();
+
+                        if (revocationStore is not null)
+                        {
+                            var jti = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                            if (!string.IsNullOrWhiteSpace(jti) &&
+                                await revocationStore.IsJtiRevokedAsync(jti, ct))
+                            {
+                                context.Fail("The token has been revoked.");
+                                return;
+                            }
+
+                            var validAfter = await revocationStore.GetTokensValidAfterAsync(userId, ct);
+                            if (validAfter.HasValue)
+                            {
+                                var iatClaim = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Iat);
+                                if (long.TryParse(iatClaim, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iatSeconds) &&
+                                    DateTimeOffset.FromUnixTimeSeconds(iatSeconds) < validAfter.Value)
+                                {
+                                    context.Fail("The token is no longer valid.");
+                                    return;
+                                }
+                            }
+                        }
+
+                        var cacheKey = UserAuthCacheKeys.AuthSnapshot(userId);
+                        var snapshot = cacheService is not null
+                            ? await cacheService.GetAsync<UserAuthSnapshot>(cacheKey, ct)
+                            : null;
+
+                        if (snapshot is null)
+                        {
+                            var db = services.GetRequiredService<UsersDbContext>();
+                            snapshot = await db.Users.AsNoTracking()
+                                .Where(u => u.Id == UserId.From(userId))
+                                .Select(u => new UserAuthSnapshot(
+                                    u.Status,
+                                    u.Role,
+                                    u.IsIdVerified,
+                                    u.IsDriverLicenseVerified))
+                                .FirstOrDefaultAsync(ct);
+
+                            if (snapshot is null)
+                            {
+                                context.Fail("The user account is unavailable.");
+                                return;
+                            }
+
+                            if (cacheService is not null)
+                            {
+                                await cacheService.SetAsync(cacheKey, snapshot, UserAuthCacheKeys.AuthSnapshotTtl, ct);
+                            }
+                        }
+
+                        if (snapshot.Status == Contracts.Enums.UserStatus.Banned)
                         {
                             context.Fail("The user account is unavailable.");
                             return;
@@ -94,10 +164,10 @@ public static class UsersModule
 
                         if (context.Principal?.Identity is ClaimsIdentity identity)
                         {
-                            ReplaceClaim(identity, ClaimTypes.Role, user.Role.ToString());
-                            ReplaceClaim(identity, "id_verified", user.IsIdVerified ? "true" : "false");
-                            ReplaceClaim(identity, "driver_license_verified", user.IsDriverLicenseVerified ? "true" : "false");
-                            ReplaceClaim(identity, "verified_user", user.IsVerified ? "true" : "false");
+                            ReplaceClaim(identity, ClaimTypes.Role, snapshot.Role.ToString());
+                            ReplaceClaim(identity, "id_verified", snapshot.IsIdVerified ? "true" : "false");
+                            ReplaceClaim(identity, "driver_license_verified", snapshot.IsDriverLicenseVerified ? "true" : "false");
+                            ReplaceClaim(identity, "verified_user", snapshot.IsVerified ? "true" : "false");
                         }
                     },
                     OnForbidden = async context =>

@@ -6,6 +6,7 @@
     <ProjectReference Include="..\..\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
     <ProjectReference Include="..\..\Payments\CarRental.Modules.Payments.Contracts\CarRental.Modules.Payments.Contracts.csproj" />
     <ProjectReference Include="..\..\Users\CarRental.Modules.Users.Contracts\CarRental.Modules.Users.Contracts.csproj" />
+    <ProjectReference Include="..\..\Audit\CarRental.Modules.Audit.Contracts\CarRental.Modules.Audit.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

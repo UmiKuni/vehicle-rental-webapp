@@ -29,15 +29,14 @@ function loadGoogleMaps(): Promise<void> {
 
   const promise: Promise<void> = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=vi&region=VN`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&language=en&region=VN`
     script.async = true
     script.defer = true
     const timeout = window.setTimeout(() => reject(new Error('Google Maps load timed out.')), 15000)
     script.onload = () => {
       window.clearTimeout(timeout)
-      window.google?.maps?.Geocoder
-        ? resolve()
-        : reject(new Error('Google Maps Geocoder did not load.'))
+      if (window.google?.maps?.Geocoder) resolve()
+      else reject(new Error('Google Maps Geocoder did not load.'))
     }
     script.onerror = () => {
       window.clearTimeout(timeout)

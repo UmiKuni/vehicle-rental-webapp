@@ -14,16 +14,17 @@ Tham khảo thêm:
 
 Backend cho phép bật/tắt giữa cổng giả lập và cổng thanh toán thật thông qua cấu hình DI trong [`PaymentsModule.cs`](./CarRental.Modules.Payments/PaymentsModule.cs):
 
-- **File biến môi trường (`be/.env`, xem mẫu tại [`be/.env.example`](../../../.env.example)):**
+- **File biến môi trường (`be/.env`, xem mẫu tại [`be/.env.example`](../../../.env.example)) hoặc [`docker-compose.yml`](../../../docker-compose.yml):**
   ```env
   PAYMENTS_USE_MOCK_GATEWAY=true   # hoặc false để dùng cổng thật
   ```
-- **Hoặc trong [`appsettings.json`](../../Host/CarRental.Api/appsettings.json):**
+- **Hoặc trong [`appsettings.json`](../../Host/CarRental.Api/appsettings.json) / [`appsettings.Development.json`](../../Host/CarRental.Api/appsettings.Development.json):**
   ```json
   "Payments": {
     "UseMockGateway": false
   }
   ```
+  - Mặc định `appsettings.Development.json` bật `"UseMockGateway": true` để chạy local (`dotnet run`) không bị lỗi thiếu key cổng thanh toán; `appsettings.json` và `docker-compose.yml` giữ mặc định `false` (có thể override cả hai chiều bằng biến môi trường `PAYMENTS_USE_MOCK_GATEWAY=true|false`).
 
 Cơ chế chuyển đổi ở Backend:
 - Khi `UseMockGateway = true`: DI inject [`MockPaymentGateway`](./CarRental.Modules.Payments/Services/MockPaymentGateway.cs) — không gọi ra ngoài internet, không cần API keys của VNPay/PayPal/Stripe/VietQR.
@@ -85,11 +86,11 @@ Tuy nhiên, có **1 khác biệt thực tế về UX khi test local ở chế đ
 | **`Transfer`** (VietQR) | `qrCodeUrl` = ảnh VietQR thật (`https://img.vietqr.io/image/...` kèm nội dung `CARRENTAL <paymentId>`) | `qrCodeUrl` = ảnh QR giả lập (`https://api.qrserver.com/...`) | **Giống nhau 100%:** FE render `<img src={qrCodeUrl} />` và polling trạng thái thanh toán. Ở Mock mode, dùng thêm nút/request giả lập webhook ở Bước 3 để đổi trạng thái sang `Success`. |
 | **`VNPay`** | `paymentUrl` = URL VNPay sandbox có chữ ký HMAC-SHA512 (`qrCodeUrl = ""`) | `paymentUrl` = URL minh họa; có sẵn `qrCodeUrl` giả lập | **Real:** Redirect sang `paymentUrl` → VNPay chuyển về `returnUrl?vnp_ResponseCode=00&vnp_TxnRef=...`<br>**Mock:** Không redirect sang `paymentUrl` giả; hiển thị UI test/QR và gọi `POST /api/payments/webhook` để giả lập kết quả. |
 | **`Stripe`** | `paymentUrl` = Stripe Checkout Session URL thật (`qrCodeUrl = ""`) | `paymentUrl` = URL minh họa; có sẵn `qrCodeUrl` giả lập | **Real:** Redirect sang `paymentUrl` → Stripe chuyển về `returnUrl?session_id={CHECKOUT_SESSION_ID}`.<br>**Mock:** Không redirect sang `paymentUrl` giả; gọi `POST /api/payments/webhook` để giả lập kết quả. |
-| **`Paypal`** | `paymentUrl` = PayPal approval URL thật (`qrCodeUrl = ""`) | `paymentUrl` = URL minh họa; có sẵn `qrCodeUrl` giả lập | **Real:** Redirect sang `paymentUrl` → PayPal chuyển về `returnUrl?token=<PAYPAL_ORDER_ID>&PayerID=...` → **FE bắt buộc gọi `POST /api/payments/paypal/capture` với `{ "orderId": token }`** để chốt tiền.<br>**Mock:** Không redirect sang `paymentUrl` giả và **không** gọi `/paypal/capture` (xem lưu ý bên dưới); dùng `POST /api/payments/webhook` giống `VNPay` / `Stripe`. |
+| **`Paypal`** | `paymentUrl` = PayPal approval URL thật (`qrCodeUrl = ""`) | `paymentUrl` = URL minh họa; có sẵn `qrCodeUrl` giả lập | **Real:** Redirect sang `paymentUrl` → PayPal chuyển về `returnUrl?token=<PAYPAL_ORDER_ID>&PayerID=...` → **FE bắt buộc gọi `POST /api/payments/paypal/capture` với `{ "orderId": token }`** để chốt tiền.<br>**Mock:** Không redirect sang `paymentUrl` giả; có thể gọi `POST /api/payments/paypal/capture` với `{ "orderId": "<paymentId>" }` (hoặc `bookingId` có payment `Pending`), hoặc gọi `POST /api/payments/webhook` giống `VNPay` / `Stripe`. |
 
 > **Lưu ý quan trọng với PayPal:**
 > - Ở **Real mode**, khi PayPal redirect user về `returnUrl?token=<PAYPAL_ORDER_ID>`, giao dịch mới ở trạng thái *Approved* (chưa trừ tiền). FE cần đọc query param `token` và gọi `POST /api/payments/paypal/capture` (body `{ "orderId": token }`, cần JWT) để backend capture đơn PayPal và cập nhật booking sang `Paid`.
-> - Ở **Mock mode**, không gọi `/api/payments/paypal/capture` vì `MockPaymentGateway.CapturePayPalOrderAsync` trả về số tiền `0`, sẽ bị kiểm tra `IsWebhookAmountValid` chặn lại với lỗi `payment.amount_mismatch`. Hãy dùng `POST /api/payments/webhook` ở Bước 3 cho cả 4 phương thức khi test Mock.
+> - Ở **Mock mode**, `POST /api/payments/paypal/capture` với `{ "orderId": "<paymentId>" }` (hoặc `bookingId` có payment `Pending`) tự tra cứu số tiền từ `IPaymentsRepository` nên đi qua bước kiểm tra `IsWebhookAmountValid` và hoàn tất giao dịch bình thường, bên cạnh cách giả lập trực tiếp qua `POST /api/payments/webhook` ở Bước 3.
 
 ---
 

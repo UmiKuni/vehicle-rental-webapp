@@ -1,5 +1,8 @@
+using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Users.Contracts;
 using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -48,69 +51,16 @@ public static class UsersEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/logout", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
+        group.MapPost("/logout", async (RefreshTokenDto dto, ClaimsPrincipal principal, IUsersApi api, CancellationToken ct) =>
         {
-            await api.LogoutAsync(dto.RefreshToken, ct);
+            var (jti, expiresAt) = ExtractTokenRevocationInfo(principal);
+            await api.LogoutAsync(dto.RefreshToken, jti, expiresAt, ct);
             return Results.NoContent();
         })
         .WithName("LogoutUser")
         .RequireAuthorization("UnverifiedUserAllowed")
         .WithSummary("Revoke a refresh token.")
         .Produces(StatusCodes.Status204NoContent);
-
-        // Route aliases for /api/auth/* to support both conventions seamlessly
-        var authGroup = routes.MapGroup("/api/auth").WithTags("Authentication");
-
-        authGroup.MapPost("/register", async (RegisterUserDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.RegisterAsync(dto, ct);
-            return result.ToCreatedHttpResult(u => $"/api/users/{u.UserId}");
-        })
-        .WithName("AuthRegisterUser")
-        .WithSummary("Register a customer account (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status409Conflict);
-
-        authGroup.MapPost("/login", async (LoginUserDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.LoginAsync(dto, ct);
-            return result.ToHttpResult();
-        })
-        .WithName("AuthLoginUser")
-        .WithSummary("Authenticate with email/phone (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
-
-        authGroup.MapPost("/refresh", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            var result = await api.RefreshAsync(dto.RefreshToken, null, ct);
-            return result.ToHttpResult();
-        })
-        .WithName("AuthRefreshUserToken")
-        .WithSummary("Rotate refresh token (alias).")
-        .Produces<AuthResultDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized)
-        .ProducesProblem(StatusCodes.Status400BadRequest);
-
-        authGroup.MapPost("/logout", async (RefreshTokenDto dto, IUsersApi api, CancellationToken ct) =>
-        {
-            await api.LogoutAsync(dto.RefreshToken, ct);
-            return Results.NoContent();
-        })
-        .WithName("AuthLogoutUser")
-        .RequireAuthorization("UnverifiedUserAllowed")
-        .WithSummary("Revoke refresh token (alias).")
-        .Produces(StatusCodes.Status204NoContent);
-
-        authGroup.MapGet("/me", (ClaimsPrincipal principal) =>
-            Results.Ok(BuildCurrentUserDto(principal)))
-        .WithName("AuthGetCurrentUser")
-        .RequireAuthorization("UnverifiedUserAllowed")
-        .WithSummary("Get authenticated user identity (alias).")
-        .Produces<CurrentUserDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         var unverifiedAllowed = group.MapGroup(string.Empty)
             .RequireAuthorization("UnverifiedUserAllowed");
@@ -159,9 +109,19 @@ public static class UsersEndpoints
             VerifyIdDocumentDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.VerifyIdAsync(GetUserId(principal), dto, ct);
+            var actorId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.VerifyIdAsync(actorId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyMyId")
@@ -177,12 +137,22 @@ public static class UsersEndpoints
             VerifyIdDocumentDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+            var actorId = GetUserId(principal);
+            if (userId != actorId && !principal.IsInRole("Admin"))
                 return Results.Forbid();
 
-            var result = await api.VerifyIdAsync(userId, dto, ct);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => userId.ToString(),
+                execute: () => api.VerifyIdAsync(userId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyUserId")
@@ -198,9 +168,19 @@ public static class UsersEndpoints
             VerifyDriverLicenseDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.VerifyDriverLicenseAsync(GetUserId(principal), dto, ct);
+            var actorId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyDriverLicense",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.VerifyDriverLicenseAsync(actorId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: res => new { res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyMyDriverLicense")
@@ -216,17 +196,27 @@ public static class UsersEndpoints
         IFormFile file,
         ClaimsPrincipal principal,
         IUsersApi api,
+        IAuditRecorder auditRecorder,
         CancellationToken ct) =>
         {
-        await using var stream = file.OpenReadStream();
-        var result = await api.UploadIdentityDocumentAsync(
-            GetUserId(principal),
-            type,
-            stream,
-            file.FileName,
-            file.ContentType,
-            ct);
-        return result.ToHttpResult();
+            var actorId = GetUserId(principal);
+            await using var stream = file.OpenReadStream();
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "UploadIdentityDocument",
+                entityName: "User",
+                getEntityId: _ => actorId.ToString(),
+                execute: () => api.UploadIdentityDocumentAsync(
+                    actorId,
+                    type,
+                    stream,
+                    file.FileName,
+                    file.ContentType,
+                    ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(actorId, ct)).Value,
+                captureAfterState: _ => new { DocumentType = type.ToString(), FileName = file.FileName },
+                actorId: actorId,
+                ct: ct);
+            return result.ToHttpResult();
         })
         .DisableAntiforgery()
         .WithName("UploadMyIdentityDocument")
@@ -240,12 +230,22 @@ public static class UsersEndpoints
             VerifyDriverLicenseDto? dto,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            if (userId != GetUserId(principal) && !principal.IsInRole("Admin"))
+            var actorId = GetUserId(principal);
+            if (userId != actorId && !principal.IsInRole("Admin"))
                 return Results.Forbid();
 
-            var result = await api.VerifyDriverLicenseAsync(userId, dto, ct);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "VerifyDriverLicense",
+                entityName: "User",
+                getEntityId: _ => userId.ToString(),
+                execute: () => api.VerifyDriverLicenseAsync(userId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: actorId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("VerifyUserDriverLicense")
@@ -352,9 +352,19 @@ public static class UsersEndpoints
             Guid userId,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.BanAsync(userId, GetUserId(principal), ct);
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "BanUser",
+                entityName: "User",
+                entityId: userId.ToString(),
+                execute: () => api.BanAsync(userId, adminId, ct),
+                captureBeforeState: async () => (await api.GetProfileAsync(userId, ct)).Value,
+                captureAfterState: () => new { Status = "Banned", BannedBy = adminId },
+                actorId: adminId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("BanUser")
@@ -366,14 +376,66 @@ public static class UsersEndpoints
             Guid userId,
             ClaimsPrincipal principal,
             IUsersApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
         {
-            var result = await api.UnbanAsync(userId, GetUserId(principal), ct);
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "UnbanUser",
+                entityName: "User",
+                entityId: userId.ToString(),
+                execute: () => api.UnbanAsync(userId, adminId, ct),
+                captureBeforeState: async () => (await api.GetProfileAsync(userId, ct)).Value,
+                captureAfterState: () => new { Status = "Active", UnbannedBy = adminId },
+                actorId: adminId,
+                ct: ct);
             return result.ToHttpResult();
         })
         .WithName("UnbanUser")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        admin.MapGet("/verifications/pending", async (
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.GetPendingVerificationsAsync(ct);
+            return result.ToHttpResult();
+        })
+        .WithName("GetPendingVerifications")
+        .WithSummary("List all identity documents awaiting verification review (Admin only).")
+        .Produces<IReadOnlyList<PendingVerificationDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        admin.MapPut("/{userId:guid}/documents/{documentId:guid}/verify", async (
+            Guid userId,
+            Guid documentId,
+            ReviewIdentityDocumentDto dto,
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            IAuditRecorder auditRecorder,
+            CancellationToken ct) =>
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "ReviewIdentityDocument",
+                entityName: "IdentityDocument",
+                getEntityId: _ => documentId.ToString(),
+                execute: () => api.ReviewIdentityDocumentAsync(userId, documentId, adminId, dto, ct),
+                captureBeforeState: async () => (await api.GetVerificationStatusAsync(userId, ct)).Value,
+                captureAfterState: res => new { res.IsIdVerified, res.IsDriverLicenseVerified, res.IsVerified },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
+        .WithName("ReviewIdentityDocument")
+        .WithSummary("Approve or reject a user's uploaded identity document (Admin only).")
+        .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
@@ -399,5 +461,16 @@ public static class UsersEndpoints
         return Guid.TryParse(claim, out var userId)
             ? userId
             : throw new UnauthorizedAccessException("The authenticated user identifier is invalid.");
+    }
+
+    private static (string? Jti, DateTimeOffset? ExpiresAt) ExtractTokenRevocationInfo(ClaimsPrincipal principal)
+    {
+        var jti = principal.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        DateTimeOffset? expiresAt = null;
+        var expClaim = principal.FindFirstValue(JwtRegisteredClaimNames.Exp);
+        if (long.TryParse(expClaim, NumberStyles.Integer, CultureInfo.InvariantCulture, out var expSeconds))
+            expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
+
+        return (jti, expiresAt);
     }
 }

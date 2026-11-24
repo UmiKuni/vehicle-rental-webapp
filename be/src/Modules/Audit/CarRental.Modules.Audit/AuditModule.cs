@@ -1,6 +1,8 @@
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Audit.Data;
 using CarRental.Modules.Audit.Data.Repositories;
 using CarRental.Modules.Audit.EventHandlers;
+using CarRental.Modules.Audit.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +22,9 @@ public static class AuditModule
             options.UseNpgsql(connectionString, o =>
                 o.MigrationsHistoryTable("__EFMigrationsHistory", AuditDbContext.Schema)));
 
+        services.AddHttpContextAccessor();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IAuditRecorder, AuditRecorder>();
         services.AddScoped<AuditCommandHandlers>();
 
         return services;

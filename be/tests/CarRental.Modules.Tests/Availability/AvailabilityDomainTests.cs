@@ -134,4 +134,26 @@ public class AvailabilityDomainTests
 
         calendar.Entries.Should().ContainSingle(e => e.BookingId == booking2);
     }
+
+    [Fact]
+    public void MutatingMethods_WithSameTimestamp_ShouldStrictlyAdvanceLastSyncedAt()
+    {
+        var calendar = VehicleCalendar.Create(Guid.NewGuid(), Now);
+        var initialSyncedAt = calendar.LastSyncedAt;
+
+        var bookingId = Guid.NewGuid();
+        var range = DateTimeRange.Create(Now.AddDays(2), Now.AddDays(3)).Value;
+
+        calendar.PlaceHold(bookingId, range, TimeSpan.FromHours(2), Now).IsSuccess.Should().BeTrue();
+        var afterHold = calendar.LastSyncedAt;
+        afterHold.Should().BeAfter(initialSyncedAt);
+
+        calendar.Release(bookingId, Now).IsSuccess.Should().BeTrue();
+        var afterRelease = calendar.LastSyncedAt;
+        afterRelease.Should().BeAfter(afterHold);
+
+        var blockResult = calendar.Block(CalendarEntryType.OwnerBlocked, range, Now, "Maintenance");
+        blockResult.IsSuccess.Should().BeTrue();
+        calendar.LastSyncedAt.Should().BeAfter(afterRelease);
+    }
 }

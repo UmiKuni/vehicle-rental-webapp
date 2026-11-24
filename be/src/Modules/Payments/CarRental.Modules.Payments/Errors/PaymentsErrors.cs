@@ -79,4 +79,7 @@ internal static class PaymentsErrors
 
     public static Error InvalidPayPalOrderId =>
         Error.Validation("payment.invalid_paypal_order_id", "PayPal order ID is required.");
+
+    public static Error ConcurrentOperation =>
+        Error.Conflict("payment.concurrent_operation", "Another payment operation is currently in progress. Please retry.");
 }

@@ -3,8 +3,16 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
 
 // Create axios instance
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
+
+function getLoginPath(pathname: string) {
+  if (pathname.startsWith('/admin')) return '/admin/login'
+  if (pathname.startsWith('/owner')) return '/owner/login'
+  return '/profile/auth'
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api',
+  baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -47,15 +55,20 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const requestPath = originalRequest.url ?? ''
+    const isAuthRequest = /\/users\/(login|register)$|\/auth\/(login|register)$/.test(requestPath)
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !isAuthRequest && !originalRequest._retry) {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
 
       if (!refreshToken) {
         // No refresh token — redirect to login
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
-        if (window.location.pathname !== '/login') window.location.href = '/login'
+        if (!window.location.pathname.endsWith('/login') && window.location.pathname !== '/login') {
+          const loginPath = getLoginPath(window.location.pathname)
+          window.location.href = loginPath
+        }
         return Promise.reject(error)
       }
 
@@ -76,17 +89,24 @@ apiClient.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/users/refresh`,
+          `${API_BASE_URL.replace(/\/$/, '')}/users/refresh`,
           { refreshToken },
           { headers: { 'Content-Type': 'application/json' } }
         )
 
-        const newAccessToken: string = data.data?.accessToken ?? data.accessToken
+        // The backend returns AuthResultDto directly. Accept an envelope too,
+        // but always rotate both tokens together so the next refresh uses the
+        // current refresh token.
+        const authData = data.data ?? data
+        const newAccessToken: unknown = authData?.accessToken
+        const newRefreshToken: unknown = authData?.refreshToken
+        if (typeof newAccessToken !== 'string' || !newAccessToken ||
+            typeof newRefreshToken !== 'string' || !newRefreshToken) {
+          throw new Error('The refresh response did not include both tokens.')
+        }
 
         localStorage.setItem(TOKEN_KEY, newAccessToken)
-        if (data.data?.refreshToken) {
-          localStorage.setItem(REFRESH_TOKEN_KEY, data.data.refreshToken)
-        }
+        localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken)
 
         processQueue(null, newAccessToken)
 
@@ -96,7 +116,8 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null)
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
-        window.location.href = '/login'
+        const loginPath = getLoginPath(window.location.pathname)
+        if (window.location.pathname !== loginPath) window.location.href = loginPath
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

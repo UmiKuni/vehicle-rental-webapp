@@ -28,6 +28,14 @@ internal static class UsersErrors
 
     public static Error DocumentNotFound => Error.NotFound("users.document_not_found", "Identity document not found.");
 
+    public static Error RejectReasonRequired => Error.Validation("users.reject_reason_required", "A reason must be provided when rejecting a document.");
+
+    public static Error InvalidDocumentNumber => Error.Validation("users.invalid_document_number", "National ID (CCCD) number must contain 9 to 12 digits.");
+
+    public static Error InvalidLicenseNumber => Error.Validation("users.invalid_license_number", "Driver's license (GPLX) number must contain 12 digits.");
+
+    public static Error DocumentMissing => Error.Validation("users.document_missing", "Document image must be uploaded before submitting verification.");
+
     public static Error NotFound => Error.NotFound("users.not_found", "User not found");
 
     public static Error Duplicate => Error.Conflict("users.duplicate", "Email or phone already in use");

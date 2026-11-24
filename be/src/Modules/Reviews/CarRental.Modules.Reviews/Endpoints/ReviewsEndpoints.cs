@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CarRental.BuildingBlocks.Results;
+using CarRental.Modules.Audit.Contracts;
 using CarRental.Modules.Reviews.Contracts;
 using CarRental.Modules.Reviews.Contracts.Dtos;
 using Microsoft.AspNetCore.Builder;
@@ -49,8 +50,20 @@ public static class ReviewsEndpoints
             string reason,
             ClaimsPrincipal principal,
             IReviewsApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.HideAsync(reviewId, GetUserId(principal), reason, ct)).ToHttpResult())
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "HideReview",
+                entityName: "Review",
+                entityId: reviewId.ToString(),
+                execute: () => api.HideAsync(reviewId, adminId, reason, ct),
+                captureAfterState: () => new { Status = "Hidden", Reason = reason, HiddenBy = adminId },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
             .RequireAuthorization("AdminOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -60,8 +73,20 @@ public static class ReviewsEndpoints
             Guid reviewId,
             ClaimsPrincipal principal,
             IReviewsApi api,
+            IAuditRecorder auditRecorder,
             CancellationToken ct) =>
-            (await api.RestoreAsync(reviewId, GetUserId(principal), ct)).ToHttpResult())
+        {
+            var adminId = GetUserId(principal);
+            var result = await auditRecorder.ExecuteWithAuditAsync(
+                action: "RestoreReview",
+                entityName: "Review",
+                entityId: reviewId.ToString(),
+                execute: () => api.RestoreAsync(reviewId, adminId, ct),
+                captureAfterState: () => new { Status = "Visible", RestoredBy = adminId },
+                actorId: adminId,
+                ct: ct);
+            return result.ToHttpResult();
+        })
             .RequireAuthorization("AdminOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);

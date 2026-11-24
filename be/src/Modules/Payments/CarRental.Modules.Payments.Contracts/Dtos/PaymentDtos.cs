@@ -72,7 +72,8 @@ public sealed record DepositActionDto(
     decimal OriginalAmount,
     decimal DeductedAmount,
     decimal RefundedAmount,
-    DateTimeOffset Timestamp);
+    DateTimeOffset Timestamp,
+    string? Notes = null);
 
 public sealed record CapturePayPalOrderRequest(string OrderId);
 

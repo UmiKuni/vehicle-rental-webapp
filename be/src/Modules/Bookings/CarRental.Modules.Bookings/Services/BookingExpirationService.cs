@@ -1,9 +1,11 @@
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Bookings.Contracts.Events;
 using CarRental.Modules.Bookings.Data;
 using CarRental.Modules.Bookings.Data.Repositories;
 using CarRental.Modules.Bookings.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,19 +16,23 @@ internal sealed class BookingExpirationService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan PendingHoldDuration = TimeSpan.FromHours(12);
+    private static readonly TimeSpan LeaderLockTtl = TimeSpan.FromSeconds(55);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _clock;
     private readonly ILogger<BookingExpirationService> _logger;
+    private readonly IDistributedLockProvider _lockProvider;
 
     public BookingExpirationService(
         IServiceScopeFactory scopeFactory,
         TimeProvider clock,
-        ILogger<BookingExpirationService> logger)
+        ILogger<BookingExpirationService> logger,
+        IDistributedLockProvider? lockProvider = null)
     {
         _scopeFactory = scopeFactory;
         _clock = clock;
         _logger = logger;
+        _lockProvider = lockProvider ?? new InMemoryDistributedLockProvider();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -51,6 +57,15 @@ internal sealed class BookingExpirationService : BackgroundService
 
     public async Task<int> ExpireOnceAsync(CancellationToken ct = default)
     {
+        await using var leaderLock = await _lockProvider.TryAcquireAsync(
+            "lock:job:booking-expiration",
+            LeaderLockTtl,
+            TimeSpan.Zero,
+            ct);
+
+        if (leaderLock is null)
+            return 0;
+
         using var scope = _scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
         var dbContext = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
@@ -90,7 +105,15 @@ internal sealed class BookingExpirationService : BackgroundService
         if (expired.Count == 0)
             return 0;
 
-        await dbContext.SaveChangesAsync(ct);
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrent booking update prevented expiring {CandidateCount} overdue booking(s); will retry next cycle.", expired.Count);
+            return 0;
+        }
 
         foreach (var (booking, reason) in expired)
         {

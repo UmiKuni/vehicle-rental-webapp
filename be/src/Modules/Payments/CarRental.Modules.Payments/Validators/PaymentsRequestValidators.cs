@@ -61,6 +61,10 @@ internal sealed class DeductDepositRequestValidator : AbstractValidator<DeductDe
             .GreaterThan(0m)
             .WithErrorCode(PaymentsErrors.InvalidDeductAmount.Code)
             .WithMessage(PaymentsErrors.InvalidDeductAmount.Message);
+
+        RuleFor(x => x.Reason)
+            .MaximumLength(500)
+            .When(x => x.Reason is not null);
     }
 }
 

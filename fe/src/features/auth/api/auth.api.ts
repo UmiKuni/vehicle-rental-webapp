@@ -1,6 +1,7 @@
 import apiClient from '@/shared/lib/axios'
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from '@/shared/constants'
-import type { LoginRequest, RegisterRequest, TokenResponse, AuthUser, UserRole } from '@/types/auth.types'
+import { normalizeUserRole } from '@/types/auth.types'
+import type { LoginRequest, RegisterRequest, TokenResponse, AuthUser } from '@/types/auth.types'
 
 interface BackendAuthResult {
   userId: string
@@ -23,14 +24,10 @@ interface BackendProfile {
   fullName: string
 }
 
-function normalizeRole(role: string): UserRole {
-  switch (role.toLowerCase()) {
-    case 'admin': return 'ADMIN'
-    case 'manager': return 'MANAGER'
-    case 'staff': return 'STAFF'
-    case 'owner': return 'CUSTOMER'
-    default: return 'CUSTOMER'
-  }
+function getRole(role: string) {
+  const normalized = normalizeUserRole(role)
+  if (!normalized || normalized === 'GUEST') throw new Error('This account does not have an active customer, owner or admin role.')
+  return normalized
 }
 
 async function loadSession(auth: BackendAuthResult, fullName?: string) {
@@ -45,7 +42,7 @@ async function loadSession(auth: BackendAuthResult, fullName?: string) {
       username: identity.email,
       email: identity.email,
       fullName: fullName || profile.fullName || identity.email,
-      role: normalizeRole(identity.role),
+      role: getRole(identity.role),
     }
     const token: TokenResponse = {
       accessToken: auth.accessToken,
@@ -104,7 +101,7 @@ export const authApi = {
       username: identity.email,
       email: identity.email,
       fullName: profile.fullName || identity.email,
-      role: normalizeRole(identity.role),
+      role: getRole(identity.role),
     }
   },
 }

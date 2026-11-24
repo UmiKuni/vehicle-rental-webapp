@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Bookings.Contracts;
 using CarRental.Modules.Bookings.Data;
@@ -24,6 +25,7 @@ public static class BookingsModule
                 o.MigrationsHistoryTable("__EFMigrationsHistory", BookingDbContext.Schema)));
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IDistributedLockProvider, InMemoryDistributedLockProvider>();
         services.AddValidatorsFromAssembly(typeof(BookingsModule).Assembly);
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IBookingApi, BookingApiService>();

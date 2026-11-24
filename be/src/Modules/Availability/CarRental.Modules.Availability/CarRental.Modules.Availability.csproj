@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\Fleet\CarRental.Modules.Fleet.Contracts\CarRental.Modules.Fleet.Contracts.csproj" />
     <ProjectReference Include="..\..\Bookings\CarRental.Modules.Bookings.Contracts\CarRental.Modules.Bookings.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\CarRental.BuildingBlocks\CarRental.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Audit\CarRental.Modules.Audit.Contracts\CarRental.Modules.Audit.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

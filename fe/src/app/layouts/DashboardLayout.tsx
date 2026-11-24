@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ArrowLeft, CarFront, ChevronRight, Layers3, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react'
+import { ArrowLeft, CarFront, ChevronRight, Layers3, LayoutDashboard, LogOut, ShieldCheck, Users, ScrollText } from 'lucide-react'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { getInitials } from '@/shared/utils'
 import { APP_NAME, ROUTES } from '@/shared/constants'
@@ -21,6 +21,10 @@ const navigation = [
     label: 'ACCESS MANAGEMENT',
     items: [{ to: ROUTES.USERS, label: 'User access', icon: Users, end: false }],
   },
+  {
+    label: 'SECURITY',
+    items: [{ to: ROUTES.AUDIT, label: 'Audit log', icon: ScrollText, end: false }],
+  },
 ]
 
 const pageNames: Record<string, string> = {
@@ -28,6 +32,7 @@ const pageNames: Record<string, string> = {
   [ROUTES.ADMIN_VEHICLES]: 'Fleet vehicles',
   [ROUTES.ADMIN_CATALOG]: 'Vehicle catalog',
   [ROUTES.USERS]: 'User access',
+  [ROUTES.AUDIT]: 'Audit log',
 }
 
 export function DashboardLayout() {

@@ -1,12 +1,17 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import type { ReactNode } from 'react'
+import { normalizeUserRole } from '@/types/auth.types'
 import type { AuthState, AuthUser } from '@/types/auth.types'
 import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/shared/constants'
 import { safeBase64Decode } from '@/shared/utils'
+import { authApi } from '@/features/auth/api/auth.api'
+import { getErrorMessage } from '@/shared/lib/query-client'
+import { toast } from 'sonner'
 
 interface AuthContextValue extends AuthState {
   login: (user: AuthUser, accessToken: string, refreshToken: string) => void
-  logout: () => void
+  logout: () => Promise<void>
   updateUser: (user: AuthUser) => void
 }
 
@@ -33,16 +38,16 @@ function parseUserFromToken(): AuthUser | null {
     }
 
     const email = payload.email ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ?? ''
-    const role = payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? 'Customer'
+    const role = normalizeUserRole(payload.role ?? payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'])
     const id = payload.sub ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-    if (!id) return null
+    if (!id || !role || role === 'GUEST') return null
 
     return {
       id,
       username: email,
       email,
       fullName: email.split('@')[0] || 'Customer',
-      role: String(role).toUpperCase() as AuthUser['role'],
+      role,
     }
   } catch {
     return null
@@ -51,21 +56,48 @@ function parseUserFromToken(): AuthUser | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => parseUserFromToken())
-  const isLoading = false
+  const [isLoading, setIsLoading] = useState(() => Boolean(
+    localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
+  ))
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOKEN_KEY) && !localStorage.getItem(REFRESH_TOKEN_KEY)) return
+    let active = true
+    authApi.getMe()
+      .then((currentUser) => { if (active) setUser(currentUser) })
+      .catch((error: unknown) => {
+        if (!active) return
+        const status = isAxiosError(error) ? error.response?.status : undefined
+        if (status === 401 || status === 403) {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(REFRESH_TOKEN_KEY)
+          setUser(null)
+        }
+      })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
+  }, [])
 
   const login = useCallback(
     (newUser: AuthUser, accessToken: string, refreshToken: string) => {
       localStorage.setItem(TOKEN_KEY, accessToken)
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
       setUser(newUser)
+      setIsLoading(false)
     },
     []
   )
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    setUser(null)
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout()
+    } catch (error) {
+      toast.error(`Server sign-out failed: ${getErrorMessage(error)}`)
+    } finally {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      setUser(null)
+    }
   }, [])
 
   const updateUser = useCallback((updatedUser: AuthUser) => {

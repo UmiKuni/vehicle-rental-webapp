@@ -1,3 +1,4 @@
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Validation;
 using CarRental.Modules.Availability.Contracts;
 using CarRental.Modules.Availability.Data;
@@ -27,6 +28,7 @@ public static class AvailabilityModule
             }));
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IDistributedLockProvider, InMemoryDistributedLockProvider>();
         services.AddValidatorsFromAssembly(typeof(AvailabilityModule).Assembly);
         services.AddScoped<IVehicleCalendarRepository, VehicleCalendarRepository>();
         services.AddScoped<IAvailabilityApi, AvailabilityApiService>();

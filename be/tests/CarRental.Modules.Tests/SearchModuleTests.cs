@@ -280,4 +280,20 @@ public class SearchModuleTests
         // If no unhandled exception occurred, consumers completed successfully
         Assert.True(true);
     }
+
+    [Fact]
+    public void SearchCacheKeys_BuildQueryKey_ShouldBeDeterministicAndVersionScoped()
+    {
+        var req1 = new VehicleSearchRequest(Brand: " Toyota ", Model: "Vios", Seats: 5, Page: 1, PageSize: 20);
+        var req2 = new VehicleSearchRequest(Brand: "toyota", Model: " vios ", Seats: 5, Page: 1, PageSize: 20);
+
+        var keyV0A = SearchCacheKeys.BuildQueryKey(0, req1);
+        var keyV0B = SearchCacheKeys.BuildQueryKey(0, req2);
+        var keyV1 = SearchCacheKeys.BuildQueryKey(1, req1);
+
+        keyV0A.Should().Be(keyV0B);
+        keyV0A.Should().StartWith("search:v0:");
+        keyV1.Should().StartWith("search:v1:");
+        keyV1.Should().NotBe(keyV0A);
+    }
 }

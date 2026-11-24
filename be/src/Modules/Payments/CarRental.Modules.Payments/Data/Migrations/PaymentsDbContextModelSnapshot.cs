@@ -37,6 +37,11 @@ namespace CarRental.Modules.Payments.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_frozen");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
                     b.Property<DateTimeOffset?>("ReleaseAfter")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("release_after");

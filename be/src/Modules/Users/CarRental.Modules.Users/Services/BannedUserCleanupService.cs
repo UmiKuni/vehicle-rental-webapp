@@ -33,6 +33,8 @@ namespace CarRental.Modules.Users.Services
             {
                 try
                 {
+                    await Task.Delay(_interval, _clock, stoppingToken);
+
                     using var scope = _scopeFactory.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
                     // Placeholder logic: fetch banned users older than 30 days and log.
@@ -46,12 +48,14 @@ namespace CarRental.Modules.Users.Services
                         // Real cleanup could delete or archive; omitted for safety.
                     }
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error during BannedUserCleanupService execution.");
                 }
-
-                await Task.Delay(_interval, stoppingToken);
             }
             _logger.LogInformation("BannedUserCleanupService stopping.");
         }

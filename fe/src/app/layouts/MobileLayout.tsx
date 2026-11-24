@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
-import { User, ShieldCheck, Car, House, CalendarDays, Bell } from 'lucide-react'
+import { User, ShieldCheck, Car, House, CalendarDays, Bell, CarFront } from 'lucide-react'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
@@ -8,9 +8,15 @@ import { useAuth } from '@/shared/contexts/AuthContext'
 function BottomNav() {
   const location = useLocation()
   const { user } = useAuth()
-  const { data: kyc } = useKycStatus(!!user)
-  const isUnverified = user && (!kyc || kyc.status === 'UNVERIFIED')
-  const navItems = [
+  const { data: kyc } = useKycStatus(user?.role === 'CUSTOMER')
+  const isUnverified = user?.role === 'CUSTOMER' && (!kyc || kyc.status === 'UNVERIFIED')
+  const navItems = user?.role === 'OWNER' ? [
+    { to: ROUTES.HOME, icon: House, label: 'Home' },
+    { to: ROUTES.SEARCH, icon: Car, label: 'Browse' },
+    { to: ROUTES.OWNER_DASHBOARD, icon: CarFront, label: 'Workspace' },
+    { to: ROUTES.OWNER_VEHICLES, icon: CalendarDays, label: 'Fleet' },
+    { to: ROUTES.PROFILE, icon: User, label: 'Account' },
+  ] : [
     { to: ROUTES.HOME, icon: House, label: 'Home' },
     { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
     { to: ROUTES.BOOKINGS, icon: CalendarDays, label: 'Trips' },
@@ -25,9 +31,9 @@ function BottomNav() {
           <NavLink
             key={to}
             to={to}
-              end={to === ROUTES.HOME || to === ROUTES.PROFILE || to === ROUTES.BOOKINGS || to === ROUTES.NOTIFICATIONS}
+              end={to === ROUTES.HOME || to === ROUTES.PROFILE || to === ROUTES.BOOKINGS || to === ROUTES.NOTIFICATIONS || to === ROUTES.OWNER_DASHBOARD || to === ROUTES.OWNER_VEHICLES}
             className={({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
                 itemIsActive
@@ -37,7 +43,7 @@ function BottomNav() {
             }}
           >
             {({ isActive }) => {
-              const itemIsActive = isActive || (label === 'Search' && location.pathname.startsWith('/vehicles/')) || (label === 'Profile' && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return <>
                 <div className="relative">
                   <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />
@@ -68,11 +74,12 @@ function BottomNav() {
 export function MobileLayout() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
+  const isOwner = user?.role === 'OWNER'
 
   return (
     <div className="min-h-dvh w-full overflow-x-clip bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
       {/* Admins can switch portals without mixing the mobile and admin navigation. */}
-      {isAdmin && (
+      {(isAdmin || isOwner) && (
         <header className="bg-zinc-900 border-b border-zinc-800 text-white px-4 py-2 sticky top-0 z-40 text-xs">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
@@ -83,8 +90,8 @@ export function MobileLayout() {
               to={ROUTES.ADMIN}
               className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold"
             >
-              <ShieldCheck className="size-3" />
-              Admin workspace
+              {isAdmin ? <ShieldCheck className="size-3" /> : <CarFront className="size-3" />}
+              {isAdmin ? 'Admin workspace' : 'Owner workspace'}
             </Link>
           </div>
         </header>

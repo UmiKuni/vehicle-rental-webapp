@@ -227,6 +227,7 @@ public class ReportingEventHandlerTests
 
         harness.Stats[ExpectedBucketDate].TotalRevenue.Should().Be(1_500_000m);
         projection.PaidAmount.Should().Be(1_500_000m);
+        projection.RefundedAmount.Should().Be(1_000_000m);
         harness.DbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
         // Replay -> idempotent
@@ -239,6 +240,7 @@ public class ReportingEventHandlerTests
 
         harness.Stats[ExpectedBucketDate].TotalRevenue.Should().Be(1_500_000m);
         projection.PaidAmount.Should().Be(1_500_000m);
+        projection.RefundedAmount.Should().Be(1_000_000m);
         harness.DbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

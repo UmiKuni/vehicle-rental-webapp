@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Expand, X } from 'lucide-react'
+import { CarFront, ChevronLeft, ChevronRight, Expand, X } from 'lucide-react'
 import type { Vehicle } from '@/types/vehicle.types'
 
 export function VehicleGallery({ vehicle }: { vehicle: Vehicle }) {
@@ -32,6 +32,8 @@ export function VehicleGallery({ vehicle }: { vehicle: Vehicle }) {
     }
     setTouchStartX(null)
   }
+
+  if (!image) return <div className="vehicle-gallery grid place-items-center bg-muted text-muted-foreground" role="img" aria-label="No vehicle photos are available"><CarFront size={56} /><span className="sr-only">No vehicle photos are available</span></div>
 
   return (
     <>

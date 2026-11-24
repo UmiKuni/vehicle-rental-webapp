@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import type { UserRole } from '@/types/auth.types'
-import { CUSTOMER_ROLES } from '@/types/auth.types'
+import { CUSTOMER_ROLES, OWNER_ROLES } from '@/types/auth.types'
 import { ROUTES } from '@/shared/constants'
 
 interface ProtectedRouteProps {
@@ -26,8 +26,9 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   // Role-based guard: if specific roles required, redirect if user doesn't match
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // CUSTOMER redirects to profile, staff/admin redirects to dashboard
-    const fallback = CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
+    const fallback = user.role === 'OWNER'
+      ? ROUTES.OWNER_DASHBOARD
+      : CUSTOMER_ROLES.includes(user.role) ? ROUTES.PROFILE : ROUTES.DASHBOARD
     return <Navigate to={fallback} replace />
   }
 
@@ -119,5 +120,24 @@ export function AdminLoginRoute() {
   }
 
   if (isAuthenticated && user?.role === 'ADMIN') return <Navigate to={ROUTES.DASHBOARD} replace />
+  return <Outlet />
+}
+
+/** Owner workspace pages are isolated from customer and admin routes. */
+export function OwnerRoute() {
+  return <ProtectedRoute allowedRoles={OWNER_ROLES} />
+}
+
+export function OwnerEntryRoute() {
+  const { isAuthenticated, isLoading, user } = useAuth()
+  if (isLoading) return <div className="flex min-h-dvh items-center justify-center"><div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+  if (isAuthenticated && user?.role === 'OWNER') return <Navigate to={ROUTES.OWNER_DASHBOARD} replace />
+  return <Navigate to={ROUTES.OWNER_LOGIN} replace />
+}
+
+export function OwnerLoginRoute() {
+  const { isAuthenticated, isLoading, user } = useAuth()
+  if (isLoading) return <div className="flex min-h-dvh items-center justify-center"><div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+  if (isAuthenticated && user?.role === 'OWNER') return <Navigate to={ROUTES.OWNER_DASHBOARD} replace />
   return <Outlet />
 }

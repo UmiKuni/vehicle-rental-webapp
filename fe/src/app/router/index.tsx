@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants'
-import { ProtectedRoute, AdminEntryRoute, AdminLoginRoute, AdminRoute } from './ProtectedRoute'
+import { ProtectedRoute, AdminEntryRoute, AdminLoginRoute, AdminRoute, OwnerEntryRoute, OwnerLoginRoute, OwnerRoute } from './ProtectedRoute'
 import { DashboardLayout } from '@/app/layouts/DashboardLayout'
 import { MobileLayout } from '@/app/layouts/MobileLayout'
 
@@ -12,7 +12,6 @@ const AuthPage = lazy(() => import('@/features/auth/pages/AuthPage'))
 const DashboardPage    = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 const NotFoundPage     = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 const ProfilePage      = lazy(() => import('@/features/profile/pages/ProfilePage'))
-const KycWizardPage    = lazy(() => import('@/features/profile/pages/KycWizardPage'))
 const ProfileEditPage  = lazy(() => import('@/features/profile/pages/ProfileEditPage'))
 const VerificationTermsPage = lazy(() => import('@/features/profile/pages/VerificationTermsPage'))
 const IdentityVerificationPage = lazy(() => import('@/features/profile/pages/IdentityVerificationPage'))
@@ -30,6 +29,11 @@ const NotificationsPage = lazy(() => import('@/features/notifications/pages/Noti
 const AdminVehiclesPage = lazy(() => import('@/features/admin/pages/AdminVehiclesPage'))
 const AdminCatalogPage = lazy(() => import('@/features/admin/pages/AdminCatalogPage'))
 const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'))
+const AuditLogPage = lazy(() => import('@/features/admin/pages/AuditLogPage'))
+const OwnerDashboardPage = lazy(() => import('@/features/owner/pages/OwnerDashboardPage'))
+const OwnerBookingsPage = lazy(() => import('@/features/owner/pages/OwnerBookingsPage'))
+const OwnerVehiclesPage = lazy(() => import('@/features/owner/pages/OwnerVehiclesPage'))
+const OwnerLayout = lazy(() => import('@/app/layouts/OwnerLayout').then((module) => ({ default: module.OwnerLayout })))
 
 function PageLoader() {
   return (
@@ -56,6 +60,22 @@ const router = createBrowserRouter([
   { path: ROUTES.LOGIN, element: wrap(LoginPage) },
   { path: ROUTES.REGISTER, element: wrap(RegisterPage) },
   { path: ROUTES.ADMIN, element: <AdminEntryRoute /> },
+  { path: ROUTES.OWNER, element: <OwnerEntryRoute /> },
+  { path: ROUTES.OWNER_LOGIN, element: <OwnerLoginRoute />, children: [{ index: true, element: wrap(LoginPage) }] },
+
+  {
+    element: <OwnerRoute />,
+    children: [{
+      element: <Suspense fallback={<PageLoader />}><OwnerLayout /></Suspense>,
+      children: [
+        { path: ROUTES.OWNER_DASHBOARD, element: wrap(OwnerDashboardPage) },
+        { path: ROUTES.OWNER_BOOKINGS, element: wrap(OwnerBookingsPage) },
+        { path: ROUTES.OWNER_VEHICLES, element: wrap(OwnerVehiclesPage) },
+        { path: '/owner/bookings/:bookingId/pickup', element: wrap(HandoverPage) },
+        { path: '/owner/bookings/:bookingId/return', element: wrap(HandoverPage) },
+      ],
+    }],
+  },
 
   // Keep existing bookmarks working as the admin URLs move under /admin.
   { path: '/dashboard', element: <Navigate to={ROUTES.DASHBOARD} replace /> },
@@ -75,6 +95,7 @@ const router = createBrowserRouter([
           { path: ROUTES.ADMIN_VEHICLES, element: wrap(AdminVehiclesPage) },
           { path: ROUTES.ADMIN_CATALOG, element: wrap(AdminCatalogPage) },
           { path: ROUTES.USERS, element: wrap(AdminUsersPage) },
+          { path: ROUTES.AUDIT, element: wrap(AuditLogPage) },
         ],
       },
     ],
@@ -96,9 +117,9 @@ const router = createBrowserRouter([
         element: wrap(VehicleDetailPage),
       },
 
-      // 2. PROTECTED: Login required to view trips and profile
+      // Customer booking/payment flows are not available in the owner portal.
       {
-        element: <ProtectedRoute />,
+        element: <ProtectedRoute allowedRoles={['CUSTOMER']} />,
         children: [
           { path: ROUTES.BOOKINGS, element: wrap(MyBookingsPage) },
           { path: '/booking/:bookingId', element: wrap(BookingDetailPage) },
@@ -108,7 +129,17 @@ const router = createBrowserRouter([
           { path: '/bookings/:bookingId/pickup', element: wrap(HandoverPage) },
           { path: '/bookings/:bookingId/return', element: wrap(HandoverPage) },
           { path: '/bookings/:bookingId/settlement', element: wrap(SettlementPage) },
+        ],
+      },
+      {
+        element: <ProtectedRoute allowedRoles={['CUSTOMER']} />,
+        children: [
           { path: ROUTES.NOTIFICATIONS, element: wrap(NotificationsPage) },
+        ],
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [
           { path: ROUTES.PROFILE,  element: wrap(ProfilePage) },
           { path: ROUTES.PROFILE_EDIT, element: wrap(ProfileEditPage) },
         ],
@@ -118,12 +149,12 @@ const router = createBrowserRouter([
 
   // ── KYC wizard: full-screen, protected ──────────────────────────────────────
   {
-    element: <ProtectedRoute />,
+    element: <ProtectedRoute allowedRoles={['CUSTOMER']} />,
     children: [
       { path: ROUTES.PROFILE_VERIFY, element: wrap(VerificationTermsPage) },
       { path: ROUTES.VERIFY_IDENTITY, element: wrap(IdentityVerificationPage) },
       { path: ROUTES.VERIFY_LICENSE, element: wrap(LicenseVerificationPage) },
-      { path: '/profile/verify', element: wrap(KycWizardPage) },
+      { path: '/profile/verify', element: <Navigate to={ROUTES.PROFILE_VERIFY} replace /> },
     ],
   },
 

@@ -1,5 +1,6 @@
 using CarRental.Modules.Search.Errors;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Search.Contracts;
 using CarRental.Modules.Search.Contracts.Dtos;
@@ -11,10 +12,12 @@ namespace CarRental.Modules.Search.Services;
 public sealed class SearchApiService : ISearchApi
 {
     private readonly SearchDbContext _dbContext;
+    private readonly ICacheService? _cacheService;
 
-    public SearchApiService(SearchDbContext dbContext)
+    public SearchApiService(SearchDbContext dbContext, ICacheService? cacheService = null)
     {
         _dbContext = dbContext;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<PagedVehicleSearchResultDto>> SearchVehiclesAsync(
@@ -44,6 +47,16 @@ public sealed class SearchApiService : ISearchApi
                 return Result.Failure<PagedVehicleSearchResultDto>(centerResult.Error);
 
             center = centerResult.Value;
+        }
+
+        string? cacheKey = null;
+        if (_cacheService is not null)
+        {
+            var version = await _cacheService.GetVersionAsync(SearchCacheKeys.VersionKey, ct);
+            cacheKey = SearchCacheKeys.BuildQueryKey(version, request);
+            var cached = await _cacheService.GetAsync<PagedVehicleSearchResultDto>(cacheKey, ct);
+            if (cached is not null)
+                return Result.Success(cached);
         }
 
         var query = _dbContext.VehicleSearchDocuments
@@ -97,12 +110,17 @@ public sealed class SearchApiService : ISearchApi
             .Select(item => ToDto(item.Document, item.DistanceKm))
             .ToList();
 
-        return Result.Success(new PagedVehicleSearchResultDto(
+        var resultDto = new PagedVehicleSearchResultDto(
             items,
             request.Page,
             request.PageSize,
             totalCount,
-            (int)Math.Ceiling(totalCount / (double)request.PageSize)));
+            (int)Math.Ceiling(totalCount / (double)request.PageSize));
+
+        if (_cacheService is not null && cacheKey is not null)
+            await _cacheService.SetAsync(cacheKey, resultDto, SearchCacheKeys.SearchTtl, ct);
+
+        return Result.Success(resultDto);
     }
 
     private static VehicleSearchResultDto ToDto(

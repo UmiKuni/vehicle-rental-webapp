@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CarRental.BuildingBlocks.Domain.ValueObjects;
 using CarRental.BuildingBlocks.Messaging;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Bookings.Contracts;
 using CarRental.Modules.Payments.Contracts;
@@ -12,11 +13,17 @@ using CarRental.Modules.Payments.Data.Repositories;
 using CarRental.Modules.Payments.Entities;
 using CarRental.Modules.Payments.Errors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CarRental.Modules.Payments.Services;
 
 internal sealed class PaymentsApiService : IPaymentsApi
 {
+    private static readonly TimeSpan BookingLockTtl = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan RefundLockTtl = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan LockWaitTimeout = TimeSpan.FromSeconds(3);
+
     private readonly PaymentsDbContext _dbContext;
     private readonly IPaymentsRepository _repository;
     private readonly IBookingApi _bookingApi;
@@ -24,6 +31,8 @@ internal sealed class PaymentsApiService : IPaymentsApi
     private readonly IEventOutbox _outbox;
     private readonly TimeProvider _clock;
     private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly IDistributedLockProvider? _lockProvider;
+    private readonly ILogger<PaymentsApiService> _logger;
 
     public PaymentsApiService(
         PaymentsDbContext dbContext,
@@ -32,7 +41,9 @@ internal sealed class PaymentsApiService : IPaymentsApi
         IPaymentGateway gateway,
         IEventOutbox outbox,
         TimeProvider clock,
-        IHttpContextAccessor? httpContextAccessor = null)
+        IHttpContextAccessor? httpContextAccessor = null,
+        IDistributedLockProvider? lockProvider = null,
+        ILogger<PaymentsApiService>? logger = null)
     {
         _dbContext = dbContext;
         _repository = repository;
@@ -41,6 +52,8 @@ internal sealed class PaymentsApiService : IPaymentsApi
         _outbox = outbox;
         _clock = clock;
         _httpContextAccessor = httpContextAccessor;
+        _lockProvider = lockProvider;
+        _logger = logger ?? NullLogger<PaymentsApiService>.Instance;
     }
 
     public async Task<Result<PaymentCheckoutDto>> CreateCheckoutAsync(
@@ -189,6 +202,14 @@ internal sealed class PaymentsApiService : IPaymentsApi
         if (!Guid.TryParse(request.OrderId, out var orderGuid) || orderGuid == Guid.Empty)
             return PaymentsErrors.WebhookInvalidOrder;
 
+        var bookingId = await ResolveBookingIdForOrderAsync(orderGuid, ct);
+        await using var bookingLock = await TryAcquireBookingLockAsync(bookingId, ct);
+        if (_lockProvider is not null && bookingLock is null)
+            return PaymentsErrors.ConcurrentOperation;
+
+        if (await _repository.HasWebhookBeenProcessedAsync(transactionId, ct))
+            return new PaymentWebhookResponseDto(true, "Webhook already processed.");
+
         var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
                       ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
 
@@ -228,16 +249,33 @@ internal sealed class PaymentsApiService : IPaymentsApi
         if (notification.IsIgnored)
             return new PaymentWebhookResponseDto(true, notification.IgnoredReason ?? "Webhook event ignored.");
 
-        if (!string.IsNullOrWhiteSpace(notification.OrderIdToCapture))
+        IDistributedLockHandle? preCaptureLock = null;
+        try
         {
-            var captureResult = await _gateway.CapturePayPalOrderAsync(notification.OrderIdToCapture, ct);
-            if (captureResult.IsFailure)
-                return captureResult.Error;
+            if (Guid.TryParse(notification.OrderId, out var preOrderGuid) && preOrderGuid != Guid.Empty)
+            {
+                var bookingId = await ResolveBookingIdForOrderAsync(preOrderGuid, ct);
+                preCaptureLock = await TryAcquireBookingLockAsync(bookingId, ct);
+                if (_lockProvider is not null && preCaptureLock is null)
+                    return PaymentsErrors.ConcurrentOperation;
+            }
 
-            notification = captureResult.Value;
+            if (!string.IsNullOrWhiteSpace(notification.OrderIdToCapture))
+            {
+                var captureResult = await _gateway.CapturePayPalOrderAsync(notification.OrderIdToCapture, ct);
+                if (captureResult.IsFailure)
+                    return captureResult.Error;
+
+                notification = captureResult.Value;
+            }
+
+            return await ProcessGatewayNotificationAsync(notification, lockAlreadyHeld: preCaptureLock is not null, ct);
         }
-
-        return await ProcessGatewayNotificationAsync(notification, ct);
+        finally
+        {
+            if (preCaptureLock is not null)
+                await preCaptureLock.DisposeAsync();
+        }
     }
 
     public async Task<Result<PaymentDetailDto>> CapturePayPalOrderAsync(
@@ -259,6 +297,11 @@ internal sealed class PaymentsApiService : IPaymentsApi
 
         if (!Guid.TryParse(notification.OrderId, out var orderGuid) || orderGuid == Guid.Empty)
             return PaymentsErrors.WebhookInvalidOrder;
+
+        var bookingId = await ResolveBookingIdForOrderAsync(orderGuid, ct);
+        await using var bookingLock = await TryAcquireBookingLockAsync(bookingId, ct);
+        if (_lockProvider is not null && bookingLock is null)
+            return PaymentsErrors.ConcurrentOperation;
 
         var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
                       ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
@@ -306,6 +349,10 @@ internal sealed class PaymentsApiService : IPaymentsApi
         string reason,
         CancellationToken ct = default)
     {
+        await using var refundLock = await TryAcquireRefundLockAsync(paymentId, ct);
+        if (_lockProvider is not null && refundLock is null)
+            return PaymentsErrors.ConcurrentOperation;
+
         var paymentResult = await GetPaymentOrFailAsync(paymentId, ct);
         if (paymentResult.IsFailure)
             return paymentResult.Error;
@@ -391,7 +438,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             return authResult.Error;
 
         var now = _clock.GetUtcNow();
-        var releaseResult = deposit.Release(now);
+        var releaseResult = deposit.Release(now, note);
         if (releaseResult.IsFailure)
             return releaseResult.Error;
 
@@ -421,7 +468,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             return deductMoneyResult.Error;
 
         var now = _clock.GetUtcNow();
-        var deductResult = deposit.Deduct(deductMoneyResult.Value, now);
+        var deductResult = deposit.Deduct(deductMoneyResult.Value, now, reason);
         if (deductResult.IsFailure)
             return deductResult.Error;
 
@@ -483,43 +530,62 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.DeductedAmount.Amount,
             deposit.IsFrozen,
             deposit.ReleaseAfter,
-            deposit.SettledAt);
+            deposit.SettledAt,
+            deposit.Notes);
     }
 
     private async Task<Result<PaymentWebhookResponseDto>> ProcessGatewayNotificationAsync(
         GatewayWebhookNotification notification,
+        bool lockAlreadyHeld,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(notification.TransactionId))
             return PaymentsErrors.InvalidTransactionId;
 
         var transactionId = notification.TransactionId.Trim();
-        if (await _repository.HasWebhookBeenProcessedAsync(transactionId, ct))
-            return new PaymentWebhookResponseDto(true, "Webhook already processed.");
-
         if (!Guid.TryParse(notification.OrderId, out var orderGuid) || orderGuid == Guid.Empty)
             return PaymentsErrors.WebhookInvalidOrder;
 
-        var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
-                      ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
-
-        if (payment is null)
-            return PaymentsErrors.PaymentNotFound;
-
-        if (!_gateway.IsWebhookAmountValid(
-                payment.Method,
-                payment.Amount.Amount,
-                payment.Amount.Currency,
-                notification.Amount,
-                notification.Currency))
+        IDistributedLockHandle? bookingLock = null;
+        try
         {
-            return PaymentsErrors.AmountMismatch;
-        }
+            if (!lockAlreadyHeld)
+            {
+                var bookingId = await ResolveBookingIdForOrderAsync(orderGuid, ct);
+                bookingLock = await TryAcquireBookingLockAsync(bookingId, ct);
+                if (_lockProvider is not null && bookingLock is null)
+                    return PaymentsErrors.ConcurrentOperation;
+            }
 
-        var now = _clock.GetUtcNow();
-        return notification.IsSuccess
-            ? await HandleWebhookSuccessAsync(payment, transactionId, notification.RawPayloadJson, now, ct)
-            : await HandleWebhookFailureAsync(payment, transactionId, notification.ResponseCode, notification.RawPayloadJson, now, ct);
+            if (await _repository.HasWebhookBeenProcessedAsync(transactionId, ct))
+                return new PaymentWebhookResponseDto(true, "Webhook already processed.");
+
+            var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
+                          ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
+
+            if (payment is null)
+                return PaymentsErrors.PaymentNotFound;
+
+            if (!_gateway.IsWebhookAmountValid(
+                    payment.Method,
+                    payment.Amount.Amount,
+                    payment.Amount.Currency,
+                    notification.Amount,
+                    notification.Currency))
+            {
+                return PaymentsErrors.AmountMismatch;
+            }
+
+            var now = _clock.GetUtcNow();
+            return notification.IsSuccess
+                ? await HandleWebhookSuccessAsync(payment, transactionId, notification.RawPayloadJson, now, ct)
+                : await HandleWebhookFailureAsync(payment, transactionId, notification.ResponseCode, notification.RawPayloadJson, now, ct);
+        }
+        finally
+        {
+            if (bookingLock is not null)
+                await bookingLock.DisposeAsync();
+        }
     }
 
     private async Task<Result<Payment>> GetOrCreatePendingPaymentAsync(
@@ -530,6 +596,10 @@ internal sealed class PaymentsApiService : IPaymentsApi
         DateTimeOffset now,
         CancellationToken ct)
     {
+        await using var bookingLock = await TryAcquireBookingLockAsync(bookingId, ct);
+        if (_lockProvider is not null && bookingLock is null)
+            return PaymentsErrors.ConcurrentOperation;
+
         var existing = await _repository.GetPendingPaymentByBookingIdAsync(bookingId, ct);
         if (existing is not null)
         {
@@ -746,7 +816,7 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.Status.ToString(),
             deposit.DeductedAmount.Amount,
             CalculateRefundedAmount(deposit),
-            deposit.IsFrozen ? "Deposit is frozen pending dispute resolution." : null,
+            deposit.IsFrozen ? "Deposit is frozen pending dispute resolution." : deposit.Notes,
             deposit.SettledAt ?? now);
 
     private static DepositActionDto MapDepositAction(Deposit deposit, DateTimeOffset timestamp) =>
@@ -756,7 +826,8 @@ internal sealed class PaymentsApiService : IPaymentsApi
             deposit.Amount.Amount,
             deposit.DeductedAmount.Amount,
             CalculateRefundedAmount(deposit),
-            deposit.SettledAt ?? timestamp);
+            deposit.SettledAt ?? timestamp,
+            deposit.Notes);
 
     private static decimal CalculateRefundedAmount(Deposit deposit) => deposit.Status switch
     {
@@ -764,4 +835,52 @@ internal sealed class PaymentsApiService : IPaymentsApi
         DepositStatus.Deducted => Math.Max(0m, deposit.Amount.Amount - deposit.DeductedAmount.Amount),
         _ => 0m
     };
+
+    private async Task<Guid> ResolveBookingIdForOrderAsync(Guid orderGuid, CancellationToken ct)
+    {
+        if (_lockProvider is null)
+            return orderGuid;
+
+        var payment = await _repository.GetPaymentByIdAsync(PaymentId.From(orderGuid), ct)
+                      ?? await _repository.GetPendingPaymentByBookingIdAsync(orderGuid, ct);
+        var bookingId = payment?.BookingId ?? orderGuid;
+        if (payment is not null)
+            _dbContext?.ChangeTracker.Clear();
+
+        return bookingId;
+    }
+
+    private async Task<IDistributedLockHandle?> TryAcquireBookingLockAsync(Guid bookingId, CancellationToken ct)
+    {
+        if (_lockProvider is null)
+            return null;
+
+        var handle = await _lockProvider.TryAcquireAsync(
+            $"lock:payments:booking:{bookingId:N}",
+            BookingLockTtl,
+            LockWaitTimeout,
+            ct);
+
+        if (handle is null)
+            _logger.LogWarning("Timed out acquiring payment booking lock for Booking {BookingId}.", bookingId);
+
+        return handle;
+    }
+
+    private async Task<IDistributedLockHandle?> TryAcquireRefundLockAsync(Guid paymentId, CancellationToken ct)
+    {
+        if (_lockProvider is null)
+            return null;
+
+        var handle = await _lockProvider.TryAcquireAsync(
+            $"lock:payments:refund:{paymentId:N}",
+            RefundLockTtl,
+            LockWaitTimeout,
+            ct);
+
+        if (handle is null)
+            _logger.LogWarning("Timed out acquiring payment refund lock for Payment {PaymentId}.", paymentId);
+
+        return handle;
+    }
 }

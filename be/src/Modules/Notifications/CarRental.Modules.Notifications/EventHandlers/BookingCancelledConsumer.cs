@@ -18,6 +18,13 @@ public sealed class BookingCancelledConsumer(NotificationDeliveryService notific
             $"booking-cancelled:{@event.EventId}:{@event.CustomerId}",
             @event.OccurredAt,
             cancellationToken);
+        await notifications.CreateAndDeliverAsync(
+            @event.CustomerId,
+            NotificationType.InApp,
+            $"Booking cancelled: {@event.Reason}. Refundable amount: {@event.RefundableAmount}.",
+            $"inapp:booking-cancelled:{@event.EventId}:{@event.CustomerId}",
+            @event.OccurredAt,
+            cancellationToken);
     }
 }
 

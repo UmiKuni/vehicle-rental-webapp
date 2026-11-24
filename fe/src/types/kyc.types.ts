@@ -8,9 +8,9 @@ export type KycStatus =
 
 export type LicenseClass =
   | 'A1' | 'A2'
-  | 'B1' | 'B2'
-  | 'C'  | 'D'  | 'E'
-  | 'FB' | 'FC' | 'FD' | 'FE'
+  | 'A' | 'B1' | 'B2' | 'B'
+  | 'C' | 'D1' | 'D2' | 'D' | 'E'
+  | 'FC'
   | 'INTERNATIONAL' // International Driving Permit
 
 export type IdentityDocType = 'PASSPORT' | 'CCCD'
@@ -59,6 +59,9 @@ export interface KycStep3Data {
 // Combined submission payload
 export interface KycSubmitPayload {
   step1: KycStep1Data
+  licenseNumber?: string
+  licenseFrontImage?: File | null
+  licenseBackImage?: File | null
   step2: {
     docType: IdentityDocType
     idNumber: string
@@ -67,6 +70,8 @@ export interface KycSubmitPayload {
     frontPreview?: string
     backPreview?: string
     cccdNumber?: string
+    frontImage?: File | null
+    backImage?: File | null
   }
   step3: KycStep3Data
 }
@@ -95,6 +100,16 @@ export interface KycProfile {
   submittedAt?: string
   reviewedAt?: string
   reviewedBy?: string
+  isIdVerified?: boolean
+  isDriverLicenseVerified?: boolean
+  documents?: Array<{
+    documentId: string
+    type: string
+    storageKey: string
+    verificationStatus: string
+    rejectReason?: string | null
+    accessUrl?: string | null
+  }>
 }
 
 // Wizard local state

@@ -18,13 +18,13 @@ export default function VerificationTermsPage() {
         <h2 className="text-sm font-bold text-foreground">What you'll need</h2>
         <ol className="mt-4 space-y-4">
           {[
-            ['Identity document', 'A valid National ID or passport with clearly visible details.'],
+            ['Identity document', 'Both sides of a Vietnamese National ID (CCCD).'],
             ["Driver's license", 'Clear photos of both sides of your license.'],
-            ['Contact information', 'A local address and a reachable phone number.'],
+            ['Account details', 'Your name and address from your account profile.'],
           ].map(([title, description], index) => <li key={title} className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{index + 1}</span><div><p className="text-sm font-semibold text-foreground">{title}</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p></div></li>)}
         </ol>
       </section>
-      <div className="rounded-xl border border-[#1a8a9d]/20 bg-[#1a8a9d]/5 p-3 text-xs leading-5 text-muted-foreground">Your information and document photos are used only to verify your rental account. Make sure all details are accurate and the images are yours.</div>
+      <div className="rounded-xl border border-[#1a8a9d]/20 bg-[#1a8a9d]/5 p-3 text-xs leading-5 text-muted-foreground">Document images are stored privately. The current backend verification checks are mock checks and do not represent production identity review.</div>
       <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card p-3.5">
         <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-0.5 size-4 accent-[#1a8a9d]" />
         <span className="text-xs leading-5 text-foreground">I have read the instructions and agree to provide my information and documents for account verification.</span>

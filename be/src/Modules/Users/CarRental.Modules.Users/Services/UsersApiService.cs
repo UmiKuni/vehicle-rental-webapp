@@ -1,4 +1,6 @@
 using CarRental.Modules.Users.Errors;
+using CarRental.BuildingBlocks.Auth;
+using CarRental.BuildingBlocks.Redis;
 using CarRental.BuildingBlocks.Storage;
 using CarRental.BuildingBlocks.Results;
 using CarRental.Modules.Users.Contracts;
@@ -6,6 +8,7 @@ using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
 using CarRental.Modules.Users.Data;
 using CarRental.Modules.Users.Entities;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -20,6 +23,8 @@ public class UsersApiService : IUsersApi
     private readonly JwtOptions _jwtOptions;
     private readonly TimeProvider _clock;
     private readonly IImageStorage _imageStorage;
+    private readonly ITokenRevocationStore? _tokenRevocationStore;
+    private readonly ICacheService? _cacheService;
 
     public UsersApiService(
         UsersDbContext dbContext,
@@ -27,7 +32,9 @@ public class UsersApiService : IUsersApi
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
         TimeProvider clock,
-        IImageStorage imageStorage)
+        IImageStorage imageStorage,
+        ITokenRevocationStore? tokenRevocationStore = null,
+        ICacheService? cacheService = null)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
@@ -35,6 +42,8 @@ public class UsersApiService : IUsersApi
         _jwtOptions = jwtOptions.Value;
         _clock = clock;
         _imageStorage = imageStorage;
+        _tokenRevocationStore = tokenRevocationStore;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default)
@@ -131,17 +140,36 @@ public class UsersApiService : IUsersApi
         return await IssueTokensAsync(user, existing, ct, deviceInfo);
     }
 
-    public async Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            return Result.Success();
+    public Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
+        => LogoutAsync(refreshToken, null, null, ct);
 
-        var hash = _tokenService.HashRefreshToken(refreshToken);
-        var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
-        if (existing is not null && existing.IsActiveAt(_clock.GetUtcNow()))
+    public async Task<Result> LogoutAsync(
+        string refreshToken,
+        string? accessTokenJti,
+        DateTimeOffset? accessTokenExpiresAt,
+        CancellationToken ct = default)
+    {
+        var now = _clock.GetUtcNow();
+
+        if (!string.IsNullOrWhiteSpace(refreshToken))
         {
-            existing.Revoke(null, _clock.GetUtcNow());
-            await _dbContext.SaveChangesAsync(ct);
+            var hash = _tokenService.HashRefreshToken(refreshToken);
+            var existing = await _dbContext.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
+            if (existing is not null && existing.IsActiveAt(now))
+            {
+                existing.Revoke(null, now);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(accessTokenJti) && _tokenRevocationStore is not null)
+        {
+            var remaining = accessTokenExpiresAt.HasValue
+                ? accessTokenExpiresAt.Value - now + TimeSpan.FromSeconds(30)
+                : TimeSpan.FromMinutes(_jwtOptions.AccessTokenMinutes);
+
+            if (remaining > TimeSpan.Zero)
+                await _tokenRevocationStore.RevokeJtiAsync(accessTokenJti, remaining, ct);
         }
 
         return Result.Success();
@@ -203,6 +231,16 @@ public class UsersApiService : IUsersApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_tokenRevocationStore is not null)
+        {
+            var cutoffTtl = TimeSpan.FromMinutes(_jwtOptions.AccessTokenMinutes) + TimeSpan.FromMinutes(1);
+            await _tokenRevocationStore.SetTokensValidAfterAsync(userId, _clock.GetUtcNow(), cutoffTtl, ct);
+        }
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success();
     }
 
@@ -218,6 +256,10 @@ public class UsersApiService : IUsersApi
             return result;
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success();
     }
 
@@ -282,15 +324,12 @@ public class UsersApiService : IUsersApi
         if (user is null)
             return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
 
-        var storageKey = !string.IsNullOrWhiteSpace(dto?.StorageKey)
-            ? dto.StorageKey.Trim()
-            : !string.IsNullOrWhiteSpace(dto?.DocumentNumber)
-                ? $"mock/cccd/{userId:N}_{dto.DocumentNumber.Trim()}.jpg"
-                : $"mock/cccd/{userId:N}.jpg";
-
-        var verifyResult = user.VerifyDocumentByTypeMock(DocumentType.CCCD, storageKey);
-        if (verifyResult.IsFailure)
-            return Result.Failure<UserVerificationStatusDto>(verifyResult.Error);
+        if (!string.IsNullOrWhiteSpace(dto?.DocumentNumber))
+        {
+            var docNum = dto.DocumentNumber.Trim();
+            if (!Regex.IsMatch(docNum, @"^\d{9,12}$"))
+                return Result.Failure<UserVerificationStatusDto>(UsersErrors.InvalidDocumentNumber);
+        }
 
         if (!string.IsNullOrWhiteSpace(dto?.FullName) || user.CustomerProfile is null)
         {
@@ -303,7 +342,24 @@ public class UsersApiService : IUsersApi
                 return Result.Failure<UserVerificationStatusDto>(profileResult.Error);
         }
 
+        if (!string.IsNullOrWhiteSpace(dto?.StorageKey))
+        {
+            var addResult = user.AddIdentityDocument(DocumentType.CCCD, dto.StorageKey.Trim());
+            if (addResult.IsFailure)
+                return Result.Failure<UserVerificationStatusDto>(addResult.Error);
+        }
+        else
+        {
+            var hasCccd = user.IdentityDocuments.Any(d => d.Type == DocumentType.CCCD);
+            if (!hasCccd)
+                return Result.Failure<UserVerificationStatusDto>(UsersErrors.DocumentMissing);
+        }
+
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success(MapToVerificationStatusDto(user));
     }
 
@@ -314,20 +370,84 @@ public class UsersApiService : IUsersApi
         if (user is null)
             return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
 
-        var storageKey = !string.IsNullOrWhiteSpace(dto?.StorageKey)
-            ? dto.StorageKey.Trim()
-            : !string.IsNullOrWhiteSpace(dto?.LicenseNumber)
-                ? $"mock/gplx/{userId:N}_{dto.LicenseNumber.Trim()}.jpg"
-                : dto?.LicenseClass is not null
-                    ? $"mock/gplx/{userId:N}_{dto.LicenseClass.Value}.jpg"
-                    : $"mock/gplx/{userId:N}.jpg";
+        if (!string.IsNullOrWhiteSpace(dto?.LicenseNumber))
+        {
+            var licNum = dto.LicenseNumber.Trim();
+            if (!Regex.IsMatch(licNum, @"^\d{12}$"))
+                return Result.Failure<UserVerificationStatusDto>(UsersErrors.InvalidLicenseNumber);
+        }
 
-        var verifyResult = user.VerifyDocumentByTypeMock(DocumentType.GPLX, storageKey);
+        if (!string.IsNullOrWhiteSpace(dto?.StorageKey))
+        {
+            var addResult = user.AddIdentityDocument(DocumentType.GPLX, dto.StorageKey.Trim());
+            if (addResult.IsFailure)
+                return Result.Failure<UserVerificationStatusDto>(addResult.Error);
+        }
+        else
+        {
+            var hasGplx = user.IdentityDocuments.Any(d => d.Type == DocumentType.GPLX);
+            if (!hasGplx)
+                return Result.Failure<UserVerificationStatusDto>(UsersErrors.DocumentMissing);
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+        return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    public async Task<Result<UserVerificationStatusDto>> ReviewIdentityDocumentAsync(
+        Guid userId,
+        Guid documentId,
+        Guid adminId,
+        ReviewIdentityDocumentDto dto,
+        CancellationToken ct = default)
+    {
+        var userIdValue = UserId.From(userId);
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
+        if (user is null)
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
+
+        if (!dto.Approved && string.IsNullOrWhiteSpace(dto.RejectReason))
+            return Result.Failure<UserVerificationStatusDto>(UsersErrors.RejectReasonRequired);
+
+        var verifyResult = user.VerifyDocument(documentId, adminId, dto.Approved, dto.RejectReason?.Trim());
         if (verifyResult.IsFailure)
             return Result.Failure<UserVerificationStatusDto>(verifyResult.Error);
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
         return Result.Success(MapToVerificationStatusDto(user));
+    }
+
+    public async Task<Result<IReadOnlyList<PendingVerificationDto>>> GetPendingVerificationsAsync(CancellationToken ct = default)
+    {
+        var dbUsers = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.IdentityDocuments.Any(d => d.VerificationStatus == DocumentVerificationStatus.Pending))
+            .ToListAsync(ct);
+
+        var list = new List<PendingVerificationDto>();
+        foreach (var user in dbUsers)
+        {
+            foreach (var doc in user.IdentityDocuments.Where(d => d.VerificationStatus == DocumentVerificationStatus.Pending))
+            {
+                var urlResult = _imageStorage.GetUrl(doc.StorageKey, StorageVisibility.Private, TimeSpan.FromMinutes(15));
+                list.Add(new PendingVerificationDto(
+                    user.Id.Value,
+                    user.Email,
+                    user.Phone,
+                    user.CustomerProfile?.FullName ?? string.Empty,
+                    doc.Id,
+                    doc.Type,
+                    doc.StorageKey,
+                    doc.VerificationStatus,
+                    urlResult.IsSuccess ? urlResult.Value : null));
+            }
+        }
+
+        return Result.Success<IReadOnlyList<PendingVerificationDto>>(list);
     }
 
     public async Task<Result<UserVerificationStatusDto>> UploadIdentityDocumentAsync(
