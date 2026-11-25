@@ -26,7 +26,7 @@ export default function RegisterPage() {
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      fullName: '',
+      fullname: '',
       email: '',
       phone: '',
       password: '',
@@ -36,7 +36,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!error) return
-    const validFields = ['fullName', 'email', 'phone', 'password', 'confirmPassword']
+    const validFields = ['fullname', 'email', 'phone', 'password', 'confirmPassword']
     Object.entries(getFieldErrors(error)).forEach(([field, messages]) => {
       const name = field.charAt(0).toLowerCase() + field.slice(1)
       if (validFields.includes(name) && messages[0]) {
@@ -109,17 +109,17 @@ export default function RegisterPage() {
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
             <div className="grid grid-cols-1 gap-3">
-              <FormField htmlFor="fullName" label="Full name" error={errors.fullName?.message}>
+              <FormField htmlFor="fullname" label="Full name" error={errors.fullname?.message}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
-                    id="fullName"
+                    id="fullname"
                     placeholder="John Doe"
                     autoFocus
-                    aria-invalid={!!errors.fullName}
-                    aria-describedby={errors.fullName ? 'fullName-error' : undefined}
+                    aria-invalid={!!errors.fullname}
+                    aria-describedby={errors.fullname ? 'fullname-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
-                    {...register('fullName')}
+                    {...register('fullname')}
                   />
                 </div>
               </FormField>

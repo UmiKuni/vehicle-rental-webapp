@@ -6,7 +6,8 @@ namespace CarRental.Modules.Users.Contracts.Dtos;
 public sealed record RegisterUserDto(
     string Email,
     string Phone,
-    string Password);
+    string Password,
+    string FullName);
 
 /// <summary>Credentials used to authenticate by email or phone.</summary>
 public sealed record LoginUserDto(

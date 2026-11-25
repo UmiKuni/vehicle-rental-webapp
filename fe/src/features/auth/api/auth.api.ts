@@ -64,20 +64,9 @@ export const authApi = {
       email: data.email,
       phone: data.phone,
       password: data.password,
+      fullName: data.fullName,
     })
-    localStorage.setItem(TOKEN_KEY, auth.accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken)
-    try {
-      await apiClient.put(`/users/${auth.userId}/profile`, {
-        fullName: data.fullName,
-        address: '',
-      })
-      return loadSession(auth, data.fullName)
-    } catch (error) {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(REFRESH_TOKEN_KEY)
-      throw error
-    }
+    return loadSession(auth, data.fullName)
   },
 
   logout: async (): Promise<void> => {

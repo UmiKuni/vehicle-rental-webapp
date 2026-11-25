@@ -5,7 +5,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  fullName: string
+  fullname: string
   email: string
   phone: string
   password: string
@@ -23,7 +23,7 @@ export interface CurrentUserResponse {
   userId: string
   email: string
   phone: string
-  fullName: string
+  fullname: string
   address: string
   role: string
   isIdVerified: boolean
@@ -35,7 +35,7 @@ export interface AuthUser {
   id: number | string
   username: string
   email: string
-  fullName: string
+  fullname: string
   role: UserRole
   avatar?: string
 }

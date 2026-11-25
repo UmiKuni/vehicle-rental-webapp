@@ -119,6 +119,13 @@ public class UsersApiService : IUsersApi
 
         var user = createResult.Value;
         await _dbContext.Users.AddAsync(user, ct);
+        // Set full name if provided
+        if (!string.IsNullOrWhiteSpace(dto.FullName))
+        {
+            var profileResult = user.UpdateProfile(dto.FullName, string.Empty);
+            if (profileResult.IsFailure)
+                return Result.Failure<AuthResultDto>(profileResult.Error);
+        }
         await _dbContext.SaveChangesAsync(ct);
 
         return await IssueTokensAsync(user, null, ct);
