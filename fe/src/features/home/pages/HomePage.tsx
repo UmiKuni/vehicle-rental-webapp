@@ -34,9 +34,8 @@ export default function HomePage() {
 
       <section className="home-how">
         <div className="home-section-heading">
-          <span className="home-eyebrow">Five simple steps</span>
+          <span className="home-eyebrow">5 simple steps</span>
           <h2>Rent a car your way</h2>
-          <p>Every step is clear, from finding a car to returning it.</p>
         </div>
         <div className="home-steps">
           {steps.map(({ title, description }, index) => (

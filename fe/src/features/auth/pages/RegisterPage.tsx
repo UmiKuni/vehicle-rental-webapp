@@ -101,9 +101,6 @@ export default function RegisterPage() {
           {/* Greeting */}
           <div className="mb-4">
             <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">Create an account</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Enter your details below to create your account.
-            </p>
           </div>
 
           {/* Form */}

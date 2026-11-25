@@ -16,16 +16,20 @@ function BottomNav() {
     { to: ROUTES.OWNER_DASHBOARD, icon: CarFront, label: 'Workspace' },
     { to: ROUTES.OWNER_VEHICLES, icon: CalendarDays, label: 'Fleet' },
     { to: ROUTES.PROFILE, icon: User, label: 'Account' },
-  ] : [
+  ] : user ? [
     { to: ROUTES.HOME, icon: House, label: 'Home' },
     { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
     { to: ROUTES.BOOKINGS, icon: CalendarDays, label: 'Trips' },
-    { to: ROUTES.NOTIFICATIONS, icon: Bell, label: 'Inbox' },
-    { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
+    { to: ROUTES.NOTIFICATIONS, icon: Bell, label: 'Notifications' },
+    { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
+  ] : [
+    { to: ROUTES.HOME, icon: House, label: 'Home' },
+    { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
+    { to: ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
   ]
 
   return (
-    <nav aria-label="Primary navigation" className="app-bottom-nav fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
+    <nav aria-label="Primary navigation" className="app-bottom-nav fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background safe-area-pb">
       <div className="flex items-stretch max-w-md mx-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -33,7 +37,7 @@ function BottomNav() {
             to={to}
               end={to === ROUTES.HOME || to === ROUTES.PROFILE || to === ROUTES.BOOKINGS || to === ROUTES.NOTIFICATIONS || to === ROUTES.OWNER_DASHBOARD || to === ROUTES.OWNER_VEHICLES}
             className={({ isActive }) => {
-              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Notifications' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
                 itemIsActive
@@ -43,7 +47,7 @@ function BottomNav() {
             }}
           >
             {({ isActive }) => {
-              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Notifications' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
               return <>
                 <div className="relative">
                   <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />
@@ -73,11 +77,14 @@ function BottomNav() {
  */
 export function MobileLayout() {
   const { user } = useAuth()
+  const location = useLocation()
   const isAdmin = user?.role === 'ADMIN'
   const isOwner = user?.role === 'OWNER'
+  const isHome = location.pathname === ROUTES.HOME
+  const locksViewport = location.pathname === ROUTES.SEARCH || location.pathname === ROUTES.PROFILE_AUTH
 
   return (
-    <div className="min-h-dvh w-full overflow-x-clip bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-slate-100/70 dark:bg-zinc-950">
       {/* Admins can switch portals without mixing the mobile and admin navigation. */}
       {(isAdmin || isOwner) && (
         <header className="bg-zinc-900 border-b border-zinc-800 text-white px-4 py-2 sticky top-0 z-40 text-xs">
@@ -98,7 +105,11 @@ export function MobileLayout() {
       )}
 
       {/* Main mobile viewport */}
-      <main className="w-full max-w-md mx-auto bg-background min-h-dvh sm:border-x sm:border-border sm:shadow-sm pb-24 flex-1">
+      <main className={cn(
+        'mobile-main mx-auto min-h-0 w-full max-w-md flex-1 bg-background pb-24 sm:border-x sm:border-border sm:shadow-sm',
+        locksViewport ? 'is-viewport-locked overflow-hidden' : 'overflow-y-auto',
+        isHome && 'scrollbar-hidden'
+      )}>
         <Outlet />
       </main>
 

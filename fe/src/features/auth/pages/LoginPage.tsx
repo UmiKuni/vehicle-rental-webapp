@@ -103,9 +103,6 @@ export default function LoginPage() {
           {/* Greeting */}
           <div className="mb-5">
             <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">{isAdminLogin ? 'Admin sign in' : isOwnerLogin ? 'Owner sign in' : 'Sign in'}</h2>
-            <p className="mt-1 text-sm font-medium leading-5 text-muted-foreground">
-              {isAdminLogin ? 'Use an administrator account to continue to the control panel.' : isOwnerLogin ? 'Sign in with an approved owner account to manage your fleet and booking requests.' : 'Sign in to continue booking and manage your trips.'}
-            </p>
           </div>
 
           {!isAdminLogin && !isOwnerLogin && (

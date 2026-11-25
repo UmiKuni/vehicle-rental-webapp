@@ -21,7 +21,7 @@ export function BookingDatesDelivery({
 }: BookingDatesDeliveryProps) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="booking-date-grid grid grid-cols-2 gap-3">
         <label className="block text-[11px] font-semibold text-muted-foreground">
           Pick-up date
           <span className="relative mt-1 block">
