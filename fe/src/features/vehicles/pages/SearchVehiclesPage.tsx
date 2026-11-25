@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom'
-import { Map, MapPin, Minus, Plus, RotateCcw, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { Vehicle, VehicleFilterParams } from '@/types/vehicle.types'
 import { useVehicles } from '../hooks/useVehicles'
 import { VehicleCard } from '../components/VehicleCard'
 import { VehicleFilterBar } from '../components/VehicleFilterBar'
+import { GoongVehicleMap } from '../components/GoongVehicleMap'
 import { BookingModal } from '../components/BookingModal'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
 import { ErrorState } from '@/shared/components/common/StateViews'
@@ -41,27 +42,17 @@ export default function SearchVehiclesPage() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedVehicleForBooking, setSelectedVehicleForBooking] = useState<Vehicle | null>(null)
-  const [mapZoom, setMapZoom] = useState(1)
-  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 })
-  const [mapDrag, setMapDrag] = useState<{ pointerId: number; x: number; y: number; offsetX: number; offsetY: number } | null>(null)
   const debouncedSearch = useDebounce(filters.search, 300)
   const queryFilters = { ...filters, search: debouncedSearch }
   const { data: vehicles = [], isLoading, isError, refetch } = useVehicles(queryFilters)
 
   const sortedVehicles = useMemo(() => vehicles, [vehicles])
   const selectedVehicle = sortedVehicles.find((vehicle) => vehicle.id === selectedId) ?? sortedVehicles[0]
-  const coordinateBounds = useMemo(() => {
-    const locatedVehicles = sortedVehicles.filter((vehicle) => vehicle.latitude != null && vehicle.longitude != null)
-    const latitudes = locatedVehicles.map((vehicle) => vehicle.latitude!)
-    const longitudes = locatedVehicles.map((vehicle) => vehicle.longitude!)
-    return {
-      minLatitude: latitudes.length ? Math.min(...latitudes) : 0,
-      maxLatitude: latitudes.length ? Math.max(...latitudes) : 0,
-      minLongitude: longitudes.length ? Math.min(...longitudes) : 0,
-      maxLongitude: longitudes.length ? Math.max(...longitudes) : 0,
-      hasCoordinates: locatedVehicles.length > 0,
-    }
-  }, [sortedVehicles])
+  const currentMapLocation = useMemo(() => (
+    filters.latitude != null && filters.longitude != null
+      ? { latitude: filters.latitude, longitude: filters.longitude }
+      : undefined
+  ), [filters.latitude, filters.longitude])
 
   const locate = useCallback(() => {
     if (!navigator.geolocation) {
@@ -134,42 +125,22 @@ export default function SearchVehiclesPage() {
     <div className={`vehicle-search-page ${isExpanded ? 'is-expanded' : ''}`}>
       <VehicleFilterBar location={location} locationFromGoogle={locationFromGoogle} onLocate={locate} locating={locating} filters={filters} onApply={setFilters} />
       <div className="search-map-stage">
-        <div className={`map-canvas ${mapDrag ? 'is-dragging' : ''}`} aria-label="Map of matching vehicles"
-          onPointerDown={(event) => {
-            if ((event.target as HTMLElement).closest('button')) return
-            setMapDrag({ pointerId: event.pointerId, x: event.clientX, y: event.clientY, offsetX: mapOffset.x, offsetY: mapOffset.y })
-            event.currentTarget.setPointerCapture(event.pointerId)
+        <GoongVehicleMap
+          vehicles={sortedVehicles}
+          selectedVehicleId={selectedVehicle?.id}
+          currentLocation={currentMapLocation}
+          onSelect={(vehicle) => {
+            setSelectedId(vehicle.id)
+            setIsExpanded(false)
           }}
-          onPointerMove={(event) => {
-            if (!mapDrag || mapDrag.pointerId !== event.pointerId) return
-            setMapOffset({ x: mapDrag.offsetX + event.clientX - mapDrag.x, y: mapDrag.offsetY + event.clientY - mapDrag.y })
-          }}
-          onPointerUp={() => setMapDrag(null)}
-          onPointerCancel={() => setMapDrag(null)}>
-          <div className="map-content" style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapZoom})` }}>
-          {sortedVehicles.filter((vehicle) => vehicle.latitude != null && vehicle.longitude != null && coordinateBounds.hasCoordinates).map((vehicle) => {
-            const position = {
-              left: `${coordinateBounds.maxLongitude === coordinateBounds.minLongitude ? 50 : 10 + ((vehicle.longitude! - coordinateBounds.minLongitude) / (coordinateBounds.maxLongitude - coordinateBounds.minLongitude)) * 80}%`,
-              top: `${coordinateBounds.maxLatitude === coordinateBounds.minLatitude ? 50 : 10 + ((coordinateBounds.maxLatitude - vehicle.latitude!) / (coordinateBounds.maxLatitude - coordinateBounds.minLatitude)) * 80}%`,
-            }
-            const active = vehicle.id === selectedVehicle?.id
-            return <button key={vehicle.id} type="button" className={`vehicle-map-pin ${active ? 'active' : ''}`} style={position} onClick={() => { setSelectedId(vehicle.id); setIsExpanded(false) }} aria-label={`Select ${vehicle.name}`}><MapPin size={active ? 16 : 13} fill="currentColor" /><span>{new Intl.NumberFormat('en-US', { notation: 'compact' }).format(vehicle.pricePerDay)} VND</span></button>
-          })}
-          <div className="map-attribution"><Map size={12} /> Approximate locations · Vehicle results</div>
-          </div>
-          <div className="map-controls" aria-label="Map controls">
-            <button type="button" aria-label="Zoom in" onClick={() => setMapZoom((zoom) => Math.min(zoom + 0.2, 2.2))}><Plus size={16} /></button>
-            <button type="button" aria-label="Zoom out" onClick={() => setMapZoom((zoom) => Math.max(zoom - 0.2, 0.8))}><Minus size={16} /></button>
-            <button type="button" aria-label="Reset map position" onClick={() => { setMapZoom(1); setMapOffset({ x: 0, y: 0 }) }}><RotateCcw size={14} /></button>
-          </div>
-        </div>
+        />
       </div>
 
       <section className="search-results-sheet" aria-label="Search results">
         <button type="button" className="sheet-handle-area" onClick={() => setIsExpanded((value) => !value)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} aria-label={isExpanded ? 'Collapse vehicle list' : 'Expand vehicle list'} aria-expanded={isExpanded}>
-          <span className="sheet-handle" /><span className="sheet-handle-text">{isExpanded ? 'Collapse list' : 'Swipe up to view all cars'}</span>
+          <span className="sheet-handle" />
         </button>
-        <div className="search-results-heading"><div><span className="search-results-kicker">AVAILABLE VEHICLES</span><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} cars found`}</h1></div></div>
+        <div className="search-results-heading"><div><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} results found`}</h1></div></div>
         <div className="sheet-content">
           {isLoading && <div className="grid gap-3"><CardSkeleton /><CardSkeleton /></div>}
           {isError && <ErrorState message="Could not load vehicles." onRetry={() => void refetch()} />}
@@ -185,4 +156,3 @@ export default function SearchVehiclesPage() {
     </div>
   )
 }
- 

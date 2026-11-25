@@ -131,3 +131,4 @@ override.tf.json
 .terraformrc
 terraform.rc
 tfplan
+fe/.env.mobile
