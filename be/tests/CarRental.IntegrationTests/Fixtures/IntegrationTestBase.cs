@@ -46,7 +46,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var registerResponse = await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(
             email,
             phone,
-            password));
+            password,
+            "Test Customer"));
         registerResponse.EnsureSuccessStatusCode();
 
         Guid userId;

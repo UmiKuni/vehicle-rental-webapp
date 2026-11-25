@@ -26,7 +26,8 @@ public class UsersIntegrationTests : IntegrationTestBase
         var request = new RegisterUserDto(
             "renter1@example.com",
             "0901234567",
-            "SecurePassword123!");
+            "SecurePassword123!",
+            "Renter One");
 
         var response = await Client.PostAsJsonAsync("/api/users/register", request);
 
@@ -51,7 +52,8 @@ public class UsersIntegrationTests : IntegrationTestBase
         var request = new RegisterUserDto(
             "duplicate@example.com",
             "0901111222",
-            "Password123!");
+            "Password123!",
+            "Duplicate User");
 
         var firstResponse = await Client.PostAsJsonAsync("/api/users/register", request);
         firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -65,7 +67,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var email = "login_test@example.com";
         var password = "ValidPassword123!";
-        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0902223344", password));
+        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0902223344", password, "Login Test"));
 
         var response = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(email, password));
 
@@ -80,7 +82,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     public async Task Login_InvalidPassword_ShouldReturn401Unauthorized()
     {
         var email = "wrong_pwd@example.com";
-        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0903334455", "CorrectPassword123!"));
+        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0903334455", "CorrectPassword123!", "Wrong Pwd User"));
 
         var response = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(email, "WrongPassword!"));
 
@@ -92,7 +94,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var email = "refresh_test@example.com";
         var password = "Password123!";
-        var regResponse = await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0904445566", password));
+        var regResponse = await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0904445566", password, "Refresh Test"));
         var initialAuth = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
 
         var response = await Client.PostAsJsonAsync("/api/users/refresh", new RefreshTokenDto(initialAuth!.RefreshToken));
@@ -129,7 +131,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var regResponse = await Client.PostAsJsonAsync(
             "/api/users/register",
-            new RegisterUserDto("me_unverified@example.com", "0905112233", "SecurePassword123!"));
+            new RegisterUserDto("me_unverified@example.com", "0905112233", "SecurePassword123!", ""));
         regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
         authResult.Should().NotBeNull();
@@ -189,7 +191,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var regResponse = await Client.PostAsJsonAsync(
             "/api/users/register",
-            new RegisterUserDto("logout_revoke@example.com", "0906667788", "SecurePassword123!"));
+            new RegisterUserDto("logout_revoke@example.com", "0906667788", "SecurePassword123!", "Logout Revoke"));
         regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
         authResult.Should().NotBeNull();
