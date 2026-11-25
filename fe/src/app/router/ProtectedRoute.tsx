@@ -14,8 +14,9 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div role="status" aria-live="polite" className="flex h-screen items-center justify-center">
+        <div aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <span className="sr-only">Checking your account…</span>
       </div>
     )
   }

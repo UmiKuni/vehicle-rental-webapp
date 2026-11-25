@@ -18,8 +18,10 @@ export function Label({
 
 interface FormFieldProps {
   label: ReactNode
+  htmlFor: string
   rightAction?: ReactNode
   error?: string
+  description?: ReactNode
   required?: boolean
   children: ReactNode
   className?: string
@@ -27,23 +29,30 @@ interface FormFieldProps {
 
 export function FormField({
   label,
+  htmlFor,
   rightAction,
   error,
+  description,
   required,
   children,
   className,
 }: FormFieldProps) {
+  const descriptionId = description ? `${htmlFor}-description` : undefined
+  const errorId = error ? `${htmlFor}-error` : undefined
+
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between gap-2">
-        <Label className="inline-flex items-center gap-1">
+        <Label htmlFor={htmlFor} className="inline-flex items-center gap-1">
           <span>{label}</span>
-          {required && <span className="text-destructive font-bold text-xs leading-none">*</span>}
+          {required && <span aria-hidden="true" className="text-destructive font-bold text-xs leading-none">*</span>}
+          {required && <span className="sr-only">required</span>}
         </Label>
         {rightAction && <div className="text-xs">{rightAction}</div>}
       </div>
       {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      {description && <p id={descriptionId} className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>}
+      {error && <p id={errorId} role="alert" className="mt-1 text-xs leading-5 text-destructive">{error}</p>}
     </div>
   )
 }

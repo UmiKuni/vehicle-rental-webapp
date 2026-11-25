@@ -1,8 +1,10 @@
-import { Calendar, MapPin, CarFront } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, Calendar, MapPin, CarFront } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Booking } from '@/types/booking.types'
 import { useCancelBooking } from '../hooks/useBookings'
 import { formatDate } from '@/shared/utils'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog'
 
 interface BookingCardProps {
   booking: Booking
@@ -21,14 +23,12 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
 }
 
 export function BookingCard({ booking }: BookingCardProps) {
+  const [cancelOpen, setCancelOpen] = useState(false)
   const { mutate: cancelBooking, isPending } = useCancelBooking()
   const statusInfo = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED
 
   const handleCancel = () => {
-    const policyNotice = booking.status === 'PAID' ? ' Any refund or penalty will follow the cancellation policy.' : ''
-    if (window.confirm(`Are you sure you want to cancel booking ${booking.bookingCode}?${policyNotice}`)) {
-      cancelBooking(booking.id)
-    }
+    cancelBooking(booking.id, { onSuccess: () => setCancelOpen(false) })
   }
 
   return (
@@ -38,7 +38,7 @@ export function BookingCard({ booking }: BookingCardProps) {
         <span className="font-mono text-xs font-bold text-foreground">
           {booking.bookingCode}
         </span>
-        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${statusInfo.class}`}>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusInfo.class}`}>
           {statusInfo.label}
         </span>
       </div>
@@ -58,7 +58,7 @@ export function BookingCard({ booking }: BookingCardProps) {
       </div>
 
       {/* Date & Delivery Info */}
-      <div className="rounded-xl bg-muted/40 p-2.5 space-y-1 text-[11px]">
+      <div className="rounded-xl bg-muted/40 p-2.5 space-y-1 text-xs">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Calendar className="size-3.5 text-foreground/70 shrink-0" />
           <span className="font-medium text-foreground">
@@ -73,32 +73,48 @@ export function BookingCard({ booking }: BookingCardProps) {
 
       {/* Actions */}
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
-        <Link to={`/bookings/${booking.id}`} className="mr-auto rounded-lg px-3 py-1.5 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
+        <Link to={`/bookings/${booking.id}`} className="mr-auto inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
         {booking.status === 'CONFIRMED' && (
-          <Link to={`/bookings/${booking.id}/payment`} className="rounded-lg bg-[#1a8a9d] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Payment</Link>
+          <Link to={`/bookings/${booking.id}/payment`} className="inline-flex min-h-11 items-center rounded-lg bg-[#1a8a9d] px-3 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Pay now</Link>
         )}
         {booking.status === 'PAID' && (
-          <Link to={`/bookings/${booking.id}/pickup`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
+          <Link to={`/bookings/${booking.id}/pickup`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
         )}
         {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && (
-          <Link to={`/bookings/${booking.id}/return`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
+          <Link to={`/bookings/${booking.id}/return`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
         )}
         {booking.status === 'COMPLETED' && (
-          <Link to={`/bookings/${booking.id}/settlement`} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
+          <Link to={`/bookings/${booking.id}/settlement`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
         )}
         {(booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'PAID') && (
         <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={isPending}
-            onClick={handleCancel}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-500/10 transition-colors"
+            onClick={() => setCancelOpen(true)}
+            className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 hover:bg-red-500/10 transition-colors"
           >
             Cancel Booking
           </button>
         </div>
         )}
       </div>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-red-500/10 text-red-600"><AlertTriangle size={20} /></div>
+            <DialogTitle>Cancel booking {booking.bookingCode}?</DialogTitle>
+            <DialogDescription className="pt-2 leading-6">
+              This stops the rental request. The backend will calculate any cancellation fee and refund from the booking timing and policy. Updated totals will appear in your booking after cancellation.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <button type="button" onClick={() => setCancelOpen(false)} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-muted">Keep booking</button>
+            <button type="button" onClick={handleCancel} disabled={isPending} className="min-h-11 rounded-lg bg-red-600 px-4 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">{isPending ? 'Cancelling…' : 'Cancel booking'}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -100,8 +100,11 @@ temp/
 skills/
 .skills/
 **/skills/
+.impeccable/
 AGENTS.md
 CLAUDE.md
+DESIGN.md
+PRODUCT.md
 
 # ==============================================================================
 # Local documents
