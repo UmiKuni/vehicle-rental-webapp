@@ -43,7 +43,7 @@ function DialogContent({
         {...props}
       >
         {children}
-        <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
+        <DialogClose className="absolute right-2 top-2 flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
           <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogClose>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/shared/lib/axios'
-import { X, ShieldAlert, LogIn } from 'lucide-react'
+import { ShieldAlert, LogIn } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Vehicle } from '@/types/vehicle.types'
 import type { Booking } from '@/types/booking.types'
@@ -10,6 +10,7 @@ import { useAuth } from '@/shared/contexts/AuthContext'
 import { availabilityApi, pricingApi } from '@/features/vehicles/api/vehicle.api'
 import { ROUTES } from '@/shared/constants'
 import { Button } from '@/shared/components/ui/Button'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/components/ui/Dialog'
 import { BookingPriceSummary } from './BookingPriceSummary'
 import { BookingDatesDelivery } from './BookingDatesDelivery'
 
@@ -112,12 +113,10 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   }
 
   return (
-    <div className="booking-modal-overlay fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-
-      <div className="booking-modal-panel relative w-full max-w-lg max-h-[85vh] flex flex-col rounded-t-[28px] sm:rounded-3xl bg-background border border-border shadow-2xl overflow-hidden animate-in fade-in-0 slide-in-from-bottom-6">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="booking-modal-panel bottom-0 left-0 top-auto flex max-h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-b-none rounded-t-2xl border-border bg-background p-0 shadow-2xl sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
         {/* Sticky Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border bg-background/95 backdrop-blur-sm shrink-0">
+        <div className="flex items-center justify-between border-b border-border bg-background px-5 pb-3 pt-4 pr-14 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <img
               src={vehicle.imageUrl}
@@ -125,19 +124,13 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
               className="h-11 w-16 rounded-xl object-cover border border-border shrink-0"
             />
             <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-foreground truncate">{vehicle.name}</h2>
+              <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground sm:text-base">Book {vehicle.name}</DialogTitle>
+              <DialogDescription className="sr-only">Choose rental dates, pickup location, and review the complete price before booking.</DialogDescription>
               <p className="text-xs font-bold text-[#1a8a9d]">
                 {new Intl.NumberFormat('en-US').format(vehicle.pricePerDay)} VND / day
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted active-press min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X className="size-5" />
-          </button>
         </div>
 
         {/* Scrollable Form Body */}
@@ -231,7 +224,7 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
             </Button>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

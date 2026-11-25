@@ -161,7 +161,7 @@ export default function SearchVehiclesPage() {
         <button type="button" className="sheet-handle-area" onClick={() => setIsExpanded((value) => !value)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} aria-label={isExpanded ? 'Collapse vehicle list' : 'Expand vehicle list'} aria-expanded={isExpanded}>
           <span className="sheet-handle" /><span className="sheet-handle-text">{isExpanded ? 'Collapse list' : 'Swipe up to view all cars'}</span>
         </button>
-        <div className="search-results-heading"><div><span className="search-results-kicker">AVAILABLE VEHICLES</span><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} cars found`}</h1></div><span className="search-results-location"><MapPin size={13} /> {location.startsWith('Near your current') ? 'Near you' : location}</span></div>
+        <div className="search-results-heading"><div><span className="search-results-kicker">AVAILABLE VEHICLES</span><h1>{isLoading ? 'Finding cars…' : `${vehicles.length} cars found`}</h1></div></div>
         <div className="sheet-content">
           {isLoading && <div className="grid gap-3"><CardSkeleton /><CardSkeleton /></div>}
           {isError && <ErrorState message="Could not load vehicles." onRetry={() => void refetch()} />}
@@ -177,3 +177,4 @@ export default function SearchVehiclesPage() {
     </div>
   )
 }
+ 

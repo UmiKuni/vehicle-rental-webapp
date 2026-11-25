@@ -8,6 +8,7 @@ import { useLogin } from '../hooks/useLogin'
 import { Button } from '@/shared/components/ui/Button'
 import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog'
 import { APP_NAME, ROUTES } from '@/shared/constants'
 import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
 import { useAuth } from '@/shared/contexts/AuthContext'
@@ -115,13 +116,15 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
-            <FormField label="Email / Phone number" error={errors.username?.message}>
+            <FormField htmlFor="username" label="Email / Phone number" error={errors.username?.message}>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                 <Input
                   id="username"
                   placeholder="Email or phone number"
                   autoComplete="username"
+                  aria-invalid={!!errors.username}
+                  aria-describedby={errors.username ? 'username-error' : undefined}
                   autoFocus
                   className="h-12 rounded-lg bg-slate-50 dark:bg-zinc-800/60 pl-10 text-sm font-semibold focus-visible:border-[#287f7e]"
                   {...register('username')}
@@ -130,16 +133,8 @@ export default function LoginPage() {
             </FormField>
 
             <FormField
+              htmlFor="password"
               label="Password"
-              rightAction={
-                <a
-                  href="#forgot"
-                  onClick={(e) => e.preventDefault()}
-                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-                >
-                Forgot password?
-                </a>
-              }
               error={errors.password?.message}
             >
               <div className="relative">
@@ -149,14 +144,16 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
                   autoComplete="current-password"
+                  aria-invalid={!!errors.password}
+                  aria-describedby={errors.password ? 'password-error' : undefined}
                   className="h-12 rounded-lg bg-slate-50 dark:bg-zinc-800/60 pl-10 pr-10 text-sm font-semibold focus-visible:border-[#287f7e]"
                   {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1"
-                  aria-label={showPassword ? 'Hide' : 'Show'}
+                  className="absolute right-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-muted hover:text-zinc-700 dark:hover:text-zinc-200"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
@@ -175,31 +172,29 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {portalChoice && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#101719a8] p-4" role="presentation">
-          <section role="dialog" aria-modal="true" aria-labelledby="portal-choice-title" className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-[0_16px_48px_rgba(0,0,0,.18)] dark:border-zinc-700 dark:bg-zinc-900">
+      <Dialog open={portalChoice !== null} onOpenChange={(open) => { if (!open) setPortalChoice(null) }}>
+        <DialogContent className="max-w-md">
+          {portalChoice && <>
+            <DialogHeader>
             <p className="mb-2 text-xs font-semibold text-[#176f70]">Account type</p>
-            <h2 id="portal-choice-title" className="m-0 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+            <DialogTitle className="text-lg leading-6 text-slate-900 dark:text-white">
               {portalChoice === 'customer' ? 'Switch to the customer portal?' : portalChoice === 'owner' ? 'Open the owner workspace?' : 'Open the admin workspace?'}
-            </h2>
-            <p className="mb-0 mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+            </DialogTitle>
+            <DialogDescription className="mt-2 leading-6 text-slate-600 dark:text-zinc-300">
               {portalChoice === 'customer'
                 ? 'This is a customer account. The mobile portal is designed for browsing vehicles, bookings and your profile.'
                 : portalChoice === 'owner'
                   ? 'This account has the Owner role. The owner workspace is separate from customer bookings and profile flows.'
                   : 'This is an administrator account. The admin workspace is designed for fleet and platform management.'}
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              {portalChoice === 'customer' ? (
-                <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
-              ) : (
-                <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
-              )}
-              <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : portalChoice === 'owner' ? ROUTES.OWNER_DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="h-10 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to customer portal' : portalChoice === 'owner' ? 'Continue to owner workspace' : 'Continue to admin workspace'}</button>
-            </div>
-          </section>
-        </div>
-      )}
+            </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-6">
+              <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="min-h-11 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
+              <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : portalChoice === 'owner' ? ROUTES.OWNER_DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="min-h-11 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to customer portal' : portalChoice === 'owner' ? 'Continue to owner workspace' : 'Continue to admin workspace'}</button>
+            </DialogFooter>
+          </>}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
