@@ -80,17 +80,30 @@ export const profileApi = {
   getKycStatus: async (): Promise<KycProfile> => {
     const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
     const { data: verification } = await apiClient.get<VerificationStatus>('/users/me/verification-status')
+    const documents = verification.documents ?? []
+    const documentStatuses = documents.map((document) => document.verificationStatus.toLowerCase())
+    const rejectionReason = [...documents].reverse().find(
+      (document) => document.verificationStatus.toLowerCase() === 'rejected' && document.rejectReason,
+    )?.rejectReason ?? undefined
+    const status = verification.isVerified
+      ? 'VERIFIED'
+      : documentStatuses.includes('rejected')
+        ? 'REJECTED'
+        : documentStatuses.includes('pending') || verification.isIdVerified || verification.isDriverLicenseVerified
+          ? 'PENDING'
+          : 'UNVERIFIED'
     return {
       id: identity.userId,
       userId: identity.userId,
-      status: verification.isVerified ? 'VERIFIED' : verification.isIdVerified || verification.isDriverLicenseVerified ? 'PENDING' : 'UNVERIFIED',
+      status,
+      rejectionReason,
       vehicleInterests: [],
       licenseClass: 'B2',
-      hasLicense: verification.isDriverLicenseVerified,
+      hasLicense: documents.some((document) => document.type === 'GPLX'),
       isIdVerified: verification.isIdVerified,
       isDriverLicenseVerified: verification.isDriverLicenseVerified,
-      documents: verification.documents ?? [],
-      docType: verification.documents?.some((document) => document.type === 'Passport') ? 'PASSPORT' : 'CCCD',
+      documents,
+      docType: documents.some((document) => document.type === 'Passport') ? 'PASSPORT' : 'CCCD',
     }
   },
 

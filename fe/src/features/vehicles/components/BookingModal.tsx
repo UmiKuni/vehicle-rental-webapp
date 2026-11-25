@@ -14,6 +14,16 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/shared/
 import { BookingPriceSummary } from './BookingPriceSummary'
 import { BookingDatesDelivery } from './BookingDatesDelivery'
 
+function toDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function addDaysToDateInput(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00`)
+  date.setDate(date.getDate() + days)
+  return toDateInputValue(date)
+}
+
 interface BookingModalProps {
   vehicle: Vehicle | null
   onClose: () => void
@@ -29,13 +39,17 @@ export function BookingModal({ vehicle, onClose, onSuccess, initialStartDate, in
   const location = useLocation()
   const { mutate: createBooking, isPending } = useCreateBooking()
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
-  const dayAfter = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = toDateInputValue(tomorrowDate)
+  const requestedStart = initialStartDate?.slice(0, 10)
+  const initialStart = requestedStart && requestedStart >= tomorrow ? requestedStart : tomorrow
+  const requestedEnd = initialEndDate?.slice(0, 10)
 
-  const [startDate, setStartDate] = useState(initialStartDate?.slice(0, 10) || tomorrow)
-  const [endDate, setEndDate] = useState(initialEndDate?.slice(0, 10) || dayAfter)
+  const [startDate, setStartDate] = useState(initialStart)
+  const [endDate, setEndDate] = useState(requestedEnd && requestedEnd > initialStart ? requestedEnd : addDaysToDateInput(initialStart, 2))
   const [pickupLocation, setPickupLocation] = useState('Vehicle rental station')
-  const validDates = endDate > startDate
+  const validDates = startDate >= tomorrow && endDate > startDate
   const availability = useQuery({
     queryKey: ['vehicle-availability', vehicle?.id, startDate, endDate],
     queryFn: () => availabilityApi.check(vehicle!.id, startDate, endDate),

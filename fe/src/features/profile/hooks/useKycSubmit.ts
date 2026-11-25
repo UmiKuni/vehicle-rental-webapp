@@ -13,7 +13,7 @@ export function useKycSubmit() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.KYC_STATUS] })
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.PROFILE] })
-      toast.success('Documents uploaded and backend verification checks completed.')
+      toast.success('Documents submitted for review.')
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))
