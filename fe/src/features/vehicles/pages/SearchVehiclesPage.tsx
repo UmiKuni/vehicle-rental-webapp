@@ -20,7 +20,15 @@ export default function SearchVehiclesPage() {
   const [filters, setFilters] = useState<VehicleFilterParams>(() => {
     try {
       const saved = sessionStorage.getItem('vehicle-search-filters')
-      return saved ? { category: 'ALL', transmission: 'ALL', ...JSON.parse(saved) as VehicleFilterParams } : { category: 'ALL', transmission: 'ALL' }
+      if (!saved) return { category: 'ALL', transmission: 'ALL' }
+      const parsed = JSON.parse(saved) as VehicleFilterParams
+      return {
+        category: 'ALL',
+        transmission: 'ALL',
+        ...parsed,
+        pickupAt: parsed.pickupAt?.slice(0, 10),
+        returnAt: parsed.returnAt?.slice(0, 10),
+      }
     } catch {
       return { category: 'ALL', transmission: 'ALL' }
     }
@@ -105,7 +113,7 @@ export default function SearchVehiclesPage() {
     if (!vehicle) return
     const timer = window.setTimeout(() => {
       setSelectedVehicleForBooking(vehicle)
-      setFilters((current) => ({ ...current, pickupAt: state.pickupAt, returnAt: state.returnAt }))
+      setFilters((current) => ({ ...current, pickupAt: state.pickupAt?.slice(0, 10), returnAt: state.returnAt?.slice(0, 10) }))
       navigate(`${routerLocation.pathname}${routerLocation.search}`, {
         replace: true,
         state: { pickupAt: state.pickupAt, returnAt: state.returnAt },

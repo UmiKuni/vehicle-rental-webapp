@@ -16,7 +16,7 @@ export default function IdentityVerificationPage() {
   const [error, setError] = useState('')
 
   const selectImage = (file: File, side: 'front' | 'back') => {
-    if (!file.type.startsWith('image/')) return setError('Choose an image file.')
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type.toLowerCase())) return setError('Choose a JPG, PNG or WEBP image.')
     if (file.size > 10 * 1024 * 1024) return setError('Each document image must be 10 MB or smaller.')
     const url = URL.createObjectURL(file)
     if (side === 'front') { setFrontFile(file); setFront(url) }
@@ -45,7 +45,7 @@ export default function IdentityVerificationPage() {
       <label className="block space-y-1.5"><span className="text-xs font-semibold text-foreground">National ID number</span><input inputMode="numeric" maxLength={12} className="h-12 w-full rounded-xl border border-border bg-background px-3 font-mono text-sm outline-none focus:border-[#1a8a9d]" value={idNumber} onChange={(event) => setIdNumber(event.target.value.replace(/\D/g, ''))} autoComplete="off" /></label>
       <div className="space-y-3"><ImageUploadZone label="National ID front" preview={front} onFileSelect={(file) => selectImage(file, 'front')} isUploading={false} hint="Choose a photo or take one" /><ImageUploadZone label="National ID back" preview={back} onFileSelect={(file) => selectImage(file, 'back')} isUploading={false} hint="Choose a photo or take one" /></div>
       {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
-      <div className="rounded-xl border border-border bg-muted/35 p-3 text-xs leading-5 text-muted-foreground"><FileImage size={15} className="mr-1 inline text-[#1a8a9d]" />Both sides are uploaded together to private storage when you submit verification. The backend currently uses mock verification checks.</div>
+      <div className="rounded-xl border border-border bg-muted/35 p-3 text-xs leading-5 text-muted-foreground"><FileImage size={15} className="mr-1 inline text-[#1a8a9d]" />Both sides are uploaded together to private storage and reviewed by an administrator.</div>
       <button onClick={handleContinue} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1a8a9d] text-sm font-bold text-white hover:bg-[#147485]">Continue <ArrowRight size={17} /></button>
     </main>
   )

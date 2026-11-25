@@ -68,7 +68,7 @@ export function ImageUploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
         capture="environment"
         className="hidden"
         onChange={handleFile}

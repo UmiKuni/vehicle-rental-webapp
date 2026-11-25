@@ -23,6 +23,14 @@ function ProfileSkeleton() {
 }
 
 function KycPendingBanner({ kyc }: { kyc: NonNullable<ReturnType<typeof useKycStatus>['data']> }) {
+  const documentState = (type: 'CCCD' | 'GPLX', verified: boolean) => {
+    if (verified) return 'Verified'
+    const status = kyc.documents?.find((document) => document.type === type)?.verificationStatus.toLowerCase()
+    if (status === 'pending') return 'Awaiting administrator review'
+    if (status === 'rejected') return 'Rejected — resubmission needed'
+    return 'Not submitted'
+  }
+
   return (
     <div className="mx-4 rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
       <div className="flex items-start gap-3">
@@ -32,8 +40,8 @@ function KycPendingBanner({ kyc }: { kyc: NonNullable<ReturnType<typeof useKycSt
             Verification in progress
           </p>
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            {kyc.isIdVerified ? 'National ID is verified.' : 'National ID verification is still needed.'}{' '}
-            {kyc.isDriverLicenseVerified ? "Driver's license is verified." : "Driver's license verification is still needed."}
+            National ID: {documentState('CCCD', Boolean(kyc.isIdVerified))}.{' '}
+            Driver's license: {documentState('GPLX', Boolean(kyc.isDriverLicenseVerified))}.
           </p>
         </div>
       </div>
@@ -176,13 +184,13 @@ export default function ProfilePage() {
       </div>
 
       {/* ── KYC Info Card (if verified or pending) ── */}
-      {isCustomer && (kycStatus === 'VERIFIED' || kycStatus === 'PENDING') && kyc && (
+      {isCustomer && (kycStatus === 'VERIFIED' || kycStatus === 'PENDING' || kycStatus === 'REJECTED') && kyc && (
         <div className="mx-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Verification Profile
           </p>
-          <InfoRow icon={CreditCard} label="National ID" value={kyc.isIdVerified ? 'Verified' : 'Not verified'} />
-          <InfoRow icon={Shield} label="Driver's license" value={kyc.isDriverLicenseVerified ? 'Verified' : 'Not verified'} />
+          <InfoRow icon={CreditCard} label="National ID" value={kyc.documents?.find((document) => document.type === 'CCCD')?.verificationStatus ?? 'Not submitted'} />
+          <InfoRow icon={Shield} label="Driver's license" value={kyc.documents?.find((document) => document.type === 'GPLX')?.verificationStatus ?? 'Not submitted'} />
           {kyc.documents?.map((document) => <InfoRow key={document.documentId} icon={FileImage} label={`${document.type} document`} value={document.verificationStatus} />)}
         </div>
       )}
