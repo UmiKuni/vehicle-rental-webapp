@@ -64,7 +64,7 @@ internal static class OpenApiServiceCollectionExtensions
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
                 Name = "Authorization",
-                Description = "Paste the JWT accessToken returned by POST /api/auth/login (without the 'Bearer ' prefix)."
+                Description = "Paste the JWT accessToken returned by POST /api/users/login (without the 'Bearer ' prefix)."
             };
 
             foreach (var (schemaId, exampleFactory) in CuratedExamples)

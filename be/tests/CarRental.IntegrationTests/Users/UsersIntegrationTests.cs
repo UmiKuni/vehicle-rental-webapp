@@ -28,7 +28,7 @@ public class UsersIntegrationTests : IntegrationTestBase
             "0901234567",
             "SecurePassword123!");
 
-        var response = await Client.PostAsJsonAsync("/api/auth/register", request);
+        var response = await Client.PostAsJsonAsync("/api/users/register", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var authResult = await response.Content.ReadFromJsonAsync<AuthResultDto>();
@@ -53,10 +53,10 @@ public class UsersIntegrationTests : IntegrationTestBase
             "0901111222",
             "Password123!");
 
-        var firstResponse = await Client.PostAsJsonAsync("/api/auth/register", request);
+        var firstResponse = await Client.PostAsJsonAsync("/api/users/register", request);
         firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var duplicateResponse = await Client.PostAsJsonAsync("/api/auth/register", request);
+        var duplicateResponse = await Client.PostAsJsonAsync("/api/users/register", request);
         duplicateResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
@@ -65,9 +65,9 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var email = "login_test@example.com";
         var password = "ValidPassword123!";
-        await Client.PostAsJsonAsync("/api/auth/register", new RegisterUserDto(email, "0902223344", password));
+        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0902223344", password));
 
-        var response = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(email, password));
+        var response = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(email, password));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var authResult = await response.Content.ReadFromJsonAsync<AuthResultDto>();
@@ -80,9 +80,9 @@ public class UsersIntegrationTests : IntegrationTestBase
     public async Task Login_InvalidPassword_ShouldReturn401Unauthorized()
     {
         var email = "wrong_pwd@example.com";
-        await Client.PostAsJsonAsync("/api/auth/register", new RegisterUserDto(email, "0903334455", "CorrectPassword123!"));
+        await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0903334455", "CorrectPassword123!"));
 
-        var response = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(email, "WrongPassword!"));
+        var response = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(email, "WrongPassword!"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -92,10 +92,10 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         var email = "refresh_test@example.com";
         var password = "Password123!";
-        var regResponse = await Client.PostAsJsonAsync("/api/auth/register", new RegisterUserDto(email, "0904445566", password));
+        var regResponse = await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(email, "0904445566", password));
         var initialAuth = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
 
-        var response = await Client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenDto(initialAuth!.RefreshToken));
+        var response = await Client.PostAsJsonAsync("/api/users/refresh", new RefreshTokenDto(initialAuth!.RefreshToken));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var rotatedAuth = await response.Content.ReadFromJsonAsync<AuthResultDto>();
@@ -128,7 +128,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     public async Task Logout_ValidToken_ShouldImmediatelyRevokeAccessToken()
     {
         var regResponse = await Client.PostAsJsonAsync(
-            "/api/auth/register",
+            "/api/users/register",
             new RegisterUserDto("logout_revoke@example.com", "0906667788", "SecurePassword123!"));
         regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
@@ -138,15 +138,15 @@ public class UsersIntegrationTests : IntegrationTestBase
         authClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
 
-        var meBefore = await authClient.GetAsync("/api/auth/me");
+        var meBefore = await authClient.GetAsync("/api/users/me");
         meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var logoutResponse = await authClient.PostAsJsonAsync(
-            "/api/auth/logout",
+            "/api/users/logout",
             new RefreshTokenDto(authResult.RefreshToken));
         logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        var meAfter = await authClient.GetAsync("/api/auth/me");
+        var meAfter = await authClient.GetAsync("/api/users/me");
         meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -158,7 +158,7 @@ public class UsersIntegrationTests : IntegrationTestBase
             "0907778899",
             verified: false);
 
-        var meBefore = await customerClient.GetAsync("/api/auth/me");
+        var meBefore = await customerClient.GetAsync("/api/users/me");
         meBefore.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var (adminClient, _) = await CreateAuthenticatedAdminClientAsync(
@@ -168,7 +168,7 @@ public class UsersIntegrationTests : IntegrationTestBase
         var banResponse = await adminClient.PutAsync($"/api/users/{customerId}/ban", content: null);
         banResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        var meAfter = await customerClient.GetAsync("/api/auth/me");
+        var meAfter = await customerClient.GetAsync("/api/users/me");
         meAfter.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -177,7 +177,7 @@ public class UsersIntegrationTests : IntegrationTestBase
     {
         using var content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
 
-        var response = await Client.PostAsync("/api/auth/login", content);
+        var response = await Client.PostAsync("/api/users/login", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");

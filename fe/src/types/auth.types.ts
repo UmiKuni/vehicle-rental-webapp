@@ -6,7 +6,6 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   fullName: string
-  username: string
   email: string
   phone: string
   password: string
@@ -21,7 +20,7 @@ export interface TokenResponse {
 }
 
 export interface AuthUser {
-  id: number
+  id: number | string
   username: string
   email: string
   fullName: string
@@ -29,12 +28,23 @@ export interface AuthUser {
   avatar?: string
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CUSTOMER'
+export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF' | 'OWNER' | 'CUSTOMER' | 'GUEST'
+
+/** Normalize only roles that the backend actually defines. Unknown roles fail closed. */
+export function normalizeUserRole(value: unknown): UserRole | null {
+  if (typeof value !== 'string') return null
+  const role = value.trim().toUpperCase()
+  return ['ADMIN', 'MANAGER', 'STAFF', 'OWNER', 'CUSTOMER', 'GUEST'].includes(role)
+    ? role as UserRole
+    : null
+}
 
 /** Roles that have access to the admin dashboard */
 export const ADMIN_ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'STAFF']
 /** Roles that are end-customers using the PWA */
 export const CUSTOMER_ROLES: UserRole[] = ['CUSTOMER']
+/** Owners use the separate owner workspace and owner-only backend endpoints. */
+export const OWNER_ROLES: UserRole[] = ['OWNER']
 
 // Refresh token request
 export interface RefreshTokenRequest {

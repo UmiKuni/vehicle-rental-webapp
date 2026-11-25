@@ -124,7 +124,7 @@ public class ApiExceptionHandlingMiddlewareTests
     {
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Post;
-        context.Request.Path = "/api/auth/login";
+        context.Request.Path = "/api/users/login";
         context.Response.Body = new MemoryStream();
         return context;
     }

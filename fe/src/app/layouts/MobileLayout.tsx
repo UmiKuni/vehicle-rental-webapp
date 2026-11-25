@@ -1,64 +1,65 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
-import { LayoutDashboard, CalendarCheck, User, ArrowLeft, Car } from 'lucide-react'
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
+import { User, ShieldCheck, Car, House, CalendarDays, Bell, CarFront } from 'lucide-react'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { useKycStatus } from '@/features/profile/hooks/useProfile'
 import { useAuth } from '@/shared/contexts/AuthContext'
-import { ADMIN_ROLES, CUSTOMER_ROLES } from '@/types/auth.types'
 
 function BottomNav() {
+  const location = useLocation()
   const { user } = useAuth()
-  const { data: kyc } = useKycStatus(!!user)
-  const isUnverified = user && (!kyc || kyc.status === 'UNVERIFIED')
-  const isCustomer = !user || CUSTOMER_ROLES.includes(user.role)
-
-  const navItems = isCustomer
-    ? [
-        { to: ROUTES.SEARCH, icon: Car, label: 'Rent Car' },
-        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Trips' },
-        { to: user ? ROUTES.PROFILE : ROUTES.LOGIN, icon: User, label: user ? 'Profile' : 'Account' },
-      ]
-    : [
-        { to: ROUTES.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
-        { to: ROUTES.SEARCH, icon: Car, label: 'Rent Car' },
-        { to: ROUTES.BOOKINGS, icon: CalendarCheck, label: 'Trips' },
-        { to: ROUTES.PROFILE, icon: User, label: 'Profile' },
-      ]
+  const { data: kyc } = useKycStatus(user?.role === 'CUSTOMER')
+  const isUnverified = user?.role === 'CUSTOMER' && (!kyc || kyc.status === 'UNVERIFIED')
+  const navItems = user?.role === 'OWNER' ? [
+    { to: ROUTES.HOME, icon: House, label: 'Home' },
+    { to: ROUTES.SEARCH, icon: Car, label: 'Browse' },
+    { to: ROUTES.OWNER_DASHBOARD, icon: CarFront, label: 'Workspace' },
+    { to: ROUTES.OWNER_VEHICLES, icon: CalendarDays, label: 'Fleet' },
+    { to: ROUTES.PROFILE, icon: User, label: 'Account' },
+  ] : [
+    { to: ROUTES.HOME, icon: House, label: 'Home' },
+    { to: ROUTES.SEARCH, icon: Car, label: 'Search' },
+    { to: ROUTES.BOOKINGS, icon: CalendarDays, label: 'Trips' },
+    { to: ROUTES.NOTIFICATIONS, icon: Bell, label: 'Inbox' },
+    { to: user ? ROUTES.PROFILE : ROUTES.PROFILE_AUTH, icon: User, label: 'Profile' },
+  ]
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
+    <nav aria-label="Primary navigation" className="app-bottom-nav fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl safe-area-pb">
       <div className="flex items-stretch max-w-md mx-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
-            end={to === ROUTES.DASHBOARD || to === ROUTES.PROFILE}
-            className={({ isActive }) =>
-              cn(
+              end={to === ROUTES.HOME || to === ROUTES.PROFILE || to === ROUTES.BOOKINGS || to === ROUTES.NOTIFICATIONS || to === ROUTES.OWNER_DASHBOARD || to === ROUTES.OWNER_VEHICLES}
+            className={({ isActive }) => {
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              return cn(
                 'flex-1 min-h-[50px] flex flex-col items-center justify-center gap-1 py-1.5 relative transition-colors active-press',
-                isActive
+                itemIsActive
                   ? 'text-[#1a8a9d]'
                   : 'text-muted-foreground hover:text-foreground'
               )
-            }
+            }}
           >
-            {({ isActive }) => (
-              <>
+            {({ isActive }) => {
+              const itemIsActive = isActive || (['Search', 'Browse'].includes(label) && location.pathname.startsWith('/vehicles/')) || (['Profile', 'Account'].includes(label) && (location.pathname.startsWith(ROUTES.PROFILE_AUTH) || location.pathname.startsWith('/profile/'))) || (label === 'Trips' && location.pathname.startsWith('/booking')) || (label === 'Inbox' && location.pathname.startsWith(ROUTES.NOTIFICATIONS))
+              return <>
                 <div className="relative">
-                  <Icon className={cn('size-5 transition-transform', isActive && 'scale-110')} />
+                  <Icon className={cn('size-5 transition-transform', itemIsActive && 'scale-110')} />
                   {/* Unverified dot on profile */}
                   {to === ROUTES.PROFILE && isUnverified && (
                     <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 border border-background" />
                   )}
                 </div>
-                <span className={cn('text-[10px] font-medium transition-all', isActive && 'font-bold text-[#1a8a9d]')}>
+                <span className={cn('text-[10px] font-medium transition-all', itemIsActive && 'font-bold text-[#1a8a9d]')}>
                   {label}
                 </span>
-                {isActive && (
+                {itemIsActive && (
                   <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#1a8a9d]" />
                 )}
               </>
-            )}
+            }}
           </NavLink>
         ))}
       </div>
@@ -72,49 +73,32 @@ function BottomNav() {
  */
 export function MobileLayout() {
   const { user } = useAuth()
-  const isAdmin = user && ADMIN_ROLES.includes(user.role)
+  const isAdmin = user?.role === 'ADMIN'
+  const isOwner = user?.role === 'OWNER'
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
-      {/* Admin Preview Header */}
-      {isAdmin && (
+    <div className="min-h-dvh w-full overflow-x-clip bg-slate-100/70 dark:bg-zinc-950 flex flex-col">
+      {/* Admins can switch portals without mixing the mobile and admin navigation. */}
+      {(isAdmin || isOwner) && (
         <header className="bg-zinc-900 border-b border-zinc-800 text-white px-4 py-2 sticky top-0 z-40 text-xs">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-zinc-300 font-medium">
               <span className="size-2 rounded-full bg-cyan-400 animate-pulse" />
-              PWA View Mode ({user.role})
+              Rental portal · {user.role}
             </span>
             <Link
-              to={ROUTES.DASHBOARD}
+              to={ROUTES.ADMIN}
               className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold"
             >
-              <ArrowLeft className="size-3" />
-              Back to Dashboard
-            </Link>
-          </div>
-        </header>
-      )}
-
-      {/* Guest Welcome Banner */}
-      {!user && (
-        <header className="bg-gradient-to-r from-teal-900 via-teal-800 to-cyan-900 text-white px-4 py-2.5 sticky top-0 z-40 shadow-sm">
-          <div className="max-w-md mx-auto flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight truncate">Welcome! Self-drive rental made easy</p>
-              <p className="text-[10px] text-teal-200/90 leading-tight">Sign in for exclusive offers & instant booking</p>
-            </div>
-            <Link
-              to={ROUTES.LOGIN}
-              className="inline-flex items-center justify-center min-h-[36px] px-3.5 py-1 rounded-xl bg-white text-teal-900 font-bold text-xs hover:bg-teal-50 transition-colors shadow-xs shrink-0 active-press"
-            >
-              Sign In
+              {isAdmin ? <ShieldCheck className="size-3" /> : <CarFront className="size-3" />}
+              {isAdmin ? 'Admin workspace' : 'Owner workspace'}
             </Link>
           </div>
         </header>
       )}
 
       {/* Main mobile viewport */}
-      <main className="w-full max-w-md mx-auto bg-background min-h-screen sm:border-x sm:border-border sm:shadow-sm pb-24 flex-1">
+      <main className="w-full max-w-md mx-auto bg-background min-h-dvh sm:border-x sm:border-border sm:shadow-sm pb-24 flex-1">
         <Outlet />
       </main>
 

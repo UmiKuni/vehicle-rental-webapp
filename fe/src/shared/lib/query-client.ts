@@ -24,9 +24,17 @@ export const queryClient = new QueryClient({
 /** Extract a user-friendly error message from an API error */
 export function getErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<ApiError>
+  const problem = axiosError.response?.data as (ApiError & { detail?: string; title?: string }) | undefined
   return (
-    axiosError.response?.data?.message ??
+    problem?.detail ??
+    problem?.message ??
+    problem?.title ??
     axiosError.message ??
     'An error occurred. Please try again.'
   )
+}
+
+export function getFieldErrors(error: unknown): Record<string, string[]> {
+  const axiosError = error as AxiosError<ApiError>
+  return axiosError.response?.data?.errors ?? {}
 }

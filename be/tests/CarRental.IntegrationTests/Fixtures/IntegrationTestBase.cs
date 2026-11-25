@@ -43,7 +43,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         string password = "Password123!",
         bool verified = true)
     {
-        var registerResponse = await Client.PostAsJsonAsync("/api/auth/register", new RegisterUserDto(
+        var registerResponse = await Client.PostAsJsonAsync("/api/users/register", new RegisterUserDto(
             email,
             phone,
             password));
@@ -72,7 +72,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             userId = user.Id.Value;
         }
 
-        var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(
+        var loginResponse = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(
             email,
             password));
         loginResponse.EnsureSuccessStatusCode();
@@ -105,7 +105,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         }
 
         // Re-authenticate to issue JWT with Owner role claim
-        var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(
+        var loginResponse = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(
             email,
             password));
         loginResponse.EnsureSuccessStatusCode();
@@ -135,7 +135,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         }
 
         // Re-authenticate to issue JWT with Admin role claim
-        var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new LoginUserDto(
+        var loginResponse = await Client.PostAsJsonAsync("/api/users/login", new LoginUserDto(
             email,
             password));
         loginResponse.EnsureSuccessStatusCode();

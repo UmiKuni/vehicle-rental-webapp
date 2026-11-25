@@ -78,6 +78,18 @@ public static class UsersModule
                 };
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        // SignalR's browser WebSocket transport sends bearer tokens
+                        // as a query parameter because it cannot set Authorization.
+                        if (context.Request.Path.StartsWithSegments("/hubs/notifications") &&
+                            context.Request.Query.TryGetValue("access_token", out var accessToken))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = async context =>
                     {
                         var userIdClaim = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);

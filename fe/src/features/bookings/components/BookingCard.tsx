@@ -1,27 +1,34 @@
-import { Calendar, MapPin, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, Calendar, MapPin, CarFront } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Booking } from '@/types/booking.types'
 import { useCancelBooking } from '../hooks/useBookings'
 import { formatDate } from '@/shared/utils'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog'
 
 interface BookingCardProps {
   booking: Booking
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
+  PENDING:   { label: 'Pending',   class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
   CONFIRMED: { label: 'Confirmed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+  PAID:      { label: 'Paid',      class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
   ACTIVE:    { label: 'Active',    class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
+  IN_PROGRESS: { label: 'In progress', class: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30' },
   COMPLETED: { label: 'Completed', class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
   CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  REJECTED:  { label: 'Rejected',  class: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' },
+  EXPIRED:   { label: 'Expired',   class: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30' },
 }
 
 export function BookingCard({ booking }: BookingCardProps) {
+  const [cancelOpen, setCancelOpen] = useState(false)
   const { mutate: cancelBooking, isPending } = useCancelBooking()
   const statusInfo = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.CONFIRMED
 
   const handleCancel = () => {
-    if (window.confirm(`Are you sure you want to cancel booking ${booking.bookingCode}?`)) {
-      cancelBooking(booking.id)
-    }
+    cancelBooking(booking.id, { onSuccess: () => setCancelOpen(false) })
   }
 
   return (
@@ -31,26 +38,18 @@ export function BookingCard({ booking }: BookingCardProps) {
         <span className="font-mono text-xs font-bold text-foreground">
           {booking.bookingCode}
         </span>
-        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${statusInfo.class}`}>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusInfo.class}`}>
           {statusInfo.label}
         </span>
       </div>
 
       {/* Car Info */}
       <div className="flex items-center gap-3">
-        <img
-          src={booking.vehicle.imageUrl}
-          alt={booking.vehicle.name}
-          className="h-16 w-24 rounded-xl object-cover border border-border/80"
-        />
+        {booking.vehicle.imageUrl ? <img src={booking.vehicle.imageUrl} alt={booking.vehicle.name} className="h-16 w-24 rounded-xl object-cover border border-border/80" /> : <div className="grid h-16 w-24 shrink-0 place-items-center rounded-xl border border-border/80 bg-muted text-muted-foreground"><CarFront size={25} /></div>}
         <div className="min-w-0 flex-1">
           <h4 className="font-bold text-foreground text-sm truncate">
             {booking.vehicle.name}
           </h4>
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
-            <MapPin className="size-3 text-[#1a8a9d] shrink-0" />
-            <span>{booking.vehicle.location}</span>
-          </p>
           <p className="text-xs font-bold text-[#1a8a9d] mt-1">
             {new Intl.NumberFormat('en-US').format(booking.totalAmount)} VND
             <span className="text-[10px] text-muted-foreground font-normal"> ({booking.totalDays} {booking.totalDays > 1 ? 'days' : 'day'})</span>
@@ -59,7 +58,7 @@ export function BookingCard({ booking }: BookingCardProps) {
       </div>
 
       {/* Date & Delivery Info */}
-      <div className="rounded-xl bg-muted/40 p-2.5 space-y-1 text-[11px]">
+      <div className="rounded-xl bg-muted/40 p-2.5 space-y-1 text-xs">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Calendar className="size-3.5 text-foreground/70 shrink-0" />
           <span className="font-medium text-foreground">
@@ -67,33 +66,55 @@ export function BookingCard({ booking }: BookingCardProps) {
           </span>
         </div>
         <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-border/50">
-          <span>Delivery:</span>
-          <span className="font-semibold text-foreground">
-            {booking.deliveryType === 'STATION' ? 'Station Pickup' : 'Home Delivery'}
-          </span>
+          <span className="inline-flex items-center gap-1"><MapPin size={13} /> Pick-up location:</span>
+          <span className="max-w-[65%] truncate text-right font-semibold text-foreground">{booking.pickupLocation || 'To be confirmed'}</span>
         </div>
       </div>
 
       {/* Actions */}
-      {booking.status === 'CONFIRMED' && (
-        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-2">
+        <Link to={`/bookings/${booking.id}`} className="mr-auto inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-[#1a8a9d] hover:bg-[#1a8a9d]/10 transition-colors">Trip details</Link>
+        {booking.status === 'CONFIRMED' && (
+          <Link to={`/bookings/${booking.id}/payment`} className="inline-flex min-h-11 items-center rounded-lg bg-[#1a8a9d] px-3 text-xs font-bold text-white hover:bg-[#147485] transition-colors">Pay now</Link>
+        )}
+        {booking.status === 'PAID' && (
+          <Link to={`/bookings/${booking.id}/pickup`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Pickup check</Link>
+        )}
+        {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && (
+          <Link to={`/bookings/${booking.id}/return`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Return check</Link>
+        )}
+        {booking.status === 'COMPLETED' && (
+          <Link to={`/bookings/${booking.id}/settlement`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted transition-colors">Deposit details</Link>
+        )}
+        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'PAID') && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={isPending}
-            onClick={handleCancel}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-500/10 transition-colors"
+            onClick={() => setCancelOpen(true)}
+            className="min-h-11 rounded-lg px-3 text-xs font-semibold text-red-600 hover:bg-red-500/10 transition-colors"
           >
             Cancel Booking
           </button>
-          <a
-            href="tel:19001234"
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-1"
-          >
-            <AlertCircle className="size-3" />
-            Help
-          </a>
         </div>
-      )}
+        )}
+      </div>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-red-500/10 text-red-600"><AlertTriangle size={20} /></div>
+            <DialogTitle>Cancel booking {booking.bookingCode}?</DialogTitle>
+            <DialogDescription className="pt-2 leading-6">
+              This stops the rental request. The backend will calculate any cancellation fee and refund from the booking timing and policy. Updated totals will appear in your booking after cancellation.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <button type="button" onClick={() => setCancelOpen(false)} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-muted">Keep booking</button>
+            <button type="button" onClick={handleCancel} disabled={isPending} className="min-h-11 rounded-lg bg-red-600 px-4 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">{isPending ? 'Cancelling…' : 'Cancel booking'}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
