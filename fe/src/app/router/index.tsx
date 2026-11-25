@@ -29,6 +29,7 @@ const NotificationsPage = lazy(() => import('@/features/notifications/pages/Noti
 const AdminVehiclesPage = lazy(() => import('@/features/admin/pages/AdminVehiclesPage'))
 const AdminCatalogPage = lazy(() => import('@/features/admin/pages/AdminCatalogPage'))
 const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'))
+const IdentityVerificationsPage = lazy(() => import('@/features/admin/pages/IdentityVerificationsPage'))
 const AuditLogPage = lazy(() => import('@/features/admin/pages/AuditLogPage'))
 const OwnerDashboardPage = lazy(() => import('@/features/owner/pages/OwnerDashboardPage'))
 const OwnerBookingsPage = lazy(() => import('@/features/owner/pages/OwnerBookingsPage'))
@@ -96,6 +97,7 @@ const router = createBrowserRouter([
           { path: ROUTES.ADMIN_VEHICLES, element: wrap(AdminVehiclesPage) },
           { path: ROUTES.ADMIN_CATALOG, element: wrap(AdminCatalogPage) },
           { path: ROUTES.USERS, element: wrap(AdminUsersPage) },
+          { path: ROUTES.ADMIN_VERIFICATIONS, element: wrap(IdentityVerificationsPage) },
           { path: ROUTES.AUDIT, element: wrap(AuditLogPage) },
         ],
       },

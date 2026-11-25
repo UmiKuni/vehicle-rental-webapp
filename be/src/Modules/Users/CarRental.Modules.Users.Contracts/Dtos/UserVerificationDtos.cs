@@ -4,14 +4,14 @@ using CarRental.Modules.Users.Contracts.Enums;
 
 namespace CarRental.Modules.Users.Contracts.Dtos;
 
-/// <summary>Request payload for mock citizen ID (CCCD) verification.</summary>
+/// <summary>Submit citizen ID (CCCD) details and its uploaded document for administrator review.</summary>
 public sealed record VerifyIdDocumentDto(
     string? DocumentNumber = null,
     string? FullName = null,
     string? Address = null,
     string? StorageKey = null);
 
-/// <summary>Request payload for mock driver's license (GPLX) verification.</summary>
+/// <summary>Submit driver's license (GPLX) details and its uploaded document for administrator review.</summary>
 public sealed record VerifyDriverLicenseDto(
     string? LicenseNumber = null,
     LicenseClass? LicenseClass = null,

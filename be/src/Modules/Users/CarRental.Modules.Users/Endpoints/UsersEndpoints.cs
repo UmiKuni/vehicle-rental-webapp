@@ -125,7 +125,7 @@ public static class UsersEndpoints
             return result.ToHttpResult();
         })
         .WithName("VerifyMyId")
-        .WithSummary("Verify the current user's citizen ID (CCCD) (mock).")
+        .WithSummary("Submit the current user's citizen ID (CCCD) for administrator review.")
         .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -156,7 +156,7 @@ public static class UsersEndpoints
             return result.ToHttpResult();
         })
         .WithName("VerifyUserId")
-        .WithSummary("Verify a user's citizen ID (CCCD) (mock).")
+        .WithSummary("Submit a user's citizen ID (CCCD) for administrator review.")
         .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -184,7 +184,7 @@ public static class UsersEndpoints
             return result.ToHttpResult();
         })
         .WithName("VerifyMyDriverLicense")
-        .WithSummary("Verify the current user's driver's license (GPLX) (mock).")
+        .WithSummary("Submit the current user's driver's license (GPLX) for administrator review.")
         .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -249,7 +249,7 @@ public static class UsersEndpoints
             return result.ToHttpResult();
         })
         .WithName("VerifyUserDriverLicense")
-        .WithSummary("Verify a user's driver's license (GPLX) (mock).")
+        .WithSummary("Submit a user's driver's license (GPLX) for administrator review.")
         .Produces<UserVerificationStatusDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)

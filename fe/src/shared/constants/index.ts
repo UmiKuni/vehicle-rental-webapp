@@ -15,6 +15,7 @@ export const ROUTES = {
   ADMIN_VEHICLES: '/admin/vehicles',
   ADMIN_CATALOG: '/admin/catalog',
   USERS: '/admin/users',
+  ADMIN_VERIFICATIONS: '/admin/verifications',
   AUDIT: '/admin/audit',
   SEARCH: '/search',
   BOOKINGS: '/bookings',

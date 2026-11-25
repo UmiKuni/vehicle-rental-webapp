@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ArrowLeft, CarFront, ChevronRight, Layers3, LayoutDashboard, LogOut, ShieldCheck, Users, ScrollText } from 'lucide-react'
+import { ArrowLeft, CarFront, ChevronRight, Layers3, LayoutDashboard, LogOut, ShieldCheck, Users, ScrollText, FileCheck2 } from 'lucide-react'
 import { useAuth } from '@/shared/contexts/AuthContext'
 import { getInitials } from '@/shared/utils'
 import { APP_NAME, ROUTES } from '@/shared/constants'
@@ -19,7 +19,10 @@ const navigation = [
   },
   {
     label: 'ACCESS MANAGEMENT',
-    items: [{ to: ROUTES.USERS, label: 'User access', icon: Users, end: false }],
+    items: [
+      { to: ROUTES.USERS, label: 'User access', icon: Users, end: false },
+      { to: ROUTES.ADMIN_VERIFICATIONS, label: 'Identity review', icon: FileCheck2, end: false },
+    ],
   },
   {
     label: 'SECURITY',
@@ -32,6 +35,7 @@ const pageNames: Record<string, string> = {
   [ROUTES.ADMIN_VEHICLES]: 'Fleet vehicles',
   [ROUTES.ADMIN_CATALOG]: 'Vehicle catalog',
   [ROUTES.USERS]: 'User access',
+  [ROUTES.ADMIN_VERIFICATIONS]: 'Identity review',
   [ROUTES.AUDIT]: 'Audit log',
 }
 
