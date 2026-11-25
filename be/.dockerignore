@@ -15,3 +15,5 @@ appsettings.Production.json
 *.user
 *.suo
 *.log
+**/.env
+**/.env.*

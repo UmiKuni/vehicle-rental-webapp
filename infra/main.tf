@@ -61,6 +61,12 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
   zone                          = var.postgres_zone
   public_network_access_enabled = true
   tags                          = local.common_tags
+
+  # Azure auto-assigns an availability zone when var.postgres_zone is null;
+  # ignoring drift prevents azurerm from attempting an unsupported in-place zone change.
+  lifecycle {
+    ignore_changes = [zone]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_database" "carrental_db" {
@@ -110,9 +116,9 @@ resource "azurerm_container_app" "api" {
   revision_mode                = "Single"
   tags                         = local.common_tags
 
-  identity {
-    type = "SystemAssigned"
-  }
+  # No managed identity: Container Apps Express environments reject
+  # System-assigned identities (ExpressSystemAssignedIdentityNotSupported).
+  # Secrets are injected via Container App secrets below.
 
   registry {
     server               = azurerm_container_registry.acr.login_server
@@ -171,7 +177,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "ASPNETCORE_ENVIRONMENT"
-        value = var.environment == "production" ? "Production" : "Staging"
+        value = coalesce(var.aspnetcore_environment, var.environment == "production" ? "Production" : "Staging")
       }
 
       env {
@@ -276,9 +282,9 @@ resource "azurerm_container_app" "api" {
   }
 
   lifecycle {
-    ignore_changes = [
-      template[0].container[0].image
-    ]
+    #ignore_changes = [
+    #  template[0].container[0].image
+    #]
 
     precondition {
       condition     = !local.cloudinary_any || local.cloudinary_enabled
@@ -304,10 +310,4 @@ resource "azurerm_role_assignment" "key_vault_deployer_secrets_officer" {
   scope                = azurerm_key_vault.vault.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
-}
-
-resource "azurerm_role_assignment" "api_key_vault_secrets_user" {
-  scope                = azurerm_key_vault.vault.id
-  role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_container_app.api.identity[0].principal_id
 }

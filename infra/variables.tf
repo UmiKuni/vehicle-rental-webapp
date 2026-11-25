@@ -180,6 +180,17 @@ variable "container_image" {
   default     = "mcr.microsoft.com/k8se/quickstart:latest"
 }
 
+variable "aspnetcore_environment" {
+  description = "Optional ASPNETCORE_ENVIRONMENT override (e.g. 'Development' to expose Scalar). Null derives it from var.environment."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.aspnetcore_environment == null || contains(["Development", "Staging", "Production"], coalesce(var.aspnetcore_environment, "Staging"))
+    error_message = "aspnetcore_environment must be null, 'Development', 'Staging', or 'Production'."
+  }
+}
+
 variable "container_app_cpu" {
   description = "vCPU allocation for CarRental.Api container"
   type        = number
