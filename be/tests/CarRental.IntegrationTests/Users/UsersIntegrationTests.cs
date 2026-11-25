@@ -125,6 +125,66 @@ public class UsersIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task GetMe_UnverifiedCustomer_ShouldReturnDatabaseBackedIdentityAndEmptyProfile()
+    {
+        var regResponse = await Client.PostAsJsonAsync(
+            "/api/users/register",
+            new RegisterUserDto("me_unverified@example.com", "0905112233", "SecurePassword123!"));
+        regResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var authResult = await regResponse.Content.ReadFromJsonAsync<AuthResultDto>();
+        authResult.Should().NotBeNull();
+
+        using var authClient = Factory.CreateClient();
+        authClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
+
+        var meResponse = await authClient.GetAsync("/api/users/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var me = await meResponse.Content.ReadFromJsonAsync<CurrentUserDto>();
+        me.Should().NotBeNull();
+        me!.UserId.Should().Be(authResult.UserId);
+        me.Email.Should().Be("me_unverified@example.com");
+        me.Phone.Should().Be("0905112233");
+        me.FullName.Should().BeEmpty();
+        me.Address.Should().BeEmpty();
+        me.Role.Should().Be(UserRole.Customer.ToString());
+        me.IsIdVerified.Should().BeFalse();
+        me.IsDriverLicenseVerified.Should().BeFalse();
+        me.IsVerified.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetMe_AfterProfileUpdate_ShouldReturnLatestProfileFromDatabase()
+    {
+        var (authClient, userId) = await CreateAuthenticatedCustomerClientAsync("me_profile@example.com", "0905445566");
+
+        var updateDto = new UpdateProfileDto("Nguyen Van Me", "456 Tran Hung Dao, District 5, HCMC");
+        var updateResponse = await authClient.PutAsJsonAsync($"/api/users/{userId}/profile", updateDto);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meResponse = await authClient.GetAsync("/api/users/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var me = await meResponse.Content.ReadFromJsonAsync<CurrentUserDto>();
+
+        var profileResponse = await authClient.GetAsync($"/api/users/{userId}/profile");
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var profile = await profileResponse.Content.ReadFromJsonAsync<UserProfileDto>();
+
+        me.Should().NotBeNull();
+        profile.Should().NotBeNull();
+        me!.UserId.Should().Be(profile!.UserId);
+        me.Email.Should().Be(profile.Email);
+        me.Phone.Should().Be(profile.Phone);
+        me.FullName.Should().Be("Nguyen Van Me").And.Be(profile.FullName);
+        me.Address.Should().Be("456 Tran Hung Dao, District 5, HCMC").And.Be(profile.Address);
+        me.Role.Should().Be(UserRole.Customer.ToString());
+        me.IsIdVerified.Should().BeTrue();
+        me.IsDriverLicenseVerified.Should().BeTrue();
+        me.IsVerified.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Logout_ValidToken_ShouldImmediatelyRevokeAccessToken()
     {
         var regResponse = await Client.PostAsJsonAsync(

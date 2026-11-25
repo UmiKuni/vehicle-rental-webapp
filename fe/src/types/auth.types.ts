@@ -19,6 +19,18 @@ export interface TokenResponse {
   expiresIn: number
 }
 
+export interface CurrentUserResponse {
+  userId: string
+  email: string
+  phone: string
+  fullName: string
+  address: string
+  role: string
+  isIdVerified: boolean
+  isDriverLicenseVerified: boolean
+  isVerified: boolean
+}
+
 export interface AuthUser {
   id: number | string
   username: string
