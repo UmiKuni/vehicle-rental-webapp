@@ -21,15 +21,6 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
           loading="lazy"
         /> : <div className="grid h-full w-full place-items-center text-muted-foreground"><CarFront size={48} /></div>}
 
-        {/* Top Badges */}
-        <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-0.5 text-[11px] font-bold text-foreground shadow-xs">
-            <Star className="size-3 fill-amber-400 text-amber-400" />
-            {vehicle.rating > 0 ? vehicle.rating.toFixed(1) : 'No rating'}
-            <span className="text-[10px] text-muted-foreground font-normal">({vehicle.reviewCount ?? 0} reviews)</span>
-          </span>
-        </div>
-
         {/* Fuel / Eco Badge Bottom Right */}
         {vehicle.fuelType && <div className="absolute bottom-2.5 right-2.5">
           <span
@@ -58,6 +49,14 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
             <MapPin className="size-3 text-[#1a8a9d] shrink-0" />
             <span>{vehicle.location}</span>
           </p>
+          <div
+            className="vehicle-rating-summary"
+            aria-label={vehicle.rating > 0 ? `${vehicle.rating.toFixed(1)} out of 5 from ${vehicle.reviewCount ?? 0} reviews` : 'No reviews yet'}
+          >
+            <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+            <strong>{vehicle.rating > 0 ? vehicle.rating.toFixed(1) : 'New'}</strong>
+            <span>{vehicle.rating > 0 ? `${vehicle.reviewCount ?? 0} reviews` : 'No reviews yet'}</span>
+          </div>
         </div>
 
         {/* Specs Row */}
@@ -77,8 +76,8 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
         </div>
 
         {/* Features Chips */}
-        <div className="flex flex-wrap gap-1">
-          {(vehicle.features ?? []).slice(0, 3).map((f) => (
+        {(vehicle.features?.length ?? 0) > 0 && <div className="flex flex-wrap gap-1">
+          {vehicle.features!.slice(0, 3).map((f) => (
             <span
               key={f}
               className="rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
@@ -86,7 +85,7 @@ export function VehicleCard({ vehicle, onBook, onViewDetails }: VehicleCardProps
               {f}
             </span>
           ))}
-        </div>
+        </div>}
 
         {/* Footer: Price & CTA */}
         <div className="flex items-center justify-between pt-1 border-t border-border/50">

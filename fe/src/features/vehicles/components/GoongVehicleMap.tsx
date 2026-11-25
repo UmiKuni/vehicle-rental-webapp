@@ -3,7 +3,6 @@ import {
   LngLatBounds,
   Map as MapLibreMap,
   Marker,
-  NavigationControl,
   setWorkerUrl,
 } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -40,9 +39,8 @@ function withGoongKey(url: string, key: string) {
 }
 
 function markerLabel(vehicle: Vehicle) {
-  const price = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
     .format(vehicle.pricePerDay)
-  return `${price} VND`
 }
 
 function mapMessage(status: MapStatus) {
@@ -96,7 +94,7 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
         pitchWithRotate: false,
         dragRotate: false,
         touchPitch: false,
-        attributionControl: { compact: true, customAttribution: '© Goong' },
+        attributionControl: false,
         transformRequest: (url) => ({ url: withGoongKey(url, GOONG_MAPTILES_KEY) }),
       })
     } catch {
@@ -104,7 +102,6 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
       return
     }
     mapRef.current = map
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     const vehicleMarkers = markersRef.current
 
     const loadTimeout = window.setTimeout(() => {
@@ -152,7 +149,7 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
       const element = document.createElement('button')
       element.type = 'button'
       element.className = 'goong-vehicle-marker'
-      element.setAttribute('aria-label', `Select ${vehicle.name}, ${markerLabel(vehicle)} per day`)
+      element.setAttribute('aria-label', `Select ${vehicle.name}, ${markerLabel(vehicle)} VND per day`)
       element.textContent = markerLabel(vehicle)
       element.addEventListener('click', () => onSelectRef.current(vehicle))
 
@@ -165,11 +162,11 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
     })
 
     if (locatedVehicles.length === 1) {
-      map.easeTo({ center: bounds.getCenter(), zoom: 13, duration: 0 })
+      map.easeTo({ center: bounds.getCenter(), zoom: 13, padding: { top: 134, right: 42, bottom: 150, left: 42 }, duration: 0 })
     } else if (locatedVehicles.length > 1) {
-      map.fitBounds(bounds, { padding: { top: 54, right: 42, bottom: 150, left: 42 }, maxZoom: 14, duration: 0 })
+      map.fitBounds(bounds, { padding: { top: 134, right: 42, bottom: 150, left: 42 }, maxZoom: 14, duration: 0 })
     } else if (currentLocation) {
-      map.easeTo({ center: [currentLocation.longitude, currentLocation.latitude], zoom: 12, duration: 0 })
+      map.easeTo({ center: [currentLocation.longitude, currentLocation.latitude], zoom: 12, padding: { top: 134, right: 42, bottom: 150, left: 42 }, duration: 0 })
     }
   }, [locatedVehicles, currentLocation, status])
 
@@ -196,6 +193,7 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
   return (
     <div className="goong-map-shell" aria-label="Map of matching vehicles">
       <div ref={containerRef} className="goong-map" role="region" aria-label="Interactive Goong map" />
+      <span className="goong-map-attribution" aria-label="Map data by Goong">© Goong</span>
       {status !== 'ready' && (
         <div className="goong-map-status" role={status === 'error' ? 'alert' : 'status'}>
           <MapPinned size={22} aria-hidden="true" />
