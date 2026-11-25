@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarCheck } from 'lucide-react'
 import { useBooking } from '../hooks/useBookings'
 import { BookingCard } from '../components/BookingCard'
+import { RentalJourney } from '../components/RentalJourney'
 import { CardSkeleton } from '@/shared/components/common/Skeleton'
 import { ErrorState } from '@/shared/components/common/StateViews'
 import { ROUTES } from '@/shared/constants'
@@ -40,6 +41,7 @@ export default function BookingDetailPage() {
       {isLoading && <CardSkeleton />}
       {isError && <ErrorState message="Booking details could not be loaded." onRetry={() => void refetch()} />}
       {!isLoading && !isError && booking && <>
+        <RentalJourney booking={booking} />
         <BookingCard booking={booking} />
         {booking.status === 'COMPLETED' && !reviewSubmitted && <form onSubmit={(event) => { event.preventDefault(); if (!review.trim() || submitReview.isPending) return; submitReview.mutate() }} className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <div><h2 className="text-sm font-bold text-foreground">Review this trip</h2><p className="mt-1 text-xs text-muted-foreground">Your feedback helps other renters make a decision.</p></div>

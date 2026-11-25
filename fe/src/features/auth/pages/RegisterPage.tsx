@@ -109,12 +109,15 @@ export default function RegisterPage() {
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
             <div className="grid grid-cols-1 gap-3">
-              <FormField label="Full name" error={errors.fullName?.message}>
+              <FormField htmlFor="fullName" label="Full name" error={errors.fullName?.message}>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
+                    id="fullName"
                     placeholder="John Doe"
                     autoFocus
+                    aria-invalid={!!errors.fullName}
+                    aria-describedby={errors.fullName ? 'fullName-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('fullName')}
                   />
@@ -124,26 +127,32 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Email" error={errors.email?.message}>
+              <FormField htmlFor="email" label="Email" error={errors.email?.message}>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
+                    id="email"
                     type="email"
                     placeholder="a@gmail.com"
                     autoComplete="email"
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('email')}
                   />
                 </div>
               </FormField>
 
-              <FormField label="Phone number" error={errors.phone?.message}>
+              <FormField htmlFor="phone" label="Phone number" error={errors.phone?.message}>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
+                    id="phone"
                     type="tel"
                     placeholder="0912345678"
                     autoComplete="tel"
+                    aria-invalid={!!errors.phone}
+                    aria-describedby={errors.phone ? 'phone-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 focus-visible:border-[#287f7e]"
                     {...register('phone')}
                   />
@@ -152,42 +161,48 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Password" error={errors.password?.message}>
+              <FormField htmlFor="new-password" label="Password" error={errors.password?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
+                    id="new-password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="new-password"
+                    aria-invalid={!!errors.password}
+                    aria-describedby={errors.password ? 'new-password-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 pr-9 focus-visible:border-[#287f7e]"
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-1"
-                    aria-label={showPassword ? 'Hide' : 'Show'}
+                    className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-muted hover:text-zinc-700"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                   </button>
                 </div>
               </FormField>
 
-              <FormField label="Confirm password" error={errors.confirmPassword?.message}>
+              <FormField htmlFor="confirm-password" label="Confirm password" error={errors.confirmPassword?.message}>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
                   <Input
+                    id="confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="new-password"
+                    aria-invalid={!!errors.confirmPassword}
+                    aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
                     className="h-11 rounded-lg bg-slate-50 text-sm font-semibold dark:bg-zinc-800/60 pl-10 pr-9 focus-visible:border-[#287f7e]"
                     {...register('confirmPassword')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-1"
-                    aria-label={showConfirmPassword ? 'Hide' : 'Show'}
+                    className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-muted hover:text-zinc-700"
+                    aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
                   >
                     {showConfirmPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                   </button>

@@ -21,6 +21,26 @@ interface NotificationRealtimeValue {
 const NotificationRealtimeContext = createContext<NotificationRealtimeValue | null>(null)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 const HUB_URL = `${API_BASE_URL.replace(/\/api\/?$/, '').replace(/\/$/, '')}/hubs/notifications`
+const NOTIFICATION_STORAGE_PREFIX = 'vehicle-rental-notifications'
+
+function readStoredNotifications(ownerId: string): RealtimeNotification[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(`${NOTIFICATION_STORAGE_PREFIX}:${ownerId}`) ?? '[]')
+    return Array.isArray(value) ? value.filter((item): item is RealtimeNotification => (
+      !!item && typeof item.notificationId === 'string' && typeof item.content === 'string' && typeof item.type === 'string' && typeof item.occurredAt === 'string'
+    )).slice(0, 100) : []
+  } catch {
+    return []
+  }
+}
+
+function storeNotifications(ownerId: string, notifications: RealtimeNotification[]) {
+  try {
+    localStorage.setItem(`${NOTIFICATION_STORAGE_PREFIX}:${ownerId}`, JSON.stringify(notifications.slice(0, 100)))
+  } catch {
+    // Storage may be unavailable in private browsing; live delivery still works.
+  }
+}
 
 export function NotificationRealtimeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
@@ -49,7 +69,16 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
         type: value.type,
         occurredAt: typeof value.occurredAt === 'string' ? value.occurredAt : new Date().toISOString(),
       }
-      setReceived((current) => [{ ...notification, ownerId }, ...current.filter((item) => item.notificationId !== notification.notificationId || item.ownerId !== ownerId)].slice(0, 100))
+      setReceived((current) => {
+        const currentForOwner = current.filter((item) => item.ownerId === ownerId)
+        const currentIds = new Set(currentForOwner.map((item) => item.notificationId))
+        const storedForOwner = readStoredNotifications(ownerId).filter((item) => !currentIds.has(item.notificationId))
+        const nextForOwner = [notification, ...currentForOwner, ...storedForOwner].filter((item, index, items) => (
+          items.findIndex((candidate) => candidate.notificationId === item.notificationId) === index
+        )).slice(0, 100)
+        storeNotifications(ownerId, nextForOwner)
+        return [...nextForOwner.map((item) => ({ ...item, ownerId })), ...current.filter((item) => item.ownerId !== ownerId)]
+      })
       toast.info(notification.content, { id: notification.notificationId })
     })
     connection.onreconnecting(() => { if (active) setConnection({ ownerId, state: 'reconnecting' }) })
@@ -85,7 +114,12 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
     }
   }, [ownerId])
 
-  const notifications = useMemo(() => received.filter((item) => item.ownerId === ownerId), [received, ownerId])
+  const notifications = useMemo(() => {
+    if (!ownerId) return []
+    const live = received.filter((item) => item.ownerId === ownerId)
+    const liveIds = new Set(live.map((item) => item.notificationId))
+    return [...live, ...readStoredNotifications(ownerId).filter((item) => !liveIds.has(item.notificationId))].slice(0, 100)
+  }, [received, ownerId])
   const connectionState: ConnectionState = !ownerId ? 'disconnected' : connection.ownerId === ownerId ? connection.state : 'connecting'
   const value = useMemo(() => ({ notifications, connectionState }), [notifications, connectionState])
   return <NotificationRealtimeContext.Provider value={value}>{children}</NotificationRealtimeContext.Provider>
