@@ -100,6 +100,11 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Greeting */}
+          <div className="mb-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">{isAdminLogin ? 'Admin sign in' : isOwnerLogin ? 'Owner sign in' : 'Sign in'}</h2>
+          </div>
+
           {!isAdminLogin && !isOwnerLogin && (
             <div className="-mt-2 mb-4 text-[13px] text-muted-foreground">
               Platform portals: <Link to={ROUTES.OWNER_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Owner sign in</Link> <span className="px-1">·</span><Link to={ROUTES.ADMIN_LOGIN} className="font-bold text-[#176f70] underline-offset-4 hover:underline">Admin sign in</Link>

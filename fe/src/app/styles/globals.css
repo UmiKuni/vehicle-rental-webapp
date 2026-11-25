@@ -100,6 +100,37 @@
     box-sizing: border-box;
   }
 
+  /* Safari gives localized date controls a wide intrinsic size. Allow every
+     date field and its form wrapper to shrink inside mobile grid columns. */
+  input[type='date'],
+  input[type='datetime-local'] {
+    display: block;
+    inline-size: 100%;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  label:has(input[type='date']),
+  label:has(input[type='datetime-local']),
+  label:has(input[type='date']) > span,
+  label:has(input[type='datetime-local']) > span {
+    min-inline-size: 0;
+  }
+
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='datetime-local']::-webkit-date-and-time-value,
+  input[type='date']::-webkit-datetime-edit,
+  input[type='datetime-local']::-webkit-datetime-edit {
+    min-inline-size: 0;
+    text-align: start;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
   body {
     min-height: 100dvh;
     background-color: hsl(var(--background));
@@ -367,6 +398,8 @@ body:has(.vehicle-search-page),
   .vehicle-search-page > .search-results-sheet { transition: none; }
 }
 @media (max-width: 380px) {
+  .booking-date-grid,
+  .filter-date-grid { grid-template-columns: minmax(0, 1fr); }
   .detail-title-row { flex-wrap: wrap; }
   .detail-rating { margin-top: 2px; }
   .detail-price { align-items: flex-start; flex-direction: column; gap: 4px; }
