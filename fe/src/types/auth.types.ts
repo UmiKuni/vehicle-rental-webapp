@@ -5,7 +5,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  fullName: string
+  fullname: string
   email: string
   phone: string
   password: string
@@ -19,11 +19,23 @@ export interface TokenResponse {
   expiresIn: number
 }
 
+export interface CurrentUserResponse {
+  userId: string
+  email: string
+  phone: string
+  fullname: string
+  address: string
+  role: string
+  isIdVerified: boolean
+  isDriverLicenseVerified: boolean
+  isVerified: boolean
+}
+
 export interface AuthUser {
   id: number | string
   username: string
   email: string
-  fullName: string
+  fullname: string
   role: UserRole
   avatar?: string
 }

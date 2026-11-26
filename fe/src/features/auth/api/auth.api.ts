@@ -1,7 +1,13 @@
 import apiClient from '@/shared/lib/axios'
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from '@/shared/constants'
 import { normalizeUserRole } from '@/types/auth.types'
-import type { LoginRequest, RegisterRequest, TokenResponse, AuthUser } from '@/types/auth.types'
+import type {
+  LoginRequest,
+  RegisterRequest,
+  TokenResponse,
+  AuthUser,
+  CurrentUserResponse,
+} from '@/types/auth.types'
 
 interface BackendAuthResult {
   userId: string
@@ -9,19 +15,6 @@ interface BackendAuthResult {
   accessTokenExpiresAt: string
   refreshToken: string
   refreshTokenExpiresAt: string
-}
-
-interface BackendIdentity {
-  userId: string
-  email: string
-  role: string
-}
-
-interface BackendProfile {
-  userId: string
-  email: string
-  phone: string
-  fullName: string
 }
 
 function getRole(role: string) {
@@ -35,14 +28,13 @@ async function loadSession(auth: BackendAuthResult, fullName?: string) {
   localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken)
 
   try {
-    const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
-    const { data: profile } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
+    const { data: me } = await apiClient.get<CurrentUserResponse>('/users/me')
     const user: AuthUser = {
-      id: identity.userId,
-      username: identity.email,
-      email: identity.email,
-      fullName: fullName || profile.fullName || identity.email,
-      role: getRole(identity.role),
+      id: me.userId,
+      username: me.email,
+      email: me.email,
+      fullName: fullName || me.fullName || me.email,
+      role: getRole(me.role),
     }
     const token: TokenResponse = {
       accessToken: auth.accessToken,
@@ -72,20 +64,9 @@ export const authApi = {
       email: data.email,
       phone: data.phone,
       password: data.password,
+      fullName: data.fullName,
     })
-    localStorage.setItem(TOKEN_KEY, auth.accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken)
-    try {
-      await apiClient.put(`/users/${auth.userId}/profile`, {
-        fullName: data.fullName,
-        address: '',
-      })
-      return loadSession(auth, data.fullName)
-    } catch (error) {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(REFRESH_TOKEN_KEY)
-      throw error
-    }
+    return loadSession(auth, data.fullName)
   },
 
   logout: async (): Promise<void> => {
@@ -94,14 +75,13 @@ export const authApi = {
   },
 
   getMe: async (): Promise<AuthUser> => {
-    const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
-    const { data: profile } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
+    const { data: me } = await apiClient.get<CurrentUserResponse>('/users/me')
     return {
-      id: identity.userId,
-      username: identity.email,
-      email: identity.email,
-      fullName: profile.fullName || identity.email,
-      role: getRole(identity.role),
+      id: me.userId,
+      username: me.email,
+      email: me.email,
+      fullName: me.fullName || me.email,
+      role: getRole(me.role),
     }
   },
 }

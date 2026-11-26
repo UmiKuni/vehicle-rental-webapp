@@ -65,12 +65,19 @@ public static class UsersEndpoints
         var unverifiedAllowed = group.MapGroup(string.Empty)
             .RequireAuthorization("UnverifiedUserAllowed");
 
-        unverifiedAllowed.MapGet("/me", (ClaimsPrincipal principal) =>
-            Results.Ok(BuildCurrentUserDto(principal)))
+        unverifiedAllowed.MapGet("/me", async (
+            ClaimsPrincipal principal,
+            IUsersApi api,
+            CancellationToken ct) =>
+        {
+            var result = await api.GetCurrentUserAsync(GetUserId(principal), ct);
+            return result.ToHttpResult();
+        })
         .WithName("GetCurrentUser")
-        .WithSummary("Get the authenticated user identity.")
+        .WithSummary("Get the authenticated user profile and identity.")
         .Produces<CurrentUserDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status401Unauthorized);
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status404NotFound);
 
         unverifiedAllowed.MapGet("/me/verification-status", async (
             ClaimsPrincipal principal,
@@ -437,22 +444,6 @@ public static class UsersEndpoints
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
-    }
-
-    private static CurrentUserDto BuildCurrentUserDto(ClaimsPrincipal principal)
-    {
-        var userId = GetUserId(principal);
-        var isIdVerified = string.Equals(principal.FindFirstValue("id_verified"), "true", StringComparison.OrdinalIgnoreCase);
-        var isDriverLicenseVerified = string.Equals(principal.FindFirstValue("driver_license_verified"), "true", StringComparison.OrdinalIgnoreCase);
-        var isVerified = string.Equals(principal.FindFirstValue("verified_user"), "true", StringComparison.OrdinalIgnoreCase);
-
-        return new CurrentUserDto(
-            userId,
-            principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
-            principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty,
-            isIdVerified,
-            isDriverLicenseVerified,
-            isVerified);
     }
 
     private static Guid GetUserId(ClaimsPrincipal principal)

@@ -8,6 +8,7 @@ public interface IUsersApi
 {
     Task<Result<BookingEligibilityDto>> GetBookingEligibilityAsync(Guid userId, CancellationToken ct = default);
     Task<Result<UserContactDto>> GetContactAsync(Guid userId, CancellationToken ct = default);
+    Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId, CancellationToken ct = default);
     Task<Result<UserProfileDto>> GetProfileAsync(Guid userId, CancellationToken ct = default);
     Task<Result<AuthResultDto>> RegisterAsync(RegisterUserDto dto, CancellationToken ct = default);
     Task<Result<AuthResultDto>> LoginAsync(LoginUserDto dto, CancellationToken ct = default);

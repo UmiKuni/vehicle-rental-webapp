@@ -1,10 +1,8 @@
 import apiClient from '@/shared/lib/axios'
 import type { KycProfile, KycSubmitPayload } from '@/types/kyc.types'
-import type { AuthUser } from '@/types/auth.types'
+import type { AuthUser, CurrentUserResponse } from '@/types/auth.types'
 import { normalizeUserRole } from '@/types/auth.types'
 
-interface BackendIdentity { userId: string; email: string; role: string }
-interface BackendProfile { userId: string; email: string; phone: string; fullName: string; address: string }
 interface VerificationStatus {
   userId: string
   isIdVerified: boolean
@@ -41,44 +39,42 @@ async function combineImages(files: File[], name: string): Promise<File> {
   }
 }
 
-async function currentProfile() {
-  const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
-  const { data: profile } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
-  return { identity, profile }
+async function fetchCurrentUser(): Promise<CurrentUserResponse> {
+  const { data } = await apiClient.get<CurrentUserResponse>('/users/me')
+  return data
 }
 
-function mapProfile(identity: BackendIdentity, profile: BackendProfile): AuthUser & { address: string; phone: string } {
-  const role = normalizeUserRole(identity.role)
+function mapProfile(me: CurrentUserResponse): AuthUser & { address: string; phone: string } {
+  const role = normalizeUserRole(me.role)
   if (!role || role === 'GUEST') throw new Error('This account does not have an active application role.')
   return {
-    id: identity.userId,
-    username: identity.email,
-    email: identity.email,
-    fullName: profile.fullName || identity.email,
+    id: me.userId,
+    username: me.email,
+    email: me.email,
+    fullName: me.fullName || me.email,
     role,
-    address: profile.address ?? '',
-    phone: profile.phone ?? '',
+    address: me.address ?? '',
+    phone: me.phone ?? '',
   }
 }
 
 export const profileApi = {
   getProfile: async (): Promise<AuthUser & { kyc?: KycProfile; address: string; phone: string }> => {
-    const { identity, profile } = await currentProfile()
-    return mapProfile(identity, profile)
+    const me = await fetchCurrentUser()
+    return mapProfile(me)
   },
 
   updateProfile: async (data: Partial<Pick<AuthUser, 'fullName' | 'avatar'>> & { address?: string }): Promise<AuthUser & { address: string; phone: string }> => {
-    const { identity, profile } = await currentProfile()
-    await apiClient.put(`/users/${identity.userId}/profile`, {
-      fullName: data.fullName ?? profile.fullName,
-      address: data.address ?? profile.address,
+    const me = await fetchCurrentUser()
+    await apiClient.put(`/users/${me.userId}/profile`, {
+      fullName: data.fullName ?? me.fullName,
+      address: data.address ?? me.address,
     })
-    const { data: updated } = await apiClient.get<BackendProfile>(`/users/${identity.userId}/profile`)
-    return mapProfile(identity, updated)
+    const updated = await fetchCurrentUser()
+    return mapProfile(updated)
   },
 
   getKycStatus: async (): Promise<KycProfile> => {
-    const { data: identity } = await apiClient.get<BackendIdentity>('/users/me')
     const { data: verification } = await apiClient.get<VerificationStatus>('/users/me/verification-status')
     const documents = verification.documents ?? []
     const documentStatuses = documents.map((document) => document.verificationStatus.toLowerCase())
@@ -93,8 +89,8 @@ export const profileApi = {
           ? 'PENDING'
           : 'UNVERIFIED'
     return {
-      id: identity.userId,
-      userId: identity.userId,
+      id: verification.userId,
+      userId: verification.userId,
       status,
       rejectionReason,
       vehicleInterests: [],
@@ -108,7 +104,7 @@ export const profileApi = {
   },
 
   submitKyc: async (payload: KycSubmitPayload): Promise<KycProfile> => {
-    const { profile } = await currentProfile()
+    const me = await fetchCurrentUser()
     if (payload.step2.docType !== 'CCCD') {
       throw new Error('The current backend verification API only accepts National ID (CCCD) documents.')
     }
@@ -124,8 +120,8 @@ export const profileApi = {
     }
     await apiClient.post('/users/me/verify-id', {
       documentNumber: payload.step2.idNumber,
-      fullName: profile.fullName,
-      address: payload.step3.address || profile.address,
+      fullName: me.fullName,
+      address: payload.step3.address || me.address,
       storageKey: idStorageKey,
     })
     const licenseClasses: Record<string, number> = { A1: 0, A2: 1, A: 2, B1: 3, B2: 4, B: 5, C: 6, D1: 7, D2: 8, D: 9, E: 10, FC: 11, INTERNATIONAL: 12 }

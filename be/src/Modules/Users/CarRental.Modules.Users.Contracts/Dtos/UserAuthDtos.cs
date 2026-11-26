@@ -6,7 +6,8 @@ namespace CarRental.Modules.Users.Contracts.Dtos;
 public sealed record RegisterUserDto(
     string Email,
     string Phone,
-    string Password);
+    string Password,
+    string FullName);
 
 /// <summary>Credentials used to authenticate by email or phone.</summary>
 public sealed record LoginUserDto(
@@ -24,10 +25,13 @@ public sealed record AuthResultDto(
 /// <summary>A refresh token used to obtain a new access-token pair.</summary>
 public sealed record RefreshTokenDto(string RefreshToken);
 
-/// <summary>The authenticated user identity.</summary>
+/// <summary>The authenticated user profile and identity.</summary>
 public sealed record CurrentUserDto(
     Guid UserId,
     string Email,
+    string Phone,
+    string FullName,
+    string Address,
     string Role,
     bool IsIdVerified = false,
     bool IsDriverLicenseVerified = false,

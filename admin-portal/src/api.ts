@@ -1,7 +1,17 @@
 import axios from 'axios'
 
 export interface Tokens { accessToken: string; refreshToken: string }
-export interface Identity { userId: string; email: string; role: string }
+export interface Identity {
+  userId: string
+  email: string
+  phone: string
+  fullName: string
+  address: string
+  role: string
+  isIdVerified: boolean
+  isDriverLicenseVerified: boolean
+  isVerified: boolean
+}
 export interface Brand { brandId: string; name: string }
 export interface Model { modelId: string; brandId: string; name: string }
 export interface Vehicle {

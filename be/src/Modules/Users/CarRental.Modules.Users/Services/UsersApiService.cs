@@ -65,6 +65,25 @@ public class UsersApiService : IUsersApi
         return Result.Success(new UserContactDto(user.Id.Value, user.Email, user.Phone, fullName));
     }
 
+    public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        var userIdValue = UserId.From(userId);
+        var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userIdValue, ct);
+        if (user is null)
+            return Result.Failure<CurrentUserDto>(UsersErrors.NotFound);
+
+        return Result.Success(new CurrentUserDto(
+            user.Id.Value,
+            user.Email,
+            user.Phone,
+            user.CustomerProfile?.FullName ?? string.Empty,
+            user.CustomerProfile?.Address ?? string.Empty,
+            user.Role.ToString(),
+            user.IsIdVerified,
+            user.IsDriverLicenseVerified,
+            user.IsVerified));
+    }
+
     public async Task<Result<UserProfileDto>> GetProfileAsync(Guid userId, CancellationToken ct = default)
     {
         var userIdValue = UserId.From(userId);
@@ -100,6 +119,13 @@ public class UsersApiService : IUsersApi
 
         var user = createResult.Value;
         await _dbContext.Users.AddAsync(user, ct);
+        // Set full name if provided
+        if (!string.IsNullOrWhiteSpace(dto.FullName))
+        {
+            var profileResult = user.UpdateProfile(dto.FullName, string.Empty);
+            if (profileResult.IsFailure)
+                return Result.Failure<AuthResultDto>(profileResult.Error);
+        }
         await _dbContext.SaveChangesAsync(ct);
 
         return await IssueTokensAsync(user, null, ct);
