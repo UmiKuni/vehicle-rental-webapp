@@ -17,6 +17,11 @@ public static class StorageErrors
             "storage.unsupported_content_type",
             $"Content type '{contentType}' is not supported.");
 
+    public static Error InvalidFileSignature(string contentType) =>
+        Error.Validation(
+            "storage.invalid_file_signature",
+            $"Uploaded file content does not match declared content type '{contentType}'.");
+
     public static Error InvalidFolder =>
         Error.Validation("storage.invalid_folder", "Target storage folder is invalid.");
 

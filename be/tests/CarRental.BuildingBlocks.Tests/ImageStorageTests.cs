@@ -26,6 +26,7 @@ public class ImageStorageTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.StorageKey.Should().StartWith("handover/booking-123/");
+        result.Value.StorageKey.Should().EndWith(".jpg");
         result.Value.StorageKey.Should().NotContain("front-left");
         result.Value.FileHash.Should().Be(expectedHash);
         result.Value.SizeBytes.Should().Be(jpegBytes.Length);
@@ -33,15 +34,19 @@ public class ImageStorageTests
         storage.Contains(result.Value.StorageKey).Should().BeTrue();
         storage.GetBytes(result.Value.StorageKey).Should().Equal(jpegBytes);
 
-        await using var pngStream = new MemoryStream([1, 2, 3, 4]);
+        byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02];
+        await using var pngStream = new MemoryStream(pngBytes);
         var pngResult = await storage.UploadAsync(new UploadRequest(
             pngStream, "card.png", "image/png", "vehicles/v1", StorageVisibility.Public));
         pngResult.IsSuccess.Should().BeTrue();
+        pngResult.Value.StorageKey.Should().EndWith(".png");
 
-        await using var webpStream = new MemoryStream([5, 6, 7, 8]);
+        byte[] webpBytes = [(byte)'R', (byte)'I', (byte)'F', (byte)'F', 0x24, 0x00, 0x00, 0x00, (byte)'W', (byte)'E', (byte)'B', (byte)'P'];
+        await using var webpStream = new MemoryStream(webpBytes);
         var webpResult = await storage.UploadAsync(new UploadRequest(
             webpStream, "card.webp", "image/webp", "vehicles/v1", StorageVisibility.Public));
         webpResult.IsSuccess.Should().BeTrue();
+        webpResult.Value.StorageKey.Should().EndWith(".webp");
     }
 
     [Fact]
@@ -61,11 +66,13 @@ public class ImageStorageTests
         var identityResult = await storage.UploadAsync(new UploadRequest(
             identityPdf, "cccd.pdf", "application/pdf", "identity/user-1", StorageVisibility.Private));
         identityResult.IsSuccess.Should().BeTrue();
+        identityResult.Value.StorageKey.Should().EndWith(".pdf");
 
         await using var explicitPdf = new MemoryStream(pdfBytes);
         var explicitResult = await storage.UploadAsync(new UploadRequest(
             explicitPdf, "evidence.pdf", "application/pdf", "support/ticket-1", StorageVisibility.Private, AllowPdf: true));
         explicitResult.IsSuccess.Should().BeTrue();
+        explicitResult.Value.StorageKey.Should().EndWith(".pdf");
     }
 
     [Fact]
@@ -96,6 +103,18 @@ public class ImageStorageTests
             unsupported, "script.sh", "text/plain", "vehicles/v1", StorageVisibility.Public));
         typeResult.IsFailure.Should().BeTrue();
         typeResult.Error.Code.Should().Be("storage.unsupported_content_type");
+
+        await using var spoofedPdf = new MemoryStream("not-a-pdf"u8.ToArray().AsSpan(0, 8).ToArray());
+        var spoofedPdfResult = await storage.UploadAsync(new UploadRequest(
+            spoofedPdf, "fake.pdf", "application/pdf", "identity/u1", StorageVisibility.Private, AllowPdf: true));
+        spoofedPdfResult.IsFailure.Should().BeTrue();
+        spoofedPdfResult.Error.Code.Should().Be("storage.invalid_file_signature");
+
+        await using var mismatchedMime = new MemoryStream([0xFF, 0xD8, 0xFF, 0xE0, 0x01]);
+        var mismatchedMimeResult = await storage.UploadAsync(new UploadRequest(
+            mismatchedMime, "fake.png", "image/png", "vehicles/v1", StorageVisibility.Public));
+        mismatchedMimeResult.IsFailure.Should().BeTrue();
+        mismatchedMimeResult.Error.Code.Should().Be("storage.invalid_file_signature");
     }
 
     [Fact]
@@ -141,7 +160,7 @@ public class ImageStorageTests
         invalidDelete.IsFailure.Should().BeTrue();
         invalidDelete.Error.Code.Should().Be(StorageErrors.InvalidStorageKey.Code);
 
-        await using var stream = new MemoryStream([10, 20, 30]);
+        await using var stream = new MemoryStream([0xFF, 0xD8, 0xFF, 0xE0, 10, 20, 30]);
         var uploaded = await storage.UploadAsync(new UploadRequest(
             stream, "car.jpg", "image/jpeg", "vehicles/v1", StorageVisibility.Public));
         uploaded.IsSuccess.Should().BeTrue();

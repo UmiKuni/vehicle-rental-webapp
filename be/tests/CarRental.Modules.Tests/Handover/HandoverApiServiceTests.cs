@@ -213,10 +213,21 @@ public class HandoverApiServiceTests
         uploadResult.IsSuccess.Should().BeTrue();
         uploadResult.Value.Corner.Should().Be("FrontRight");
         uploadResult.Value.StorageKey.Should().StartWith($"handover/{harness.BookingId:N}/");
+        uploadResult.Value.StorageKey.Should().EndWith(".jpg");
         uploadResult.Value.FileHash.Should().Be(expectedHash);
         uploadResult.Value.ViewUrl.Should().StartWith($"https://storage.carrental.vn/private/{uploadResult.Value.StorageKey}?exp=")
             .And.Contain("&sig=");
         harness.ImageStorage.Contains(uploadResult.Value.StorageKey).Should().BeTrue();
+
+        var replacementBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x55, 0x66, 0x77, 0x88 };
+        await using var replacementStream = new MemoryStream(replacementBytes);
+        var replacementResult = await harness.Service.UploadPhotoFileAsync(
+            handover.Id,
+            harness.CustomerId,
+            new UploadHandoverPhotoFileRequest("FrontRight", replacementStream, "front-right-2.jpg", "image/jpeg", Now));
+        replacementResult.IsSuccess.Should().BeTrue();
+        harness.ImageStorage.Contains(uploadResult.Value.StorageKey).Should().BeFalse("replaced corner photo should be deleted from storage");
+        harness.ImageStorage.Contains(replacementResult.Value.StorageKey).Should().BeTrue();
 
         await using var invalidStream = new MemoryStream([1, 2, 3]);
         var invalidType = await harness.Service.UploadPhotoFileAsync(
