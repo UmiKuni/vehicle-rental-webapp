@@ -1,5 +1,4 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import type { ReactNode } from 'react'
 import { queryClient } from '@/shared/lib/query-client'
 import { ThemeProvider } from '@/shared/contexts/ThemeContext'
@@ -18,7 +17,6 @@ export function AppProviders({ children }: AppProvidersProps) {
           <NotificationRealtimeProvider>{children}</NotificationRealtimeProvider>
         </AuthProvider>
       </ThemeProvider>
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   )
 }

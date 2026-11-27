@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Clock3, FileImage, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { toast } from 'sonner'
 import apiClient from '@/shared/lib/axios'
+import { resolvePrivateStorageUrl } from '@/shared/lib/storage-url'
 import { Button } from '@/shared/components/ui/Button'
 
 interface PendingVerification {
@@ -92,8 +93,8 @@ export default function IdentityVerificationsPage() {
               </div>
               <div className="grid min-h-56 place-items-center bg-[#f6f8f6] p-3">
                 {document.accessUrl ? (
-                  <a href={document.accessUrl} target="_blank" rel="noreferrer" className="block max-h-[420px] max-w-full">
-                    <img src={document.accessUrl} alt={`${document.documentType} for ${document.fullName || document.email}`} className="max-h-[420px] max-w-full rounded-lg object-contain" />
+                  <a href={resolvePrivateStorageUrl(document.accessUrl)} target="_blank" rel="noreferrer" className="block max-h-[420px] max-w-full">
+                    <img src={resolvePrivateStorageUrl(document.accessUrl)} alt={`${document.documentType} for ${document.fullName || document.email}`} className="max-h-[420px] max-w-full rounded-lg object-contain" />
                   </a>
                 ) : <p className="px-4 text-center text-sm text-[#718078]">The private document link is unavailable. Refresh the list to request a new link.</p>}
               </div>
