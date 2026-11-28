@@ -8,7 +8,7 @@ export type FormMode = 'create' | 'edit' | 'view'
 export type Size = 'sm' | 'md' | 'lg'
 
 // Theme type
-export type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'light' | 'dark'
 
 // PropsWithClassName helper
 export interface PropsWithClassName {
