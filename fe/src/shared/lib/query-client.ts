@@ -25,6 +25,9 @@ export const queryClient = new QueryClient({
 export function getErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError<ApiError>
   const problem = axiosError.response?.data as (ApiError & { detail?: string; title?: string }) | undefined
+  if ((problem as { errorCode?: string } | undefined)?.errorCode === 'storage.invalid_file_signature') {
+    return 'The file content does not match its format or may be damaged. Choose a valid JPG, PNG, WEBP or PDF file; renaming HEIC to JPG does not convert it.'
+  }
   return (
     problem?.detail ??
     problem?.message ??

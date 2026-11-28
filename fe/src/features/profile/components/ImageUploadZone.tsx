@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Camera, Upload, CheckCircle2 } from 'lucide-react'
+import { Camera, Upload, CheckCircle2, FileText } from 'lucide-react'
 import { cn } from '@/shared/utils'
 
 interface ImageUploadZoneProps {
@@ -8,6 +8,8 @@ interface ImageUploadZoneProps {
   onFileSelect: (file: File) => void
   isUploading: boolean
   hint: string
+  acceptPdf?: boolean
+  selectedFile?: File
 }
 
 export function ImageUploadZone({
@@ -16,6 +18,8 @@ export function ImageUploadZone({
   onFileSelect,
   isUploading,
   hint,
+  acceptPdf = false,
+  selectedFile,
 }: ImageUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -38,7 +42,13 @@ export function ImageUploadZone({
         )}
         style={{ aspectRatio: '16/9' }}
       >
-        {preview ? (
+        {selectedFile?.type.toLowerCase() === 'application/pdf' ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-6">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-[#1a8a9d]/10 text-[#1a8a9d]"><FileText className="size-5" /></div>
+            <span className="max-w-full truncate text-xs font-semibold text-foreground">{selectedFile.name}</span>
+            <span className="text-[10px] text-muted-foreground">PDF document</span>
+          </div>
+        ) : preview ? (
           <>
             <img src={preview} alt={label} className="h-full w-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity">
@@ -68,8 +78,8 @@ export function ImageUploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/jpg,image/png,image/webp"
-        capture="environment"
+        accept={acceptPdf ? 'image/jpeg,image/jpg,image/png,image/webp,application/pdf' : 'image/jpeg,image/jpg,image/png,image/webp'}
+        {...(!acceptPdf ? { capture: 'environment' as const } : {})}
         className="hidden"
         onChange={handleFile}
       />

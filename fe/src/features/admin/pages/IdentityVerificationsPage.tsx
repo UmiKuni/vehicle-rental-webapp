@@ -28,10 +28,14 @@ export default function IdentityVerificationsPage() {
   const queryClient = useQueryClient()
   const [rejecting, setRejecting] = useState<PendingVerification | null>(null)
   const [reason, setReason] = useState('')
+  const [failedImages, setFailedImages] = useState<{ updatedAt: number; documentIds: Set<string> }>(() => ({ updatedAt: 0, documentIds: new Set() }))
   const documents = useQuery({
     queryKey: ['admin', 'identity-verifications'],
     queryFn: async () => (await apiClient.get<PendingVerification[]>('/users/verifications/pending')).data,
+    staleTime: 0,
   })
+  const hasImageFailed = (documentId: string) =>
+    failedImages.updatedAt === documents.dataUpdatedAt && failedImages.documentIds.has(documentId)
   const review = useMutation({
     mutationFn: async ({ document, approved, rejectReason }: ReviewRequest) =>
       apiClient.put(`/users/${document.userId}/documents/${document.documentId}/verify`, {
@@ -93,16 +97,37 @@ export default function IdentityVerificationsPage() {
               </div>
               <div className="grid min-h-56 place-items-center bg-[#f6f8f6] p-3">
                 {document.accessUrl ? (
-                  <a href={resolvePrivateStorageUrl(document.accessUrl)} target="_blank" rel="noreferrer" className="block max-h-[420px] max-w-full">
-                    <img src={resolvePrivateStorageUrl(document.accessUrl)} alt={`${document.documentType} for ${document.fullName || document.email}`} className="max-h-[420px] max-w-full rounded-lg object-contain" />
-                  </a>
+                  document.storageKey.toLowerCase().endsWith('.pdf') ? (
+                    <div className="w-full space-y-2">
+                      <iframe src={resolvePrivateStorageUrl(document.accessUrl)} title={`${document.documentType} PDF for ${document.fullName || document.email}`} className="h-80 w-full rounded-lg border-0 bg-white" />
+                      <a href={resolvePrivateStorageUrl(document.accessUrl)} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#178b8d]">Open PDF in a new tab</a>
+                    </div>
+                  ) : (
+                    <a href={resolvePrivateStorageUrl(document.accessUrl)} target="_blank" rel="noreferrer" className="block max-h-[420px] max-w-full">
+                      {hasImageFailed(document.documentId) ? (
+                        <p role="alert" className="max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-900">
+                          This file is missing or its private link is invalid. Ask the customer to upload it again, then refresh this list.
+                        </p>
+                      ) : (
+                        <img
+                          src={resolvePrivateStorageUrl(document.accessUrl)}
+                          alt={`${document.documentType} for ${document.fullName || document.email}`}
+                          className="max-h-[420px] max-w-full rounded-lg object-contain"
+                          onError={() => setFailedImages((current) => ({
+                            updatedAt: documents.dataUpdatedAt,
+                            documentIds: new Set(current.updatedAt === documents.dataUpdatedAt ? current.documentIds : []).add(document.documentId),
+                          }))}
+                        />
+                      )}
+                    </a>
+                  )
                 ) : <p className="px-4 text-center text-sm text-[#718078]">The private document link is unavailable. Refresh the list to request a new link.</p>}
               </div>
               <div className="flex flex-col gap-3 border-t border-[#e8eeea] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <span className="min-w-0 truncate font-mono text-[10px] text-[#829087]" title={document.userId}>User {document.userId}</span>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => { setRejecting(document); setReason('') }}><X size={14} /> Reject</Button>
-                  <Button size="sm" disabled={!document.accessUrl || review.isPending} loading={review.isPending && review.variables?.document.documentId === document.documentId} onClick={() => review.mutate({ document, approved: true })}><Check size={14} /> Approve</Button>
+                  <Button size="sm" disabled={!document.accessUrl || hasImageFailed(document.documentId) || review.isPending} loading={review.isPending && review.variables?.document.documentId === document.documentId} onClick={() => review.mutate({ document, approved: true })}><Check size={14} /> Approve</Button>
                 </div>
               </div>
             </article>

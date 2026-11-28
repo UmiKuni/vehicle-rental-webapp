@@ -24,16 +24,19 @@ export default function LicenseVerificationPage() {
   const { mutateAsync: submitKyc, isPending, isSuccess } = useKycSubmit()
 
   const selectImage = (file: File, side: 'front' | 'back') => {
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type.toLowerCase())) return setError('Choose a JPG, PNG or WEBP image.')
-    if (file.size > 10 * 1024 * 1024) return setError('Each license image must be 10 MB or smaller.')
+    const isPdf = file.type.toLowerCase() === 'application/pdf'
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type.toLowerCase()) && !(side === 'front' && isPdf)) return setError('Choose a JPG, PNG, WEBP or one combined PDF document.')
+    if (side === 'back' && frontFile?.type.toLowerCase() === 'application/pdf') return setError('A PDF already contains both sides. Remove it before adding a back image.')
+    if (file.size > 10 * 1024 * 1024) return setError('Each license file must be 10 MB or smaller.')
     const url = URL.createObjectURL(file)
-    if (side === 'front') { setFrontFile(file); setFront(url) }
+    if (side === 'front') { setFrontFile(file); setFront(url); if (isPdf) { setBackFile(undefined); setBack('') } }
     else { setBackFile(file); setBack(url) }
     setError('')
   }
 
   const handleSave = async () => {
-    if (!identityFiles.idFrontFile || !identityFiles.idBackFile) return setError('Start again from the National ID step so both ID images can be uploaded.')
+    const hasIdentityPdf = identityFiles.idFrontFile?.type.toLowerCase() === 'application/pdf'
+    if (!identityFiles.idFrontFile || (!hasIdentityPdf && !identityFiles.idBackFile)) return setError('Start again from the National ID step and upload one PDF or both ID images.')
     const validLicenseNumber = licenseClass === 'INTERNATIONAL'
       ? /^[A-Za-z0-9-]{5,30}$/.test(licenseNumber.trim())
       : /^\d{12}$/.test(licenseNumber.trim())
@@ -42,7 +45,7 @@ export default function LicenseVerificationPage() {
         ? 'Enter a valid international permit number (5–30 letters, digits or hyphens).'
         : "Driver's license number must contain exactly 12 digits.")
     }
-    if (!frontFile || !backFile) return setError("Upload both sides of your driver's license.")
+    if (!frontFile || (frontFile.type.toLowerCase() !== 'application/pdf' && !backFile)) return setError("Upload one combined PDF or both sides of your driver's license as images.")
     const payload: KycSubmitPayload = {
       step1: { vehicleInterests: [], licenseClass, hasLicense: true },
       licenseNumber: licenseNumber.trim(),
@@ -80,7 +83,7 @@ export default function LicenseVerificationPage() {
       <div className="flex items-start gap-3"><div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1a8a9d]/10 text-[#1a8a9d]"><ShieldCheck size={22} /></div><div><p className="text-xs font-semibold text-[#1a8a9d]">Step 2 of 2</p><h1 className="mt-1 text-xl font-bold text-foreground">Driver's license</h1><p className="mt-1 text-xs leading-5 text-muted-foreground">Both sides are uploaded to the backend with your verification request.</p></div></div>
       <label className="block space-y-1.5"><span className="text-xs font-semibold text-foreground">License class</span><select value={licenseClass} onChange={(event) => setLicenseClass(event.target.value as LicenseClass)} className="h-12 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-[#1a8a9d]">{licenseClasses.map((value) => <option key={value} value={value}>{value === 'INTERNATIONAL' ? 'International Driving Permit' : `Class ${value}`}</option>)}</select></label>
       <label className="block space-y-1.5"><span className="text-xs font-semibold text-foreground">{licenseClass === 'INTERNATIONAL' ? 'Permit number' : 'License number (12 digits)'}</span><input inputMode={licenseClass === 'INTERNATIONAL' ? 'text' : 'numeric'} maxLength={licenseClass === 'INTERNATIONAL' ? 30 : 12} value={licenseNumber} onChange={(event) => setLicenseNumber(licenseClass === 'INTERNATIONAL' ? event.target.value.replace(/[^A-Za-z0-9-]/g, '') : event.target.value.replace(/\D/g, ''))} className="h-12 w-full rounded-xl border border-border bg-background px-3 font-mono text-sm outline-none focus:border-[#1a8a9d]" autoComplete="off" /></label>
-      <div className="space-y-3"><ImageUploadZone label="License front" preview={front} onFileSelect={(file) => selectImage(file, 'front')} isUploading={false} hint="Choose a photo or take one" /><ImageUploadZone label="License back" preview={back} onFileSelect={(file) => selectImage(file, 'back')} isUploading={false} hint="Choose a photo or take one" /></div>
+      <div className="space-y-3"><ImageUploadZone label="License front or combined PDF" preview={front} selectedFile={frontFile} acceptPdf onFileSelect={(file) => selectImage(file, 'front')} isUploading={false} hint="Choose a photo or a PDF containing both sides" /><ImageUploadZone label="License back" preview={back} selectedFile={backFile} onFileSelect={(file) => selectImage(file, 'back')} isUploading={false} hint="Choose a photo or take one" /></div>
       {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
       <button onClick={() => void handleSave()} disabled={isPending} className="h-12 w-full rounded-xl bg-[#1a8a9d] text-sm font-bold text-white hover:bg-[#147485] disabled:opacity-60">{isPending ? 'Uploading documents…' : 'Submit documents for review'}</button>
     </main>

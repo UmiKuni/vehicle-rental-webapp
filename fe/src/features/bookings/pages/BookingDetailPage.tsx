@@ -50,12 +50,13 @@ export default function BookingDetailPage() {
           <button type="submit" disabled={submitReview.isPending || !review.trim()} className="h-10 w-full rounded-xl bg-[#1a8a9d] text-sm font-bold text-white disabled:opacity-50">{submitReview.isPending ? 'Submitting…' : 'Submit review'}</button>
         </form>}
         {booking.status === 'COMPLETED' && reviewSubmitted && <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-700">Thanks for sharing your review.</p>}
-        <div className="grid grid-cols-2 gap-2">
-          {booking.status === 'CONFIRMED' && <Link to={`/bookings/${booking.id}/payment`} className="flex h-11 items-center justify-center rounded-xl bg-[#1a8a9d] text-xs font-bold text-white">Payment</Link>}
-          {booking.status === 'PAID' && <Link to={`/bookings/${booking.id}/pickup`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Pickup inspection</Link>}
-          {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && <Link to={`/bookings/${booking.id}/return`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Return inspection</Link>}
-          {booking.status === 'COMPLETED' && <Link to={`/bookings/${booking.id}/settlement`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Settlement &amp; deposit refund</Link>}
-        </div>
+        {(booking.status === 'PAID' || booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS' || booking.status === 'COMPLETED') && (
+          <div className="grid grid-cols-2 gap-2">
+            {booking.status === 'PAID' && <Link to={`/bookings/${booking.id}/pickup`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Pickup inspection</Link>}
+            {(booking.status === 'ACTIVE' || booking.status === 'IN_PROGRESS') && <Link to={`/bookings/${booking.id}/return`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Return inspection</Link>}
+            {booking.status === 'COMPLETED' && <Link to={`/bookings/${booking.id}/settlement`} className="flex h-11 items-center justify-center rounded-xl border border-border bg-card text-xs font-semibold text-foreground">Settlement &amp; deposit refund</Link>}
+          </div>
+        )}
       </>}
     </main>
   )

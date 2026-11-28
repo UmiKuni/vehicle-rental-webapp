@@ -186,7 +186,7 @@ export default function LoginPage() {
             </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-6">
-              <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="min-h-11 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
+              <button type="button" onClick={() => { void logout(); setPortalChoice(null); reset() }} className="min-h-11 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
               <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : portalChoice === 'owner' ? ROUTES.OWNER_DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="min-h-11 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to customer portal' : portalChoice === 'owner' ? 'Continue to owner workspace' : 'Continue to admin workspace'}</button>
             </DialogFooter>
           </>}
