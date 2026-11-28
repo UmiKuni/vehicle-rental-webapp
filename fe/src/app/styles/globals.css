@@ -347,6 +347,32 @@
 .dark .vehicle-filter-dialog { border-color: #35423e; background: #151e1c; color: #e5eeeb; }
 .dark .filter-dialog-kicker { color: #6fd0b0; }
 .dark .filter-reset { border-color: #46544e; }
+.dark .vehicle-detail-page { color: #e5eeeb; background: #101817; }
+.dark .detail-topbar { color: #e5eeeb; background: #101817; }
+.dark .detail-topbar button { color: #d3e0da; }
+.dark .detail-topbar button:hover { background: #202b28; }
+.dark .detail-image-wrap,.dark .vehicle-gallery { background: #18211f; }
+.dark .vehicle-overview .detail-title-row h2,.dark .detail-title-row h1,.dark .detail-section h2 { color: #e5eeeb; }
+.dark .detail-eyebrow,.dark .detail-rating small,.dark .detail-muted,.dark .detail-price span,.dark .detail-price small,
+.dark .detail-rating-summary p,.dark .vehicle-review-total,.dark .vehicle-review-header time { color: #9eafa8; }
+.dark .detail-location,.dark .vehicle-description,.dark .detail-features span,.dark .detail-cost-row,
+.dark .vehicle-review-card > p { color: #b3c1bb; }
+.dark .detail-location svg,.dark .detail-features svg { color: #6fd0b0; }
+.dark .detail-specs,.dark .detail-specs div+div,.dark .detail-section,.dark .detail-cost-row { border-color: #303c38; }
+.dark .detail-specs div { color: #82d2b3; }
+.dark .detail-specs span,.dark .detail-cost-row strong { color: #e0e9e5; }
+.dark .vehicle-description-toggle { color: #6fd0b0; }
+.dark .vehicle-provider-card,.dark .vehicle-review-card { border-color: #35423e; background: #18211f; }
+.dark .vehicle-provider-card strong,.dark .vehicle-review-header strong { color: #e0e9e5; }
+.dark .vehicle-provider-card p { color: #a5b5b0; }
+.dark .detail-rating-summary button,.dark .vehicle-reviews-more { border-color: #46544e; background: #202b28; color: #c8ddd3; }
+.dark .vehicle-reviews-empty { border-color: #46544e; color: #a5b5b0; }
+.dark .vehicle-booking-bar { border-color: #303c38; background: #111b19f2; box-shadow: 0 -5px 18px #00000030; }
+.dark .vehicle-booking-bar > div { color: #a5b5b0; }
+.dark .vehicle-booking-bar strong { color: #78d3b4; }
+.dark .vehicle-booking-bar strong small { color: #a5b5b0; }
+.dark .vehicle-booking-bar > button { background: #206b5d; }
+.dark .vehicle-booking-bar > button:disabled { background: #46544e; }
 
 /* ==========================================================================
    ANIMATIONS
