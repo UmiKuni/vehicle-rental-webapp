@@ -488,6 +488,8 @@ public class UsersApiService : IUsersApi
         if (user is null)
             return Result.Failure<UserVerificationStatusDto>(UsersErrors.NotFound);
 
+        var previousStorageKey = user.IdentityDocuments.FirstOrDefault(d => d.Type == type)?.StorageKey;
+
         var uploadResult = await _imageStorage.UploadAsync(
             new UploadRequest(
                 content,
@@ -503,11 +505,21 @@ public class UsersApiService : IUsersApi
         var addResult = user.AddIdentityDocument(type, uploadResult.Value.StorageKey);
         if (addResult.IsFailure)
         {
-            await _imageStorage.DeleteAsync(uploadResult.Value.StorageKey, StorageVisibility.Private, ct);
+            await _imageStorage.DeleteAsync(uploadResult.Value.StorageKey, StorageVisibility.Private, CancellationToken.None);
             return Result.Failure<UserVerificationStatusDto>(addResult.Error);
         }
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (_cacheService is not null)
+            await _cacheService.RemoveAsync(UserAuthCacheKeys.AuthSnapshot(userId), ct);
+
+        if (!string.IsNullOrWhiteSpace(previousStorageKey)
+            && !string.Equals(previousStorageKey, uploadResult.Value.StorageKey, StringComparison.Ordinal))
+        {
+            _ = await _imageStorage.DeleteAsync(previousStorageKey, StorageVisibility.Private, CancellationToken.None);
+        }
+
         return Result.Success(MapToVerificationStatusDto(user));
     }
 

@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using CarRental.BuildingBlocks.Storage;
 using CarRental.IntegrationTests.Fixtures;
 using CarRental.Modules.Users.Contracts.Dtos;
 using CarRental.Modules.Users.Contracts.Enums;
@@ -247,5 +250,49 @@ public class UsersIntegrationTests : IntegrationTestBase
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         body.RootElement.GetProperty("status").GetInt32().Should().Be(400);
         body.RootElement.GetProperty("errorCode").GetString().Should().Be("request.missing_body");
+    }
+
+    [Fact]
+    public async Task UploadIdentityDocument_PdfAndReplacement_ShouldPersistPdfKeyReturnSignedUrlAndDeleteOldAsset()
+    {
+        var (customerClient, _) = await CreateAuthenticatedCustomerClientAsync(
+            "pdf_kyc@example.com",
+            "0909112233",
+            verified: false);
+
+        using var firstForm = new MultipartFormDataContent();
+        var firstPdfContent = new ByteArrayContent("%PDF-1.7 first cccd document"u8.ToArray());
+        firstPdfContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        firstForm.Add(firstPdfContent, "file", "cccd-v1.pdf");
+
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonStringEnumConverter() }
+        };
+
+        var firstResponse = await customerClient.PostAsync("/api/users/me/documents/CCCD", firstForm);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var firstStatus = await firstResponse.Content.ReadFromJsonAsync<UserVerificationStatusDto>(jsonOptions);
+        firstStatus.Should().NotBeNull();
+        var firstDoc = firstStatus!.Documents.Should().ContainSingle(d => d.Type == DocumentType.CCCD).Subject;
+        firstDoc.StorageKey.Should().EndWith(".pdf");
+        firstDoc.AccessUrl.Should().NotBeNullOrWhiteSpace();
+
+        var storage = Factory.Services.GetRequiredService<IImageStorage>().Should().BeOfType<InMemoryImageStorage>().Subject;
+        storage.Contains(firstDoc.StorageKey).Should().BeTrue();
+
+        using var secondForm = new MultipartFormDataContent();
+        var secondPdfContent = new ByteArrayContent("%PDF-1.7 updated cccd document"u8.ToArray());
+        secondPdfContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        secondForm.Add(secondPdfContent, "file", "cccd-v2.pdf");
+
+        var secondResponse = await customerClient.PostAsync("/api/users/me/documents/CCCD", secondForm);
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondStatus = await secondResponse.Content.ReadFromJsonAsync<UserVerificationStatusDto>(jsonOptions);
+        var secondDoc = secondStatus!.Documents.Should().ContainSingle(d => d.Type == DocumentType.CCCD).Subject;
+        secondDoc.StorageKey.Should().EndWith(".pdf").And.NotBe(firstDoc.StorageKey);
+
+        storage.Contains(firstDoc.StorageKey).Should().BeFalse("re-uploading a KYC document should clean up the previous storage asset");
+        storage.Contains(secondDoc.StorageKey).Should().BeTrue();
     }
 }

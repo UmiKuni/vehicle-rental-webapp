@@ -198,6 +198,8 @@ internal sealed class HandoverApiService : IHandoverApi
         if (handover.Status != HandoverStatus.Draft)
             return HandoverErrors.Immutable;
 
+        var previousStorageKey = handover.Photos.FirstOrDefault(p => p.Corner == corner)?.StorageKey;
+
         var uploadResult = await _imageStorage.UploadAsync(
             new UploadRequest(
                 request.Content,
@@ -219,6 +221,12 @@ internal sealed class HandoverApiService : IHandoverApi
         }
 
         await _dbContext.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(previousStorageKey)
+            && !string.Equals(previousStorageKey, uploaded.StorageKey, StringComparison.Ordinal))
+        {
+            _ = await _imageStorage.DeleteAsync(previousStorageKey, StorageVisibility.Private, CancellationToken.None);
+        }
 
         var photo = handover.Photos.Single(p => p.Corner == corner);
         return ToPhotoDto(photo);

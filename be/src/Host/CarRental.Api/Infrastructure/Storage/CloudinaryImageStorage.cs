@@ -1,9 +1,10 @@
-using System.Globalization;
 using System.Net;
 using CarRental.BuildingBlocks.Results;
 using CarRental.BuildingBlocks.Storage;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StorageUploadResult = CarRental.BuildingBlocks.Storage.UploadResult;
 
@@ -14,11 +15,16 @@ internal sealed class CloudinaryImageStorage : IImageStorage
     private readonly Cloudinary _cloudinary;
     private readonly CloudinaryOptions _options;
     private readonly TimeProvider _clock;
+    private readonly ILogger<CloudinaryImageStorage> _logger;
 
-    public CloudinaryImageStorage(IOptions<CloudinaryOptions> options, TimeProvider clock)
+    public CloudinaryImageStorage(
+        IOptions<CloudinaryOptions> options,
+        TimeProvider clock,
+        ILogger<CloudinaryImageStorage>? logger = null)
     {
         _options = options.Value;
         _clock = clock;
+        _logger = logger ?? NullLogger<CloudinaryImageStorage>.Instance;
 
         var account = new Account(
             _options.CloudName.Trim(),
@@ -27,6 +33,7 @@ internal sealed class CloudinaryImageStorage : IImageStorage
 
         _cloudinary = new Cloudinary(account);
         _cloudinary.Api.Secure = true;
+        _cloudinary.Api.SignatureAlgorithm = SignatureAlgorithm.SHA256;
     }
 
     public async Task<Result<StorageUploadResult>> UploadAsync(UploadRequest request, CancellationToken ct = default)
@@ -39,8 +46,12 @@ internal sealed class CloudinaryImageStorage : IImageStorage
             return validatedResult.Error;
 
         var validated = validatedResult.Value;
+        var parsedResult = StorageValidation.ParseStorageKey(validated.StorageKey);
+        if (parsedResult.IsFailure)
+            return parsedResult.Error;
+
+        var parsed = parsedResult.Value;
         var deliveryType = request.Visibility == StorageVisibility.Private ? "authenticated" : "upload";
-        var isPdf = string.Equals(validated.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
 
         try
         {
@@ -51,14 +62,16 @@ internal sealed class CloudinaryImageStorage : IImageStorage
                     string.IsNullOrWhiteSpace(request.FileName) ? "upload" : Path.GetFileName(request.FileName),
                     uploadStream);
 
-                if (isPdf)
+                if (parsed.IsPdf)
                 {
                     var rawParams = new RawUploadParams
                     {
                         File = fileDesc,
-                        PublicId = validated.StorageKey,
+                        PublicId = parsed.NormalizedKey,
+                        AssetFolder = parsed.Folder,
                         Type = deliveryType,
                         Overwrite = true,
+                        Invalidate = true,
                         UseFilename = false,
                         UniqueFilename = false
                     };
@@ -68,9 +81,11 @@ internal sealed class CloudinaryImageStorage : IImageStorage
                 var imageParams = new ImageUploadParams
                 {
                     File = fileDesc,
-                    PublicId = validated.StorageKey,
+                    PublicId = parsed.KeyWithoutImageExtension,
+                    AssetFolder = parsed.Folder,
                     Type = deliveryType,
                     Overwrite = true,
+                    Invalidate = true,
                     UseFilename = false,
                     UniqueFilename = false
                 };
@@ -101,36 +116,74 @@ internal sealed class CloudinaryImageStorage : IImageStorage
         TimeSpan? signedUrlLifetime = null,
         ImageTransform? transform = null)
     {
-        var keyResult = StorageValidation.ValidateStorageKey(storageKey);
-        if (keyResult.IsFailure)
-            return keyResult.Error;
+        var parsedResult = StorageValidation.ParseStorageKey(storageKey);
+        if (parsedResult.IsFailure)
+            return parsedResult.Error;
 
-        var key = keyResult.Value;
+        var parsed = parsedResult.Value;
 
         try
         {
-            var url = _cloudinary.Api.UrlImgUp
-                .Secure(true)
-                .Action(visibility == StorageVisibility.Private ? "authenticated" : "upload");
-
-            if (visibility == StorageVisibility.Private)
-                url = url.Signed(true);
-
-            var transformation = BuildTransformation(transform);
-            if (transformation is not null)
-                url = url.Transform(transformation);
-
-            var builtUrl = url.BuildUrl(key);
             if (visibility == StorageVisibility.Public)
-                return builtUrl;
+            {
+                if (parsed.IsPdf)
+                {
+                    return _cloudinary.Api.Url
+                        .Secure(true)
+                        .ResourceType("raw")
+                        .Action("upload")
+                        .BuildUrl(parsed.NormalizedKey);
+                }
+
+                var publicUrl = _cloudinary.Api.UrlImgUp
+                    .Secure(true)
+                    .Action("upload");
+
+                var publicTransformation = BuildTransformation(transform);
+                if (publicTransformation is not null)
+                    publicUrl = publicUrl.Transform(publicTransformation);
+
+                return publicUrl.BuildUrl(parsed.NormalizedKey);
+            }
 
             var lifetime = StorageValidation.NormalizeSignedUrlLifetime(
                 signedUrlLifetime,
                 TimeSpan.FromMinutes(_options.DefaultSignedUrlMinutes),
                 TimeSpan.FromMinutes(_options.MaxSignedUrlMinutes));
             var expiresUnix = _clock.GetUtcNow().Add(lifetime).ToUnixTimeSeconds();
-            var separator = builtUrl.Contains('?', StringComparison.Ordinal) ? '&' : '?';
-            return $"{builtUrl}{separator}exp={expiresUnix.ToString(CultureInfo.InvariantCulture)}";
+
+            if (parsed.IsPdf)
+            {
+                return _cloudinary.DownloadPrivate(
+                    parsed.NormalizedKey,
+                    attachment: false,
+                    format: null,
+                    type: "authenticated",
+                    expiresAt: expiresUnix,
+                    resourceType: "raw");
+            }
+
+            var privateTransformation = BuildTransformation(transform);
+            if (privateTransformation is null && !string.IsNullOrWhiteSpace(parsed.Format))
+            {
+                return _cloudinary.DownloadPrivate(
+                    parsed.KeyWithoutImageExtension,
+                    attachment: false,
+                    format: parsed.Format,
+                    type: "authenticated",
+                    expiresAt: expiresUnix,
+                    resourceType: "image");
+            }
+
+            var fallbackUrl = _cloudinary.Api.UrlImgUp
+                .Secure(true)
+                .Action("authenticated")
+                .Signed(true);
+
+            if (privateTransformation is not null)
+                fallbackUrl = fallbackUrl.Transform(privateTransformation);
+
+            return fallbackUrl.BuildUrl(parsed.NormalizedKey);
         }
         catch (Exception ex)
         {
@@ -143,17 +196,21 @@ internal sealed class CloudinaryImageStorage : IImageStorage
         StorageVisibility visibility,
         CancellationToken ct = default)
     {
-        var keyResult = StorageValidation.ValidateStorageKey(storageKey);
-        if (keyResult.IsFailure)
-            return keyResult.Error;
+        var parsedResult = StorageValidation.ParseStorageKey(storageKey);
+        if (parsedResult.IsFailure)
+            return parsedResult.Error;
 
+        var parsed = parsedResult.Value;
         var deliveryType = visibility == StorageVisibility.Private ? "authenticated" : "upload";
+        var publicId = parsed.IsPdf ? parsed.NormalizedKey : parsed.KeyWithoutImageExtension;
+        var resourceType = parsed.IsPdf ? ResourceType.Raw : ResourceType.Image;
 
         try
         {
             var response = await ExecuteWithSingleRetryAsync(
-                () => _cloudinary.DestroyAsync(new DeletionParams(keyResult.Value)
+                () => _cloudinary.DestroyAsync(new DeletionParams(publicId)
                 {
+                    ResourceType = resourceType,
                     Type = deliveryType,
                     Invalidate = true
                 }),
@@ -164,6 +221,22 @@ internal sealed class CloudinaryImageStorage : IImageStorage
 
             if (response.Error is not null || (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NotFound))
                 return StorageErrors.DeleteFailed(response.Error?.Message ?? $"HTTP {(int)response.StatusCode}");
+
+            if (string.Equals(response.Result, "not found", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Cloudinary asset '{PublicId}' (ResourceType={ResourceType}, Type={DeliveryType}) reported 'not found' during deletion.",
+                    publicId,
+                    resourceType,
+                    deliveryType);
+                return Result.Success();
+            }
+
+            if (!string.IsNullOrWhiteSpace(response.Result)
+                && !string.Equals(response.Result, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return StorageErrors.DeleteFailed($"Unexpected Cloudinary delete result '{response.Result}'.");
+            }
 
             return Result.Success();
         }

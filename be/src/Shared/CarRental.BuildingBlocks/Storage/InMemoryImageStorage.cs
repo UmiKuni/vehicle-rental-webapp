@@ -48,15 +48,16 @@ public sealed class InMemoryImageStorage : IImageStorage
         TimeSpan? signedUrlLifetime = null,
         ImageTransform? transform = null)
     {
-        var keyResult = StorageValidation.ValidateStorageKey(storageKey);
-        if (keyResult.IsFailure)
-            return keyResult.Error;
+        var parsedResult = StorageValidation.ParseStorageKey(storageKey);
+        if (parsedResult.IsFailure)
+            return parsedResult.Error;
 
-        var key = keyResult.Value;
+        var parsed = parsedResult.Value;
+        var key = parsed.NormalizedKey;
         if (visibility == StorageVisibility.Public)
         {
             var baseUrl = $"https://storage.carrental.vn/public/{key}";
-            return AppendTransformQuery(baseUrl, transform);
+            return parsed.IsPdf ? baseUrl : AppendTransformQuery(baseUrl, transform);
         }
 
         var lifetime = StorageValidation.NormalizeSignedUrlLifetime(signedUrlLifetime);
