@@ -18,7 +18,7 @@ export function useRegister() {
       // Exclude confirmPassword when calling backend API
       const payload: RegisterRequest = {
         email: data.email,
-        fullname: data.fullname,
+        fullName: data.fullname,
         phone: data.phone,
         password: data.password,
       }
@@ -26,7 +26,7 @@ export function useRegister() {
     },
     onSuccess: ({ token, user }) => {
       login(user, token.accessToken, token.refreshToken)
-      toast.success(`Registration successful! Welcome, ${user.fullname}`)
+      toast.success(`Registration successful! Welcome, ${user.fullName}`)
       const from = (location.state as { from?: string | { pathname?: string; search?: string; hash?: string; state?: unknown } } | null)?.from
       if (typeof from === 'string') navigate(from, { replace: true })
       else if (from?.pathname) navigate({ pathname: from.pathname, search: from.search, hash: from.hash }, { replace: true, state: from.state })

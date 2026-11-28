@@ -69,9 +69,10 @@ export const authApi = {
     return loadSession(auth, data.fullName)
   },
 
-  logout: async (): Promise<void> => {
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-    if (refreshToken) await apiClient.post('/users/logout', { refreshToken })
+  logout: async (refreshToken: string, accessToken: string): Promise<void> => {
+    await apiClient.post('/users/logout', { refreshToken }, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
   },
 
   getMe: async (): Promise<AuthUser> => {

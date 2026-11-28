@@ -294,10 +294,13 @@
 .goong-map-status { position: absolute; z-index: 2; inset: 0 0 44%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; background: #eef2ec; color: #52665d; text-align: center; font-size: 11px; line-height: 1.5; }
 .goong-map-status svg { color: #347a65; }
 .goong-map-status span { max-width: 240px; }
-.goong-vehicle-marker { min-height: 32px; padding: 6px 9px; border: 1px solid #fff; border-radius: 10px 10px 10px 3px; background: #fff; color: #31584d; box-shadow: 0 3px 10px #183c3430; font-size: 10px; font-weight: 800; white-space: nowrap; transition: transform .15s cubic-bezier(.16,1,.3,1), background .15s, color .15s; }
-.goong-vehicle-marker:hover,.goong-vehicle-marker:focus-visible { transform: translateY(-2px); }
+.goong-vehicle-marker { min-height: 32px; padding: 6px 9px; border: 1px solid #fff; border-radius: 10px 10px 10px 3px; background: #fff; color: #31584d; box-shadow: 0 3px 10px #183c3430; font-size: 10px; font-weight: 800; white-space: nowrap; transition: box-shadow .15s, background .15s, color .15s; }
+.goong-vehicle-marker > span { display: block; transition: transform .15s cubic-bezier(.16,1,.3,1); }
+.goong-vehicle-marker:hover > span,.goong-vehicle-marker:focus-visible > span { transform: translateY(-1px); }
+.goong-vehicle-marker:hover,.goong-vehicle-marker:focus-visible { box-shadow: 0 4px 13px #183c3450; }
 .goong-vehicle-marker:focus-visible { outline: 2px solid #287f7e; outline-offset: 2px; }
-.goong-vehicle-marker.is-active { background: #174d44; color: #fff; transform: translateY(-2px) scale(1.05); }
+.goong-vehicle-marker.is-active { background: #174d44; color: #fff; box-shadow: 0 4px 13px #174d4466; }
+.goong-vehicle-marker.is-active > span { transform: scale(1.05); }
 .goong-current-location { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: #287f7e; box-shadow: 0 2px 10px #174d4460; }
 .goong-current-location::after { content: ''; position: absolute; inset: -7px; border: 1px solid #287f7e66; border-radius: 50%; }
 .goong-map-attribution { position: absolute; z-index: 1; right: 5px; top: 122px; color: #53655d; font-size: 8px; line-height: 1; text-shadow: 0 1px 1px #fff; pointer-events: none; }
@@ -314,6 +317,62 @@
   .home-page { padding: 0 32px 100px; }.home-hero { display: grid; grid-template-columns: .95fr 1.05fr; align-items: center; gap: 24px; padding: 48px 0; }.home-hero-art { height: 300px; margin: 0; }.home-hero h1 { font-size: 49px; }.home-steps { grid-template-columns: repeat(5,1fr); }.home-step,.home-step:last-child { min-height: 141px; grid-column: auto; }.vehicle-search-page { height: calc(100dvh - 70px); }.search-toolbar { min-height: 69px; padding-inline: 18px; }.search-map-stage { min-height: 220px; }.search-results-sheet { flex-basis: 44%; }.filter-open-button { width: auto; padding-inline: 13px; }.filter-open-button span { display: inline; }.vehicle-filter-dialog { width: min(92vw,540px); }.detail-image-wrap { height: 335px; }.detail-main { padding-inline: 25px; }.vehicle-detail-page { padding-bottom: 35px; }
 }
 @media (prefers-reduced-motion: reduce) { .home-cta,.goong-vehicle-marker,.search-results-sheet { transition: none; } }
+
+/* Dark theme for customer discovery pages */
+.dark .home-page { --home-ink: #e5eeeb; --home-muted: #a5b5b0; color: var(--home-ink); background: #101817; }
+.dark .home-header,.dark .home-how { border-color: #293633; }
+.dark .home-brand,.dark .home-hero h1,.dark .home-section-heading h2 { color: #e5eeeb; }
+.dark .home-header-link,.dark .home-bottom-link,.dark .home-eyebrow,.dark .home-hero h1 em { color: #6fd0b0; }
+.dark .home-hero-copy > p,.dark .home-trust,.dark .home-section-heading p,.dark .home-step p { color: #a5b5b0; }
+.dark .home-step { border-color: #303c38; background: #18211f; }
+.dark .home-step-icon { color: #83d6b7; background: #233b33; }
+.dark .home-step-index { color: #91a59d; }
+.dark .home-hero-art img { mix-blend-mode: normal; opacity: .82; }
+.dark .vehicle-search-page { background: #101817; }
+.dark .search-location-icon,.dark .goong-map-status svg { color: #6fd0b0; }
+.dark .search-location-copy small,.dark .search-results-kicker,.dark .sheet-handle-text { color: #98aaa3; }
+.dark .search-location-copy input,.dark .search-query-row input { color: #e5eeeb; }
+.dark .locate-button,.dark .search-query-row { border-color: #35423e; background: #18211f; color: #a9bbb4; }
+.dark .filter-open-button { border-color: #287f70; background: #206b5d; }
+.dark .search-query-row input::placeholder { color: #82948d; }
+.dark .goong-map-shell { background: #17211e; }
+.dark .goong-map-status { background: #17211e; color: #c0cec8; }
+.dark .goong-map-attribution { color: #263c34; }
+.dark .search-results-sheet { border-color: #303c38; background: #151e1c; }
+.dark .sheet-handle { background: #566760; }
+.dark .search-results-heading h1 { color: #e5eeeb; }
+.dark .search-results-location,.dark .search-empty { color: #a5b5b0; }
+.dark .search-empty strong { color: #e5eeeb; }
+.dark .search-empty button,.dark .filter-reset { border-color: #46544e; background: #202b28; color: #d3e0da; }
+.dark .vehicle-filter-dialog { border-color: #35423e; background: #151e1c; color: #e5eeeb; }
+.dark .filter-dialog-kicker { color: #6fd0b0; }
+.dark .filter-reset { border-color: #46544e; }
+.dark .vehicle-detail-page { color: #e5eeeb; background: #101817; }
+.dark .detail-topbar { color: #e5eeeb; background: #101817; }
+.dark .detail-topbar button { color: #d3e0da; }
+.dark .detail-topbar button:hover { background: #202b28; }
+.dark .detail-image-wrap,.dark .vehicle-gallery { background: #18211f; }
+.dark .vehicle-overview .detail-title-row h2,.dark .detail-title-row h1,.dark .detail-section h2 { color: #e5eeeb; }
+.dark .detail-eyebrow,.dark .detail-rating small,.dark .detail-muted,.dark .detail-price span,.dark .detail-price small,
+.dark .detail-rating-summary p,.dark .vehicle-review-total,.dark .vehicle-review-header time { color: #9eafa8; }
+.dark .detail-location,.dark .vehicle-description,.dark .detail-features span,.dark .detail-cost-row,
+.dark .vehicle-review-card > p { color: #b3c1bb; }
+.dark .detail-location svg,.dark .detail-features svg { color: #6fd0b0; }
+.dark .detail-specs,.dark .detail-specs div+div,.dark .detail-section,.dark .detail-cost-row { border-color: #303c38; }
+.dark .detail-specs div { color: #82d2b3; }
+.dark .detail-specs span,.dark .detail-cost-row strong { color: #e0e9e5; }
+.dark .vehicle-description-toggle { color: #6fd0b0; }
+.dark .vehicle-provider-card,.dark .vehicle-review-card { border-color: #35423e; background: #18211f; }
+.dark .vehicle-provider-card strong,.dark .vehicle-review-header strong { color: #e0e9e5; }
+.dark .vehicle-provider-card p { color: #a5b5b0; }
+.dark .detail-rating-summary button,.dark .vehicle-reviews-more { border-color: #46544e; background: #202b28; color: #c8ddd3; }
+.dark .vehicle-reviews-empty { border-color: #46544e; color: #a5b5b0; }
+.dark .vehicle-booking-bar { border-color: #303c38; background: #111b19f2; box-shadow: 0 -5px 18px #00000030; }
+.dark .vehicle-booking-bar > div { color: #a5b5b0; }
+.dark .vehicle-booking-bar strong { color: #78d3b4; }
+.dark .vehicle-booking-bar strong small { color: #a5b5b0; }
+.dark .vehicle-booking-bar > button { background: #206b5d; }
+.dark .vehicle-booking-bar > button:disabled { background: #46544e; }
 
 /* ==========================================================================
    ANIMATIONS

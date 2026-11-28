@@ -10,6 +10,7 @@ import { Input } from '@/shared/components/ui/Input'
 import { FormField } from '@/shared/components/ui/FormField'
 import { APP_NAME, ROUTES } from '@/shared/constants'
 import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
+import { ThemeToggle } from '@/shared/components/common/ThemeToggle'
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -78,6 +79,7 @@ export default function RegisterPage() {
 
         {/* Right Form Column (App Native Form) */}
           <div className="flex flex-col justify-center bg-white p-6 dark:bg-zinc-900 sm:p-9 lg:p-12 md:col-span-7">
+          <div className="mb-3 flex justify-end"><ThemeToggle /></div>
           {/* Mobile-only App Icon Header */}
             <div className="mb-5 flex items-center gap-2.5 md:hidden">
               <div className="grid size-8 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-4" /></div>

@@ -60,7 +60,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
     const requestPath = originalRequest.url ?? ''
-    const isAuthRequest = /\/users\/(login|register)$|\/auth\/(login|register)$/.test(requestPath)
+    const isAuthRequest = /\/users\/(login|register|logout)$|\/auth\/(login|register)$/.test(requestPath)
 
     if (error.response?.status === 401 && !isAuthRequest && !originalRequest._retry) {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -109,6 +109,10 @@ apiClient.interceptors.response.use(
           throw new Error('The refresh response did not include both tokens.')
         }
 
+        if (localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshToken) {
+          throw new Error('The active session changed while refreshing its token.')
+        }
+
         localStorage.setItem(TOKEN_KEY, newAccessToken)
         localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken)
 
@@ -118,10 +122,12 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(REFRESH_TOKEN_KEY)
-        const loginPath = getLoginPath(window.location.pathname)
-        if (window.location.pathname !== loginPath) window.location.href = loginPath
+        if (localStorage.getItem(REFRESH_TOKEN_KEY) === refreshToken) {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(REFRESH_TOKEN_KEY)
+          const loginPath = getLoginPath(window.location.pathname)
+          if (window.location.pathname !== loginPath) window.location.href = loginPath
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

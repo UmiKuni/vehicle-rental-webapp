@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { APP_NAME, ROUTES } from '@/shared/constants'
 import { getErrorMessage, getFieldErrors } from '@/shared/lib/query-client'
 import { useAuth } from '@/shared/contexts/AuthContext'
+import { ThemeToggle } from '@/shared/components/common/ThemeToggle'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -77,6 +78,7 @@ export default function LoginPage() {
 
         {/* Right Form Column (App Native Form) */}
         <div className="flex flex-col justify-center bg-white p-6 dark:bg-zinc-900 sm:p-9 lg:p-12 md:col-span-7">
+          <div className="mb-3 flex justify-end"><ThemeToggle /></div>
           {/* Mobile-only App Icon Header */}
           <div className="mb-5 flex items-center gap-2.5 md:hidden">
             <div className="grid size-8 place-items-center rounded-md bg-[#287f7e] text-white"><Car className="size-4" /></div>
@@ -186,7 +188,7 @@ export default function LoginPage() {
             </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-6">
-              <button type="button" onClick={() => { logout(); setPortalChoice(null); reset() }} className="min-h-11 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
+              <button type="button" onClick={() => { void logout(); setPortalChoice(null); reset() }} className="min-h-11 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Use a different account</button>
               <button type="button" onClick={() => { const destination = portalChoice === 'admin' ? ROUTES.DASHBOARD : portalChoice === 'owner' ? ROUTES.OWNER_DASHBOARD : ROUTES.SEARCH; setPortalChoice(null); navigate(destination, { replace: true }) }} className="min-h-11 rounded-lg bg-[#16868a] px-4 text-xs font-bold text-white transition hover:bg-[#116d72]">{portalChoice === 'customer' ? 'Continue to customer portal' : portalChoice === 'owner' ? 'Continue to owner workspace' : 'Continue to admin workspace'}</button>
             </DialogFooter>
           </>}

@@ -150,7 +150,9 @@ export function GoongVehicleMap({ vehicles, selectedVehicleId, currentLocation, 
       element.type = 'button'
       element.className = 'goong-vehicle-marker'
       element.setAttribute('aria-label', `Select ${vehicle.name}, ${markerLabel(vehicle)} VND per day`)
-      element.textContent = markerLabel(vehicle)
+      const label = document.createElement('span')
+      label.textContent = markerLabel(vehicle)
+      element.append(label)
       element.addEventListener('click', () => onSelectRef.current(vehicle))
 
       const coordinates: [number, number] = [vehicle.longitude!, vehicle.latitude!]

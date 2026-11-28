@@ -9,6 +9,7 @@ import { VerificationBadge } from '../components/VerificationBadge'
 import { ROUTES } from '@/shared/constants'
 import { cn } from '@/shared/utils'
 import { getInitials } from '@/shared/utils'
+import { ThemeToggle } from '@/shared/components/common/ThemeToggle'
 
 // ─── Sub-components to keep this file under 250 lines ────────────────────────
 
@@ -174,6 +175,14 @@ export default function ProfilePage() {
       {isCustomer && kycStatus === 'REJECTED' && <KycRejectedBanner reason={kyc?.rejectionReason} />}
 
       {/* ── Account Info Card ── */}
+      <div className="mx-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Appearance</p>
+          <p className="mt-1 text-xs text-muted-foreground">Choose light or dark mode</p>
+        </div>
+        <ThemeToggle />
+      </div>
+
       <div className="mx-4 rounded-2xl border border-border bg-card p-4 space-y-0.5">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           Account Information
