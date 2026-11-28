@@ -318,6 +318,36 @@
 }
 @media (prefers-reduced-motion: reduce) { .home-cta,.goong-vehicle-marker,.search-results-sheet { transition: none; } }
 
+/* Dark theme for customer discovery pages */
+.dark .home-page { --home-ink: #e5eeeb; --home-muted: #a5b5b0; color: var(--home-ink); background: #101817; }
+.dark .home-header,.dark .home-how { border-color: #293633; }
+.dark .home-brand,.dark .home-hero h1,.dark .home-section-heading h2 { color: #e5eeeb; }
+.dark .home-header-link,.dark .home-bottom-link,.dark .home-eyebrow,.dark .home-hero h1 em { color: #6fd0b0; }
+.dark .home-hero-copy > p,.dark .home-trust,.dark .home-section-heading p,.dark .home-step p { color: #a5b5b0; }
+.dark .home-step { border-color: #303c38; background: #18211f; }
+.dark .home-step-icon { color: #83d6b7; background: #233b33; }
+.dark .home-step-index { color: #91a59d; }
+.dark .home-hero-art img { mix-blend-mode: normal; opacity: .82; }
+.dark .vehicle-search-page { background: #101817; }
+.dark .search-location-icon,.dark .goong-map-status svg { color: #6fd0b0; }
+.dark .search-location-copy small,.dark .search-results-kicker,.dark .sheet-handle-text { color: #98aaa3; }
+.dark .search-location-copy input,.dark .search-query-row input { color: #e5eeeb; }
+.dark .locate-button,.dark .search-query-row { border-color: #35423e; background: #18211f; color: #a9bbb4; }
+.dark .filter-open-button { border-color: #287f70; background: #206b5d; }
+.dark .search-query-row input::placeholder { color: #82948d; }
+.dark .goong-map-shell { background: #17211e; }
+.dark .goong-map-status { background: #17211e; color: #c0cec8; }
+.dark .goong-map-attribution { color: #263c34; }
+.dark .search-results-sheet { border-color: #303c38; background: #151e1c; }
+.dark .sheet-handle { background: #566760; }
+.dark .search-results-heading h1 { color: #e5eeeb; }
+.dark .search-results-location,.dark .search-empty { color: #a5b5b0; }
+.dark .search-empty strong { color: #e5eeeb; }
+.dark .search-empty button,.dark .filter-reset { border-color: #46544e; background: #202b28; color: #d3e0da; }
+.dark .vehicle-filter-dialog { border-color: #35423e; background: #151e1c; color: #e5eeeb; }
+.dark .filter-dialog-kicker { color: #6fd0b0; }
+.dark .filter-reset { border-color: #46544e; }
+
 /* ==========================================================================
    ANIMATIONS
    ========================================================================== */
